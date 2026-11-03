@@ -101,6 +101,10 @@ create table if not exists public.battles (
   created_at timestamptz not null default now(),
   finished_at timestamptz
 );
+alter table public.battles add column if not exists sponsored boolean not null default false;
+-- v8: privatni battle — ne prikazuje se na popisu, ulazi se preko linka
+alter table public.battles add column if not exists private boolean not null default false;
+
 -- v2: Jackpot mod (pobjednik se izvlači proporcionalno vrijednosti)
 alter table public.battles add column if not exists jackpot boolean not null default false;
 alter table public.battles add column if not exists jackpot_ticket numeric;
@@ -119,6 +123,8 @@ create table if not exists public.battle_players (
 
 -- v5: posudba — igrač može platiti samo dio ulaza (stake 0.1–1) i tada dobiva isti dio nagrade
 alter table public.battle_players add column if not exists stake numeric(5,4) not null default 1;
+-- v7: sponzorirani battle — kreator plaća sva mjesta, ostali ulaze besplatno
+alter table public.battle_players add column if not exists paid numeric(14,2);
 
 create table if not exists public.battle_drops (
   battle_id uuid references public.battles(id) on delete cascade,
@@ -662,7 +668,9 @@ returns int language sql immutable as $$ select p_seat / p_team_size; $$;
 
 drop function if exists public.create_battle(text, int[], boolean);
 drop function if exists public.create_battle(text, int[], boolean, boolean);
-create or replace function public.create_battle(p_mode text, p_case_ids int[], p_crazy boolean default false, p_jackpot boolean default false, p_stake numeric default 1)
+drop function if exists public.create_battle(text, int[], boolean, boolean, numeric);
+drop function if exists public.create_battle(text, int[], boolean, boolean, numeric, boolean);
+create or replace function public.create_battle(p_mode text, p_case_ids int[], p_crazy boolean default false, p_jackpot boolean default false, p_stake numeric default 1, p_sponsored boolean default false, p_private boolean default false)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare
   uid uuid := public._uid();
@@ -690,11 +698,13 @@ begin
   end if;
   stake := round(coalesce(p_stake, 1), 4);
   if stake < 0.1 or stake > 1 then raise exception 'Posudba: plaćaš između 10%% i 100%% ulaza.'; end if;
-  perform public._charge(uid, round(cost * stake, 2));
+  -- sponzor plaća i mjesta za ostale igrače
+  perform public._charge(uid, round(cost * stake, 2) + case when coalesce(p_sponsored, false) then cost * (seats - 1) else 0 end);
   select username into uname from public.profiles where id = uid;
-  insert into public.battles (creator_id, mode, seats, team_size, case_ids, cost, crazy, jackpot)
-  values (uid, p_mode, seats, tsize, p_case_ids, cost, coalesce(p_crazy, false), coalesce(p_jackpot, false)) returning id into bid;
-  insert into public.battle_players (battle_id, seat, team, user_id, name, stake) values (bid, 0, 0, uid, uname, stake);
+  insert into public.battles (creator_id, mode, seats, team_size, case_ids, cost, crazy, jackpot, sponsored, private)
+  values (uid, p_mode, seats, tsize, p_case_ids, cost, coalesce(p_crazy, false), coalesce(p_jackpot, false), coalesce(p_sponsored, false), coalesce(p_private, false)) returning id into bid;
+  insert into public.battle_players (battle_id, seat, team, user_id, name, stake, paid)
+  values (bid, 0, 0, uid, uname, stake, round(cost * stake, 2) + case when coalesce(p_sponsored, false) then cost * (seats - 1) else 0 end);
   return bid;
 end $$;
 
@@ -771,7 +781,8 @@ begin
   update public.battles set status = 'finished', winner_team = win_team, total_value = pot_total, finished_at = now() where id = p_id;
 
   for pl in select * from public.battle_players where battle_id = p_id and not is_bot and user_id is not null order by seat loop
-    paid := round(b.cost * pl.stake, 2);
+    -- XP/ulog: vlastiti ulaz (sponzorirana mjesta drugih ne broje se u ulog; besplatni igrači 0)
+    paid := case when b.sponsored and pl.user_id <> b.creator_id then 0 else round(b.cost * pl.stake, 2) end;
     perform public._apply_wager(pl.user_id, paid);
     payout := 0;
     if pl.team = win_team then
@@ -824,11 +835,15 @@ begin
   if exists (select 1 from public.battle_players where battle_id = p_id and seat = p_seat) then
     raise exception 'Mjesto je zauzeto.';
   end if;
-  if stake < 0.1 or stake > 1 then raise exception 'Posudba: plaćaš između 10%% i 100%% ulaza.'; end if;
-  perform public._charge(uid, round(b.cost * stake, 2));
+  if b.sponsored then
+    stake := 1; -- sponzorirano: ulaz je besplatan i igra se za punu nagradu
+  else
+    if stake < 0.1 or stake > 1 then raise exception 'Posudba: plaćaš između 10%% i 100%% ulaza.'; end if;
+    perform public._charge(uid, round(b.cost * stake, 2));
+  end if;
   select username into uname from public.profiles where id = uid;
-  insert into public.battle_players (battle_id, seat, team, user_id, name, stake)
-  values (p_id, p_seat, public._battle_team(p_seat, b.team_size), uid, uname, stake);
+  insert into public.battle_players (battle_id, seat, team, user_id, name, stake, paid)
+  values (p_id, p_seat, public._battle_team(p_seat, b.team_size), uid, uname, stake, case when b.sponsored then 0 else round(b.cost * stake, 2) end);
   select count(*) into filled from public.battle_players where battle_id = p_id;
   if filled = b.seats then perform public._resolve_battle(p_id); end if;
   return jsonb_build_object('ok', true, 'started', filled = b.seats);
@@ -850,6 +865,10 @@ begin
     if not exists (select 1 from public.battle_players where battle_id = p_id and seat = s) then
       insert into public.battle_players (battle_id, seat, team, is_bot, name)
       values (p_id, s, public._battle_team(s, b.team_size), true, bots[s + 1]);
+      -- sponzorirano mjesto koje je uzeo bot vraća se sponzoru
+      if b.sponsored then
+        update public.profiles set balance = balance + b.cost where id = b.creator_id;
+      end if;
     end if;
   end loop;
   perform public._resolve_battle(p_id);
@@ -870,7 +889,8 @@ begin
   end if;
   update public.battles set status = 'cancelled' where id = p_id;
   update public.profiles
-     set balance = balance + round(b.cost * coalesce((select stake from public.battle_players where battle_id = p_id and user_id = uid), 1), 2)
+     set balance = balance + coalesce((select paid from public.battle_players where battle_id = p_id and user_id = uid),
+                                      round(b.cost * coalesce((select stake from public.battle_players where battle_id = p_id and user_id = uid), 1), 2))
    where id = uid;
   return jsonb_build_object('ok', true);
 end $$;
@@ -913,7 +933,7 @@ grant execute on function public.play_trinity(numeric, text) to authenticated;
 grant execute on function public.play_jackpot(numeric) to authenticated;
 grant execute on function public.claim_daily() to authenticated;
 grant execute on function public.claim_reward(text) to authenticated;
-grant execute on function public.create_battle(text, int[], boolean, boolean, numeric) to authenticated;
+grant execute on function public.create_battle(text, int[], boolean, boolean, numeric, boolean, boolean) to authenticated;
 grant execute on function public.join_battle(uuid, int, numeric) to authenticated;
 grant execute on function public.fill_battle_bots(uuid) to authenticated;
 grant execute on function public.cancel_battle(uuid) to authenticated;

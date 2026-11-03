@@ -19,6 +19,8 @@ export default function CreateBattle() {
   const [crazy, setCrazy] = useState(false);
   const [jackpot, setJackpot] = useState(false);
   const [stake, setStake] = useState(1);
+  const [sponsored, setSponsored] = useState(false);
+  const [priv, setPriv] = useState(false);
   const [picked, setPicked] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -38,7 +40,7 @@ export default function CreateBattle() {
 
   const create = async () => {
     setBusy(true);
-    const id = await rpc<string>("create_battle", { p_mode: mode, p_case_ids: picked, p_crazy: crazy, p_jackpot: jackpot, p_stake: stake });
+    const id = await rpc<string>("create_battle", { p_mode: mode, p_case_ids: picked, p_crazy: crazy, p_jackpot: jackpot, p_stake: stake, p_sponsored: sponsored, p_private: priv });
     setBusy(false);
     if (id) router.push(`/battles/${id}`);
   };
@@ -85,11 +87,23 @@ export default function CreateBattle() {
               })}
             </div>
           </div>
+          <div>
+            <span className="label">Pristup</span>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Toggle on={sponsored} set={setSponsored} title="Sponzoriraj" desc={`Plaćaš i ${m.seats - 1} ${m.seats - 1 === 1 ? "mjesto" : "mjesta"} za druge, oni ulaze besplatno. Mjesta koja popune botovi vraćaju ti se.`} tone="emerald" />
+              <Toggle on={priv} set={setPriv} title="Privatni" desc="Ne prikazuje se na popisu battleova. Ulazi se samo preko linka koji podijeliš." tone="fuchsia" />
+            </div>
+          </div>
           <div className="space-y-3 border-t border-line pt-4">
-            <StakePicker cost={cost} value={stake} onChange={setStake} />
+            <StakePicker cost={cost} value={stake} onChange={setStake} extra={sponsored ? cost * (m.seats - 1) : 0} />
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm text-muted">Puna cijena ulaza: <span className="font-display text-lg text-fg">{coins(cost)}</span></div>
-              <button className="btn-primary px-6 py-3 text-lg" disabled={!picked.length || busy} onClick={create}>{busy ? "Kreiram…" : `Kreiraj battle za ${coins(cost * stake)}`}</button>
+              <div className="text-sm text-muted">
+                Ulaz po igraču: <span className="font-display text-lg text-fg">{coins(cost)}</span>
+                {sponsored && <> · sponzorstvo: <span className="font-display text-lg text-emerald-300">{coins(cost * (m.seats - 1))}</span></>}
+              </div>
+              <button className="btn-primary px-6 py-3 text-lg" disabled={!picked.length || busy} onClick={create}>
+                {busy ? "Kreiram…" : `Kreiraj battle za ${coins(cost * stake + (sponsored ? cost * (m.seats - 1) : 0))}`}
+              </button>
             </div>
           </div>
         </div>

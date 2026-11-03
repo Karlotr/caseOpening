@@ -174,7 +174,7 @@ function ChatPanel() {
                         <span className="font-display text-2xl font-black leading-none">{b.mode}</span>
                         <div className="min-w-0 flex-1 text-xs text-muted">
                           {modeLabel(b)} · {b.case_ids.length} kutija
-                          <div className="font-display text-base font-bold text-accent">{coins(b.cost)}</div>
+                          <div className="font-display text-base font-bold text-accent">{b.sponsored ? "Besplatan ulaz" : coins(b.cost)}</div>
                         </div>
                         <span className={`rounded px-2 py-1 font-display text-sm font-bold ${b.status === "waiting" ? "bg-accent text-ink" : "bg-panel2 text-muted"}`}>
                           {b.status === "waiting" ? "Uđi" : b.status === "finished" ? "Gotov" : "Otkazan"}

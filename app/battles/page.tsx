@@ -17,7 +17,7 @@ export default function BattlesPage() {
 
   const load = useCallback(async () => {
     const sb = createClient();
-    const { data } = await sb.from("battles").select("*").in("status", ["waiting", "finished"]).order("created_at", { ascending: false }).limit(40);
+    const { data } = await sb.from("battles").select("*").eq("private", false).in("status", ["waiting", "finished"]).order("created_at", { ascending: false }).limit(40);
     const list = (data ?? []).map(normBattle);
     setBattles(list);
     if (list.length) {
@@ -69,6 +69,7 @@ export default function BattlesPage() {
                 <span className="flex gap-1">
                   {b.crazy && <span className="w-fit rounded bg-fuchsia-500/20 px-1.5 text-xs font-bold text-fuchsia-300">Crazy</span>}
                   {b.jackpot && <span className="w-fit rounded bg-emerald-400/20 px-1.5 text-xs font-bold text-emerald-300">Jackpot</span>}
+                  {b.sponsored && <span className="w-fit rounded bg-amber-400/20 px-1.5 text-xs font-bold text-amber-300">Besplatan ulaz</span>}
                 </span>
               </div>
               <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
@@ -89,7 +90,7 @@ export default function BattlesPage() {
                 })}
               </div>
               <div className="w-32 shrink-0 text-right">
-                <div className="font-display text-2xl font-bold text-accent"><span className="coin" /> {coins(b.cost)}</div>
+                <div className="font-display text-2xl font-bold text-accent">{b.sponsored ? <span className="text-amber-300">Besplatno</span> : <><span className="coin" /> {coins(b.cost)}</>}</div>
                 <div className="text-xs text-muted">{b.case_ids.length} rundi</div>
               </div>
               <span className={b.status === "waiting" ? "btn-primary" : "btn-ghost"}>{b.status === "waiting" ? "Uđi" : "Pogledaj"}</span>

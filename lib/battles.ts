@@ -22,6 +22,8 @@ export type Battle = {
   crazy: boolean;
   jackpot: boolean;
   jackpot_ticket: number | null;
+  sponsored: boolean;
+  private: boolean;
   status: "waiting" | "finished" | "cancelled";
   winner_team: number | null;
   total_value: number | null;
@@ -50,6 +52,8 @@ export const TEAM_COLORS = ["#f5821f", "#8fcbeb", "#a78bfa", "#34d399", "#f472b6
 export const normBattle = (b: Record<string, unknown>): Battle => ({
   ...(b as unknown as Battle),
   jackpot: !!b.jackpot,
+  sponsored: !!b.sponsored,
+  private: !!b.private,
   jackpot_ticket: b.jackpot_ticket == null ? null : Number(b.jackpot_ticket),
   cost: Number(b.cost),
   total_value: b.total_value === null ? null : Number(b.total_value),

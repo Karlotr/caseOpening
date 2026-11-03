@@ -6,10 +6,10 @@ import { useAuth } from "./AuthProvider";
 const OPTIONS = [1, 0.75, 0.5, 0.25];
 
 // Posudba: plati samo dio ulaza i dobij isti dio nagrade ako pobijediš
-export function StakePicker({ cost, value, onChange }: { cost: number; value: number; onChange: (v: number) => void }) {
+export function StakePicker({ cost, value, onChange, extra = 0 }: { cost: number; value: number; onChange: (v: number) => void; extra?: number }) {
   const { profile } = useAuth();
   const bal = profile?.balance ?? 0;
-  const affordable = cost > 0 ? Math.min(1, Math.floor((bal / cost) * 100) / 100) : 1;
+  const affordable = cost > 0 ? Math.min(1, Math.floor(((bal - extra) / cost) * 100) / 100) : 1;
   const pct = Math.round(value * 100);
   return (
     <div className="rounded-lg border border-line bg-ink/40 p-3">
@@ -22,7 +22,7 @@ export function StakePicker({ cost, value, onChange }: { cost: number; value: nu
               role="radio"
               aria-checked={value === o}
               onClick={() => onChange(o)}
-              disabled={o * cost > bal + 0.001}
+              disabled={o * cost + extra > bal + 0.001}
               className={`px-3 py-1.5 font-display text-base font-bold disabled:opacity-30 ${value === o ? "bg-accent2 text-ink" : "bg-panel hover:bg-panel2"}`}
             >
               {o === 1 ? "Puni" : `${o * 100}%`}

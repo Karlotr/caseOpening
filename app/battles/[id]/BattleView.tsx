@@ -225,6 +225,15 @@ export function BattleView() {
   const isCreator = user?.id === battle.creator_id;
   const myWin = done && players.find((p) => p.user_id === user?.id)?.team === battle.winner_team;
 
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast("Link battlea je kopiran.", "success");
+    } catch {
+      toast("Kopiranje nije uspjelo, kopiraj adresu iz preglednika.", "error");
+    }
+  };
+
   const act = async (fn: string, args: Record<string, unknown>, msg?: string) => {
     setBusy(true);
     const r = await rpc(fn, args);
@@ -247,13 +256,20 @@ export function BattleView() {
             <span className={`rounded px-2 py-0.5 font-display text-base font-bold ${isJackpot ? "bg-emerald-400/20 text-emerald-300" : isCrazy ? "bg-fuchsia-500/20 text-fuchsia-300" : "bg-accent2/15 text-accent2"}`}>
               {modeLabel(battle)}
             </span>
+            {battle.sponsored && <span className="rounded bg-amber-400/20 px-2 py-0.5 font-display text-base font-bold text-amber-300">Sponzorirano</span>}
+            {battle.private && <span className="rounded bg-panel2 px-2 py-0.5 font-display text-base font-bold text-muted">Privatni</span>}
           </h1>
-          <p className="mt-1 text-sm text-muted">{modeDesc(battle)}</p>
+          <p className="mt-1 text-sm text-muted">
+            {modeDesc(battle)}
+            {battle.sponsored && " Ulaz je besplatan, sve je platio kreator."}
+            {battle.private && " Battle je privatan: ulazi se samo preko linka."}
+          </p>
+          <button className="btn-ghost mt-2 px-3 py-1.5 text-sm" onClick={copyLink}>Kopiraj link battlea</button>
         </div>
         <div className="ml-auto flex gap-5 text-right">
           <div>
             <div className="text-sm text-muted">Ulaz</div>
-            <div className="font-display text-2xl font-bold text-accent"><span className="coin" /> {coins(battle.cost)}</div>
+            <div className="font-display text-2xl font-bold text-accent">{battle.sponsored ? <span className="text-amber-300">Besplatno</span> : <><span className="coin" /> {coins(battle.cost)}</>}</div>
           </div>
           <div>
             <div className="text-sm text-muted">Na stolu</div>
@@ -291,7 +307,7 @@ export function BattleView() {
           )}
         </div>
       )}
-      {battle.status === "waiting" && user && !meIn && <StakePicker cost={battle.cost} value={stake} onChange={setStake} />}
+      {battle.status === "waiting" && user && !meIn && !battle.sponsored && <StakePicker cost={battle.cost} value={stake} onChange={setStake} />}
       {battle.status === "cancelled" && <div className="card p-4 text-muted">Ovaj battle je otkazan.</div>}
 
       {(phase === "roulette" || (done && battle.jackpot)) && (
@@ -370,8 +386,8 @@ export function BattleView() {
                               {p ? (
                                 <span className="font-display text-xl font-bold text-emerald-300">Spreman</span>
                               ) : user && !meIn ? (
-                                <button className="btn-primary" disabled={busy} onClick={() => act("join_battle", { p_id: battle.id, p_seat: seat, p_stake: stake }, "Ušao si u battle!")}>
-                                  Uđi za {coins(battle.cost * stake)}
+                                <button className="btn-primary" disabled={busy} onClick={() => act("join_battle", { p_id: battle.id, p_seat: seat, p_stake: battle.sponsored ? 1 : stake }, "Ušao si u battle!")}>
+                                  {battle.sponsored ? "Uđi besplatno" : `Uđi za ${coins(battle.cost * stake)}`}
                                 </button>
                               ) : !user ? (
                                 <Link href="/login" className="btn-ghost">Prijavi se</Link>
