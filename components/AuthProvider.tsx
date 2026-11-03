@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 import type { Profile } from "@/lib/types";
@@ -12,8 +12,12 @@ type Ctx = {
   garage: { count: number; value: number };
   loading: boolean;
   refresh: () => Promise<void>;
+  // privremeno "zamrzni" prikaz stanja i garaže (npr. dok se vrti battle, da se rezultat ne vidi unaprijed)
+  holdWallet: (h: Wallet | null) => void;
   signOut: () => Promise<void>;
 };
+
+type Wallet = { balance: number; garage: { count: number; value: number } };
 
 const AuthCtx = createContext<Ctx | null>(null);
 
@@ -31,6 +35,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [garage, setGarage] = useState({ count: 0, value: 0 });
+  const [hold, setHold] = useState<Wallet | null>(null);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadProfile = useCallback(
     async (u: User | null) => {
@@ -98,7 +104,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   }, [supabase]);
 
-  return <AuthCtx value={{ user, profile, isAdmin, garage, loading, refresh, signOut }}>{children}</AuthCtx>;
+  const holdWallet = useCallback(
+    (h: Wallet | null) => {
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+      setHold(h);
+      if (h) holdTimer.current = setTimeout(() => setHold(null), 90_000); // sigurnosno otpuštanje
+      else loadProfile(user);
+    },
+    [loadProfile, user]
+  );
+
+  const shownProfile = useMemo(() => (hold && profile ? { ...profile, balance: hold.balance } : profile), [hold, profile]);
+  const shownGarage = hold ? hold.garage : garage;
+
+  return (
+    <AuthCtx value={{ user, profile: shownProfile, isAdmin, garage: shownGarage, loading, refresh, holdWallet, signOut }}>{children}</AuthCtx>
+  );
 }
 
 export function useAuth() {

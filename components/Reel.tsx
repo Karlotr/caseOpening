@@ -60,7 +60,8 @@ export function Reel({
   const doneRef = useRef(onDone);
   const itemsRef = useRef(items);
   const poolRef = useRef(pool);
-  useEffect(() => {
+  // useLayoutEffect (i to PRIJE efekta vrtnje) — inače vrtnja krene sa starom trakom iz prošlog otvaranja
+  useLayoutEffect(() => {
     doneRef.current = onDone;
     itemsRef.current = items;
     poolRef.current = pool;

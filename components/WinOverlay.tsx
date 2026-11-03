@@ -90,7 +90,12 @@ export function WinOverlayProvider({ children }: { children: React.ReactNode }) 
     };
   }, [c]);
 
-  const best = c?.items?.length ? [...c.items].sort((a, b) => b.value - a.value)[0] : null;
+  const sorted = c?.items?.length ? [...c.items].sort((a, b) => b.value - a.value) : [];
+  const best = sorted[0] ?? null;
+  // više dobrih auta (epski+) → svaki dobije svoju karticu
+  const featured = sorted.filter((i) => rarityRank(i.rarity) >= 3).slice(0, 5);
+  const multi = featured.length > 1;
+  const rest = multi ? sorted.filter((i) => !featured.includes(i)) : sorted;
   const rc = best ? RARITY[best.rarity as Rarity].color : "#F5821F";
 
   return (
@@ -105,7 +110,23 @@ export function WinOverlayProvider({ children }: { children: React.ReactNode }) 
               <div className="relative">
                 <div className="font-display text-sm font-semibold" style={{ color: rc }}>{c.subtitle}</div>
                 <h2 className="font-display text-5xl font-black leading-none tracking-tight sm:text-6xl">{c.title}</h2>
-                {best && (
+                {multi && (
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    {featured.map((i, k) => {
+                      const col = RARITY[i.rarity].color;
+                      return (
+                        <div key={k} className="pop w-[30%] min-w-[118px] rounded-xl border bg-ink/50 p-2" style={{ borderColor: col, boxShadow: `0 0 22px ${col}44`, animationDelay: `${k * 120}ms` }}>
+                          <CarImage item={i} className="mx-auto h-14 w-28" />
+                          <div className="truncate text-[11px] text-muted">{i.brand}</div>
+                          <div className="truncate font-display text-sm font-bold leading-tight">{i.model}</div>
+                          <div className="text-xs font-semibold" style={{ color: col }}>{RARITY[i.rarity].label}</div>
+                          <div className="font-display text-sm font-bold text-accent">{coins(i.value)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {best && !multi && (
                   <div className="mx-auto mt-4 max-w-sm">
                     <CarImage item={best} className="mx-auto h-28 w-64 drop-shadow-[0_12px_30px_rgba(0,0,0,.6)]" />
                     <div className="mt-1 text-muted">{best.brand} · {best.year}</div>
@@ -113,9 +134,9 @@ export function WinOverlayProvider({ children }: { children: React.ReactNode }) 
                     <div className="mt-1 text-sm font-semibold" style={{ color: rc }}>{RARITY[best.rarity].label}</div>
                   </div>
                 )}
-                {c.items && c.items.length > 1 && (
+                {c.items && c.items.length > 1 && rest.length > 0 && (
                   <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-                    {c.items.map((i, k) => (
+                    {rest.map((i, k) => (
                       <span key={k} className="rounded-md border px-2 py-1 text-xs" style={{ borderColor: RARITY[i.rarity].color + "88" }}>
                         {i.model} <b className="text-accent">{coins(i.value)}</b>
                       </span>

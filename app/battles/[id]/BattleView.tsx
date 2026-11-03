@@ -27,7 +27,7 @@ type Phase = "idle" | "rounds" | "roulette" | "done";
 
 export function BattleView() {
   const { id } = useParams<{ id: string }>();
-  const { user, refresh } = useAuth();
+  const { user, profile, garage, refresh, holdWallet } = useAuth();
   const rpc = useRpc();
   const toast = useToast();
   const celebrate = useCelebrate();
@@ -81,6 +81,8 @@ export function BattleView() {
   const isJackpot = !!battle?.jackpot;
   const isCrazy = !!battle?.crazy;
 
+  const reelsDone = useRef(0);
+  const heldRef = useRef(false);
   const spinRound = useCallback(
     (r: number) => {
       if (!battle) return;
@@ -94,6 +96,7 @@ export function BattleView() {
           return strip;
         })
       );
+      reelsDone.current = 0;
       setSpinning(true);
       setSpinKey((k) => k + 1);
     },
@@ -101,6 +104,9 @@ export function BattleView() {
   );
 
   const startPlayback = useCallback(() => {
+    // makni trake prošle reprodukcije da se ne zavrti stara runda prije prve
+    setStrips([]);
+    setSpinning(false);
     setAnnounce(false);
     setRevealed(0);
     setPhase("rounds");
@@ -114,12 +120,27 @@ export function BattleView() {
     const age = Date.now() - new Date(battle.finished_at ?? battle.created_at).getTime();
     if (age < 90_000) {
       sfx.lightsOut();
+      if (user && players.some((p) => p.user_id === user.id) && profile && !heldRef.current) {
+        heldRef.current = true;
+        holdWallet({ balance: profile.balance, garage });
+      }
       startPlayback();
     } else {
       setRevealed(rounds);
       setPhase("done");
     }
-  }, [battle, drops, cases, items, rounds, startPlayback]);
+  }, [battle, drops, cases, items, rounds, startPlayback, user, players, profile, garage, holdWallet]);
+
+  // kad animacija završi (ili napustiš stranicu) pokaži pravo stanje
+  useEffect(() => {
+    if (phase === "done" && heldRef.current) {
+      heldRef.current = false;
+      holdWallet(null);
+    }
+  }, [phase, holdWallet]);
+  useEffect(() => () => {
+    if (heldRef.current) holdWallet(null);
+  }, [holdWallet]);
 
   const onRoundDone = useCallback(() => {
     setSpinning(false);
@@ -138,6 +159,12 @@ export function BattleView() {
       return next;
     });
   }, [rounds, spinRound, battle]);
+
+  // sljedeća runda tek kad su SVE trake stale (i one sa zlatnom drugom vrtnjom)
+  const onReelDone = useCallback(() => {
+    reelsDone.current += 1;
+    if (reelsDone.current === (battle?.seats ?? 1)) onRoundDone();
+  }, [battle?.seats, onRoundDone]);
 
   const onRouletteDone = useCallback(() => {
     setTimeout(() => {
@@ -234,6 +261,24 @@ export function BattleView() {
     }
   };
 
+  // ulazak: ako si zadnji i battle odmah krene, stanje se prikazuje kao "minus ulaz" dok se ne odvrti
+  const join = async (seat: number) => {
+    if (!battle || !profile) return;
+    const paid = battle.sponsored ? 0 : Math.round(battle.cost * stake * 100) / 100;
+    const before = { balance: Math.max(0, profile.balance - paid), garage };
+    setBusy(true);
+    const r = await rpc<{ ok: boolean; started: boolean }>("join_battle", { p_id: battle.id, p_seat: seat, p_stake: battle.sponsored ? 1 : stake }, { silentRefresh: true });
+    setBusy(false);
+    if (r) {
+      toast(battle.sponsored ? "Ušao si u battle!" : `Ušao si u battle! −${coins(paid)} coina`, "success");
+      if (r.started) {
+        heldRef.current = true;
+        holdWallet(before);
+      } else refresh();
+    }
+    await reload();
+  };
+
   const act = async (fn: string, args: Record<string, unknown>, msg?: string) => {
     setBusy(true);
     const r = await rpc(fn, args);
@@ -243,8 +288,6 @@ export function BattleView() {
   };
 
   // najbolji drop u zadnjoj otkrivenoj rundi
-  const lastRoundDrops = drops.filter((d) => d.round === revealed);
-  const bestSeat = lastRoundDrops.length ? lastRoundDrops.reduce((a, b) => ((items.get(a.item_id)?.value ?? 0) >= (items.get(b.item_id)?.value ?? 0) ? a : b)).seat : -1;
 
   return (
     <div className="space-y-4">
@@ -386,7 +429,7 @@ export function BattleView() {
                               {p ? (
                                 <span className="font-display text-xl font-bold text-emerald-300">Spreman</span>
                               ) : user && !meIn ? (
-                                <button className="btn-primary" disabled={busy} onClick={() => act("join_battle", { p_id: battle.id, p_seat: seat, p_stake: battle.sponsored ? 1 : stake }, "Ušao si u battle!")}>
+                                <button className="btn-primary" disabled={busy} onClick={() => join(seat)}>
                                   {battle.sponsored ? "Uđi besplatno" : `Uđi za ${coins(battle.cost * stake)}`}
                                 </button>
                               ) : !user ? (
@@ -397,11 +440,10 @@ export function BattleView() {
                             </div>
                           ) : phase === "rounds" && strips[seat] ? (
                             <div className="relative">
-                              {!spinning && seat === bestSeat && revealed > 0 && (
-                                <span className="pop absolute -top-2.5 right-2 z-30 rounded bg-accent px-1.5 font-display text-sm font-bold text-ink shadow-lg">Najbolji drop runde</span>
-                              )}
-                              <Reel vertical items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} winnerIndex={WIN} spinKey={spinKey} duration={3600} sound={seat === 0} onDone={seat === 0 ? onRoundDone : undefined} />
+                              <Reel vertical items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} winnerIndex={WIN} spinKey={spinKey} duration={3600} sound={seat === 0} onDone={onReelDone} />
                             </div>
+                          ) : phase === "rounds" ? (
+                            <div className="h-[336px] rounded-2xl border border-line bg-[linear-gradient(180deg,#0c0c1c,#07070f)]" />
                           ) : null}
                           <div className="space-y-1.5">
                             {mine.map((d) => {

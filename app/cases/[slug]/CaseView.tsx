@@ -40,6 +40,7 @@ export function CaseView() {
   const [lastCost, setLastCost] = useState(0);
   const [selling, setSelling] = useState(false);
   const busyRef = useRef(false);
+  const reelsDone = useRef(0);
 
   useEffect(() => {
     getCases().then((all) => {
@@ -64,6 +65,7 @@ export function CaseView() {
         })
       );
       setWon(winners);
+      reelsDone.current = 0;
       const go = () => {
         setSpinning(true);
         setSpinKey((k) => k + 1);
@@ -130,6 +132,12 @@ export function CaseView() {
     if (instant) setTimeout(() => toast(`Instant drop! +${coins(instant)} coina na račun`, "gold"), 1200);
   };
 
+  // nagrada tek kad su SVE trake stale (uključujući drugu, zlatnu vrtnju)
+  const reelDone = () => {
+    reelsDone.current += 1;
+    if (reelsDone.current === won.length) finished();
+  };
+
   const sellAll = async () => {
     const ids = won.map((w) => w.inventory_id).filter(Boolean);
     if (!ids.length) return;
@@ -191,7 +199,7 @@ export function CaseView() {
         <div className="card min-w-0 space-y-4 p-4">
           <div className="relative space-y-2 overflow-hidden rounded-lg">
             {strips.map((s, i) => (
-              <Reel key={i} size={strips.length === 1 ? "lg" : "md"} pool={c.items} items={s} winnerIndex={WIN} spinKey={spinKey} duration={fast ? 1800 : 5600} sound={i === 0} onDone={i === 0 ? finished : undefined} />
+              <Reel key={i} size={strips.length === 1 ? "lg" : "md"} pool={c.items} items={s} winnerIndex={WIN} spinKey={spinKey} duration={fast ? 1800 : 5600} sound={i === 0} onDone={reelDone} />
             ))}
             {/* garažna vrata */}
             <div
