@@ -31,12 +31,12 @@ function Links({ onClick }: { onClick?: () => void }) {
             href={n.href}
             onClick={onClick}
             aria-current={active ? "page" : undefined}
-            className={`relative px-3 py-2 font-display text-[17px] font-semibold tracking-wide transition ${
-              active ? "text-fg" : "text-muted hover:text-fg"
+            className={`relative rounded-lg px-3 py-2 font-display text-[16px] font-bold transition ${
+              active ? "text-fg" : "text-muted hover:bg-white/[.05] hover:text-fg"
             }`}
           >
             {n.label}
-            {active && <span className="livery-band absolute inset-x-3 -bottom-[13px] h-[3px]" />}
+            {active && <span className="absolute inset-x-3 -bottom-[14px] h-[2px] rounded-full bg-[linear-gradient(90deg,#ff2b4e,#ffb547)] shadow-[0_0_12px_#ff5a3c]" />}
           </Link>
         );
       })}
@@ -48,7 +48,7 @@ function StaticLinks() {
   return (
     <>
       {NAV.map((n) => (
-        <Link key={n.href} href={n.href} className="px-3 py-2 font-display text-[17px] font-semibold tracking-wide text-muted">
+        <Link key={n.href} href={n.href} className="px-3 py-2 font-display text-[16px] font-bold text-muted">
           {n.label}
         </Link>
       ))}
@@ -70,14 +70,14 @@ function UserBox() {
   const lp = profile ? levelProgress(profile.xp, profile.level) : { pct: 0 };
   return (
     <div className="relative flex items-center gap-2 sm:gap-3">
-      <Link href="/gems" className="hidden items-center gap-1.5 rounded-md border border-line bg-ink/60 px-3 py-1.5 font-display text-base font-bold text-emerald-300 sm:flex" title="Gemovi">
+      <Link href="/gems" className="hidden items-center gap-1.5 rounded-xl border border-emerald-400/20 bg-emerald-400/[.06] px-3 py-1.5 font-display text-base font-bold text-emerald-300 transition hover:border-emerald-400/50 sm:flex" title="Gemovi">
         <span className="gem" /> <CountUp value={profile?.gems ?? 0} />
       </Link>
-      <div className="flex items-center gap-1.5 rounded-md border border-accent/50 bg-accent/10 px-3 py-1.5 font-display text-base font-bold text-accent" title="Stanje (virtualni coini)">
+      <div className="flex items-center gap-1.5 rounded-xl border border-accent/40 bg-accent/10 px-3 py-1.5 font-display text-base font-bold text-accent shadow-[0_0_24px_-8px_#ffb547]" title="Stanje (virtualni coini)">
         <span className="coin" /> <CountUp value={profile?.balance ?? 0} />
       </div>
       <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-white/5">
-        <span className="grid h-9 w-9 place-items-center rounded-md bg-accent2 font-display text-lg font-black text-ink" title="Level">
+        <span className="grid h-9 w-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#5ce1ff,#8b5cf6)] font-display text-lg font-black text-ink shadow-[0_0_18px_-4px_#5ce1ff]" title="Level">
           {profile?.level ?? 1}
         </span>
         <span className="hidden flex-col items-start md:flex">
@@ -88,7 +88,7 @@ function UserBox() {
         </span>
       </button>
       {open && (
-        <div className="absolute right-0 top-12 z-40 w-52 rounded-lg border border-line bg-panel2 p-1 shadow-2xl" onMouseLeave={() => setOpen(false)}>
+        <div className="card absolute right-0 top-12 z-40 w-56 p-1.5 shadow-2xl" onMouseLeave={() => setOpen(false)}>
           <Link href="/profile" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Garaža (inventar)</Link>
           <Link href="/rewards" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Nagrade i level</Link>
           <Link href="/affiliate" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Pozovi prijatelje</Link>
@@ -112,7 +112,7 @@ function SoundToggle() {
   return (
     <button
       onClick={() => { setMuted(!m); if (m) sfx.click(); }}
-      className="grid h-9 w-9 place-items-center rounded-md border border-line text-muted hover:text-fg"
+      className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 text-muted transition hover:border-white/25 hover:text-fg"
       aria-label={m ? "Uključi zvuk" : "Isključi zvuk"}
       title={m ? "Uključi zvuk" : "Isključi zvuk"}
     >
@@ -128,15 +128,17 @@ function SoundToggle() {
 export function Navbar() {
   const [mobile, setMobile] = useState(false);
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-ink/90 backdrop-blur">
-      <div className="livery-band h-[3px]" />
+    <header className="sticky top-0 z-30 border-b border-white/[.06] bg-[#090a14]/70 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4">
         <button className="lg:hidden" onClick={() => setMobile((m) => !m)} aria-label="Izbornik">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
         </button>
         <Link href="/" className="flex items-center gap-2">
-          <span className="checker h-7 w-7 rounded-sm" />
-          <span className="font-display text-2xl font-black tracking-tight">GARAŽA<span className="text-accent2">.gg</span></span>
+          <span className="relative grid h-8 w-8 place-items-center">
+            <span className="absolute inset-0 rounded-lg bg-[linear-gradient(135deg,#ff2b4e,#ffb547)] shadow-[0_0_20px_-2px_#ff2b4e]" />
+            <span className="relative h-1 w-5 rounded-full bg-white/90 shadow-[0_0_8px_#fff]" />
+          </span>
+          <span className="font-display text-2xl font-extrabold">garaža<span className="text-muted">.gg</span></span>
         </Link>
         <nav className="hidden flex-1 items-center gap-0.5 lg:flex">
           <Suspense fallback={<StaticLinks />}>

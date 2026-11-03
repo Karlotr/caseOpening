@@ -3,18 +3,17 @@ import type { CaseWithItems } from "@/lib/types";
 import { coins } from "@/lib/format";
 import { CarImage } from "./CarImage";
 
-// Kutija kao garažni boks: roll-up vrata u boji kutije, najskuplji auto ispred
-export function CaseArt({ c, className = "" }: { c: CaseWithItems; className?: string }) {
+// Kutija kao izložbeni salon: reflektor u boji kutije, sjajni pod, najskuplji auto s odrazom
+export function CaseArt({ c, className = "", big = false }: { c: CaseWithItems; className?: string; big?: boolean }) {
   const top = c.items[0];
   return (
-    <div className={`relative overflow-hidden rounded-lg ${className}`} style={{ background: `linear-gradient(180deg, ${c.color}55, ${c.color}14 70%, #0c1424)` }}>
-      <div className="garage-door absolute inset-x-[10%] bottom-[18%] top-[12%] rounded-t-md border-x-2 border-t-2 border-white/10" style={{ background: `linear-gradient(180deg, ${c.color}30, transparent)` }}>
-        <div className="garage-door absolute inset-0" />
-      </div>
-      <div className="absolute inset-x-0 bottom-0 h-[18%] bg-[repeating-linear-gradient(90deg,#ffffff10_0_18px,transparent_18px_36px)]" />
+    <div className={`showroom relative overflow-hidden rounded-xl ${className}`} style={{ ["--glow" as string]: c.color }}>
+      {/* snop reflektora */}
+      <div className="pointer-events-none absolute left-1/2 top-0 h-full w-[70%] -translate-x-1/2 bg-[linear-gradient(180deg,#ffffff1f,transparent_70%)] [clip-path:polygon(38%_0,62%_0,100%_100%,0_100%)]" />
+      <div className="showroom-floor absolute inset-x-0 bottom-0 h-[34%]" />
       {top && (
-        <div className="absolute inset-x-0 bottom-[6%] flex justify-center">
-          <CarImage item={top} className="h-[52%] max-h-24 w-[70%] drop-shadow-[0_10px_14px_rgba(0,0,0,.7)]" />
+        <div className="absolute inset-x-0 bottom-[22%] flex justify-center">
+          <CarImage item={top} reflect className={`${big ? "h-[58%] max-h-40" : "h-[50%] max-h-28"} w-[78%] transition-transform duration-500 group-hover:-translate-y-1 group-hover:scale-[1.06]`} />
         </div>
       )}
     </div>
@@ -24,24 +23,23 @@ export function CaseArt({ c, className = "" }: { c: CaseWithItems; className?: s
 export function CaseCard({ c }: { c: CaseWithItems }) {
   const price =
     c.case_type === "gem" ? (
-      <span className="font-display text-xl font-bold text-emerald-300"><span className="gem" /> {coins(c.gem_price)}</span>
+      <span className="text-emerald-300"><span className="gem" /> {coins(c.gem_price)}</span>
     ) : c.case_type === "level" ? (
-      <span className="font-display text-xl font-bold text-accent2">Level {c.min_level}+</span>
+      <span className="text-accent2">Level {c.min_level}+</span>
     ) : c.case_type === "daily" ? (
-      <span className="font-display text-xl font-bold text-emerald-300">Besplatno</span>
+      <span className="text-emerald-300">Besplatno</span>
     ) : (
-      <span className="font-display text-xl font-bold text-accent"><span className="coin" /> {coins(c.price)}</span>
+      <span className="text-accent"><span className="coin" /> {coins(c.price)}</span>
     );
   const top = c.items[0];
   return (
-    <Link href={`/cases/${c.slug}`} className="group card relative overflow-hidden transition hover:-translate-y-1 hover:border-white/30 focus-visible:-translate-y-1">
-      <CaseArt c={c} className="aspect-[4/3] rounded-none transition-transform duration-500 group-hover:scale-[1.03]" />
-      <div className="absolute left-0 top-3 h-1.5 w-16" style={{ background: c.color }} />
-      <div className="p-3">
-        <div className="font-display text-2xl font-extrabold leading-[0.95] tracking-tight">{c.name}</div>
-        <div className="mt-1.5 flex items-center justify-between gap-2">
+    <Link href={`/cases/${c.slug}`} className="spot group card relative overflow-hidden p-2 transition duration-300 hover:-translate-y-1 hover:border-white/20 hover:shadow-[0_24px_60px_-24px_var(--g)]" style={{ ["--g" as string]: c.color }}>
+      <CaseArt c={c} className="aspect-[4/3]" />
+      <div className="px-2 pb-1.5 pt-3">
+        <div className="font-display text-[22px] font-extrabold leading-[1]">{c.name}</div>
+        <div className="mt-2 flex items-center justify-between gap-2">
           <span className="min-w-0 truncate text-sm text-muted">do {top ? `${top.brand} ${top.model}` : "—"}</span>
-          <span className="shrink-0">{price}</span>
+          <span className="shrink-0 rounded-lg bg-black/30 px-2 py-1 font-display text-lg font-extrabold ring-1 ring-white/10">{price}</span>
         </div>
       </div>
     </Link>

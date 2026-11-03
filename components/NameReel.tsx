@@ -69,7 +69,7 @@ export function NameReel({ entries, winner, spinKey, duration = 6000, onDone }: 
   }, [spinKey, winner, entries, duration]);
 
   return (
-    <div ref={box} className="relative h-32 overflow-hidden rounded-xl border border-line bg-ink">
+    <div ref={box} className="relative h-32 overflow-hidden rounded-2xl border border-white/[.07] bg-[linear-gradient(180deg,#0c0c1c,#07070f)]">
       <div ref={track} className="flex h-full items-center" style={{ transform: `translateX(${-offset}px)`, transition: anim ? `transform ${duration}ms cubic-bezier(0.1,0.65,0.1,1)` : "none" }}>
         {strip.map((ei, i) => {
           const e = entries[ei];
@@ -85,7 +85,7 @@ export function NameReel({ entries, winner, spinKey, duration = 6000, onDone }: 
           );
         })}
       </div>
-      <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-[2px] -translate-x-1/2 bg-accent shadow-[0_0_14px_#f5821f]" />
+      <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-[2px] -translate-x-1/2 bg-[linear-gradient(180deg,#ff2b4e,#ffb547,#ff2b4e)] shadow-[0_0_16px_#ff5a3c]" />
       <div className="pointer-events-none absolute inset-0 z-10 bg-[linear-gradient(90deg,var(--color-ink),transparent_18%,transparent_82%,var(--color-ink))]" />
     </div>
   );

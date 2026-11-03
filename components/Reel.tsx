@@ -154,7 +154,7 @@ export function Reel({
   return (
     <div
       ref={box}
-      className={`reel relative w-full min-w-0 overflow-hidden rounded-lg border bg-ink transition-colors duration-500 ${vertical ? "h-[336px]" : ""} ${stage === "spin2" ? "bg-[radial-gradient(circle,#facc1522,transparent_70%)]" : ""}`}
+      className={`reel relative w-full min-w-0 overflow-hidden rounded-2xl border bg-[linear-gradient(180deg,#0c0c1c,#07070f)] transition-colors duration-500 ${vertical ? "h-[336px]" : ""} ${stage === "spin2" ? "bg-[radial-gradient(circle,#facc1522,transparent_70%)]" : ""}`}
       style={{ height: vertical ? undefined : H, borderColor: glow ?? "var(--color-line)", boxShadow: glow ? `0 0 30px ${glow}55, inset 0 0 40px ${glow}22` : undefined }}
     >
       <div
@@ -176,8 +176,8 @@ export function Reel({
               style={{
                 width: vertical ? "100%" : tile,
                 height: vertical ? tile : H,
-                borderRight: vertical ? undefined : "1px solid var(--color-line)",
-                borderBottom: vertical ? "1px solid var(--color-line)" : undefined,
+                borderRight: vertical ? undefined : "1px solid #ffffff0a",
+                borderBottom: vertical ? "1px solid #ffffff0a" : undefined,
                 background: hidden ? "radial-gradient(80% 70% at 50% 60%, #facc1533, transparent 70%)" : `radial-gradient(90% 70% at 50% 100%, ${c}${isWin ? "88" : "38"}, transparent 70%)`,
                 opacity: (landed || stage === "gold") && !isWin ? 0.25 : 1,
                 transition: "opacity .4s",
@@ -207,13 +207,13 @@ export function Reel({
       <div className={`pointer-events-none absolute z-20 ${vertical ? "inset-x-0 top-1/2 -translate-y-1/2" : "inset-y-0 left-1/2 -translate-x-1/2"}`}>
         {vertical ? (
           <>
-            <div className="h-[2px] w-full bg-accent shadow-[0_0_14px_#f5821f]" />
+            <div className="h-[2px] w-full bg-[linear-gradient(90deg,#ff2b4e,#ffb547,#ff2b4e)] shadow-[0_0_16px_#ff5a3c]" />
             <div className="absolute -left-1 top-1/2 h-0 w-0 -translate-y-1/2 border-y-[7px] border-l-[9px] border-y-transparent border-l-accent" />
             <div className="absolute -right-1 top-1/2 h-0 w-0 -translate-y-1/2 border-y-[7px] border-r-[9px] border-y-transparent border-r-accent" />
           </>
         ) : (
           <>
-            <div className="h-full w-[2px] bg-accent shadow-[0_0_14px_#f5821f]" />
+            <div className="h-full w-[2px] bg-[linear-gradient(180deg,#ff2b4e,#ffb547,#ff2b4e)] shadow-[0_0_16px_#ff5a3c]" />
             <div className="absolute -top-1 left-1/2 h-0 w-0 -translate-x-1/2 border-x-[8px] border-t-[10px] border-x-transparent border-t-accent" />
             <div className="absolute -bottom-1 left-1/2 h-0 w-0 -translate-x-1/2 border-x-[8px] border-b-[10px] border-x-transparent border-b-accent" />
           </>

@@ -32,19 +32,19 @@ const src = (s: string) => (s.startsWith("case:") ? "kutija" : s.startsWith("dai
 export function DropTower() {
   const drops = useDrops(9);
   return (
-    <div className="overflow-hidden rounded-xl border border-line bg-ink/80 backdrop-blur">
-      <div className="flex items-center gap-2 bg-panel2 px-3 py-2">
-        <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-        <span className="font-display text-lg font-bold tracking-wide">Uživo iz garaže</span>
+    <div className="card overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-white/[.06] px-4 py-3">
+        <span className="h-2 w-2 animate-pulse rounded-full bg-tail shadow-[0_0_10px_#ff2b4e]" />
+        <span className="font-display text-xl font-extrabold">Uživo iz garaže</span>
       </div>
       <ol>
         {drops.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted">Prvi drop može biti tvoj.</li>}
         {drops.map((d, i) => {
           const c = RARITY[d.item.rarity].color;
           return (
-            <li key={d.id} className="drop-in grid grid-cols-[1.6rem_4px_1fr_auto] items-center gap-2 border-t border-line/70 px-3 py-1.5">
+            <li key={d.id} className="drop-in grid grid-cols-[1.4rem_3.2rem_1fr_auto] items-center gap-2 border-t border-white/[.04] px-3 py-1.5 transition hover:bg-white/[.03]">
               <span className="font-display text-base font-bold tabular-nums text-muted">{i + 1}</span>
-              <span className="h-7 w-1 rounded" style={{ background: c }} />
+              <span className="relative grid h-8 place-items-center rounded-md" style={{ background: `radial-gradient(closest-side, ${c}55, transparent)` }}><CarImage item={d.item} className="h-8 w-12" /></span>
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold">{d.item.brand} {d.item.model}</span>
                 <span className="block truncate text-xs text-muted">{d.username} · {src(d.source)}</span>
