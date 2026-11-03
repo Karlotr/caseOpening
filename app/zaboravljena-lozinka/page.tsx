@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { siteUrl } from "@/lib/site";
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { errMsg } from "@/lib/format";
@@ -16,7 +17,7 @@ export default function ForgotPasswordPage() {
     setBusy(true);
     setErr("");
     const { error } = await createClient().auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/confirm?next=/nova-lozinka`,
+      redirectTo: `${siteUrl()}/auth/confirm?next=/nova-lozinka`,
     });
     setBusy(false);
     if (error) return setErr(errMsg(error));

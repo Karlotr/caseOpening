@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { siteUrl } from "@/lib/site";
 import { createClient } from "@/utils/supabase/client";
 import { coins, errMsg } from "@/lib/format";
 import { useRpc } from "@/lib/useGame";
@@ -40,7 +41,7 @@ function Affiliate() {
     setCode(d.code);
   }, [toast]);
   useEffect(() => {
-    setOrigin(window.location.origin);
+    setOrigin(siteUrl());
     load();
   }, [load]);
 

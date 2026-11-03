@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { siteUrl } from "@/lib/site";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
@@ -38,7 +39,7 @@ export default function RegisterPage() {
     const { data, error } = await sb.auth.signUp({
       email,
       password,
-      options: { data: ref ? { username, ref } : { username }, emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/confirm` : undefined },
+      options: { data: ref ? { username, ref } : { username }, emailRedirectTo: `${siteUrl()}/auth/confirm` },
     });
     setBusy(false);
     if (error) return setErr(errMsg(error));
