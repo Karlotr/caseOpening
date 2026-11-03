@@ -40,6 +40,9 @@ export default function LoginPage() {
           <label className="label" htmlFor="pw">Lozinka</label>
           <input id="pw" type="password" required className="input" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
         </div>
+        <div className="-mt-2 text-right">
+          <Link href="/zaboravljena-lozinka" className="text-sm text-accent2 hover:underline">Zaboravio si lozinku?</Link>
+        </div>
         {err && <p className="text-sm text-red-400">{err}</p>}
         <button className="btn-primary w-full" disabled={busy}>{busy ? "Prijava..." : "Prijavi se"}</button>
         <p className="text-center text-sm text-muted">

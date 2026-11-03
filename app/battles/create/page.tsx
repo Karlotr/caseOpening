@@ -8,6 +8,7 @@ import type { CaseWithItems } from "@/lib/types";
 import { coins } from "@/lib/format";
 import { useRpc } from "@/lib/useGame";
 import { CaseArt } from "@/components/CaseCard";
+import { StakePicker } from "@/components/StakePicker";
 import { RequireAuth } from "@/components/RequireAuth";
 
 export default function CreateBattle() {
@@ -17,6 +18,7 @@ export default function CreateBattle() {
   const [mode, setMode] = useState<string>("1v1");
   const [crazy, setCrazy] = useState(false);
   const [jackpot, setJackpot] = useState(false);
+  const [stake, setStake] = useState(1);
   const [picked, setPicked] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -36,7 +38,7 @@ export default function CreateBattle() {
 
   const create = async () => {
     setBusy(true);
-    const id = await rpc<string>("create_battle", { p_mode: mode, p_case_ids: picked, p_crazy: crazy, p_jackpot: jackpot });
+    const id = await rpc<string>("create_battle", { p_mode: mode, p_case_ids: picked, p_crazy: crazy, p_jackpot: jackpot, p_stake: stake });
     setBusy(false);
     if (id) router.push(`/battles/${id}`);
   };
@@ -83,9 +85,12 @@ export default function CreateBattle() {
               })}
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-            <div className="text-sm text-muted">Cijena ulaza po igraču: <span className="font-display text-lg text-accent"><span className="coin" /> {coins(cost)}</span></div>
-            <button className="btn-primary" disabled={!picked.length || busy} onClick={create}>{busy ? "Kreiram..." : "Kreiraj battle"}</button>
+          <div className="space-y-3 border-t border-line pt-4">
+            <StakePicker cost={cost} value={stake} onChange={setStake} />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm text-muted">Puna cijena ulaza: <span className="font-display text-lg text-fg">{coins(cost)}</span></div>
+              <button className="btn-primary px-6 py-3 text-lg" disabled={!picked.length || busy} onClick={create}>{busy ? "Kreiram…" : `Kreiraj battle za ${coins(cost * stake)}`}</button>
+            </div>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">

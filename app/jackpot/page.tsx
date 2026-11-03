@@ -1,135 +1,194 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { coins } from "@/lib/format";
-import { useRpc } from "@/lib/useGame";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { coins, errMsg } from "@/lib/format";
+import { sfx } from "@/lib/sound";
+import { fmtLeft, useNow } from "@/lib/useNow";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { BetInput } from "@/components/BetInput";
-import { RequireAuth } from "@/components/RequireAuth";
+import { CountUp } from "@/components/CountUp";
+import { NameReel, type Entry } from "@/components/NameReel";
 import { useCelebrate } from "@/components/WinOverlay";
-import { sfx } from "@/lib/sound";
+import { TEAM_COLORS } from "@/lib/battles";
 
-type P = { name: string; bet: number; is_you: boolean };
-type Res = { players: P[]; pot: number; winner: number; won: boolean; payout: number };
-const COLORS = ["#facc15", "#ef4444", "#3b82f6", "#10b981", "#a855f7", "#f97316", "#06b6d4", "#ec4899"];
-const TILE = 110;
-const WIN = 48;
+type Player = { user_id: string; username: string; level: number; bet: number };
+type Last = { id: number; status: "paid" | "refunded"; pot: number; payout: number | null; players: Player[]; winner_id: string | null; winner: string | null };
+type State = { id: number; ends_at: string; now: string; pot: number; players: Player[]; last: Last | null; history: { id: number; pot: number; payout: number; winner: string; n: number }[] };
+
+const ROUND_MS = 60_000;
+const color = (i: number) => TEAM_COLORS[i % TEAM_COLORS.length];
 
 export default function JackpotPage() {
-  return (
-    <RequireAuth what="igrati Jackpot">
-      <Jackpot />
-    </RequireAuth>
-  );
-}
-
-function Jackpot() {
-  const rpc = useRpc();
+  const { user, refresh } = useAuth();
   const toast = useToast();
-  const { refresh } = useAuth();
   const celebrate = useCelebrate();
+  const now = useNow(250);
+  const [st, setSt] = useState<State | null>(null);
+  const [skew, setSkew] = useState(0);
   const [bet, setBet] = useState(5);
   const [busy, setBusy] = useState(false);
-  const [res, setRes] = useState<Res | null>(null);
-  const [strip, setStrip] = useState<number[]>([]);
-  const [offset, setOffset] = useState(0);
-  const [anim, setAnim] = useState(false);
-  const [done, setDone] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
+  const [draw, setDraw] = useState<{ last: Last; key: number } | null>(null);
+  const seenLast = useRef<number | null | undefined>(undefined);
+  const drawRef = useRef(draw);
+  useEffect(() => {
+    drawRef.current = draw;
+  }, [draw]);
 
-  const play = async () => {
-    if (busy) return;
+  const load = useCallback(async () => {
+    const { data } = await createClient().rpc("jackpot_state");
+    if (!data) return;
+    const s = data as State;
+    s.pot = Number(s.pot);
+    s.players = s.players.map((p) => ({ ...p, bet: Number(p.bet) }));
+    setSkew(new Date(s.now).getTime() - Date.now());
+    setSt(s);
+    const lastId = s.last?.id ?? null;
+    if (seenLast.current === undefined) {
+      seenLast.current = lastId; // prvo učitavanje: ne vrti stari rezultat
+    } else if (lastId !== seenLast.current && s.last) {
+      seenLast.current = lastId;
+      const last = { ...s.last, players: s.last.players.map((p) => ({ ...p, bet: Number(p.bet) })) };
+      if (last.status === "paid") setDraw({ last, key: Date.now() });
+      else if (last.players.some((p) => p.user_id === user?.id)) {
+        toast("U rundi nije bilo drugih igrača, ulog ti je vraćen.", "info");
+        refresh();
+      }
+    }
+  }, [toast, refresh, user]);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 1500);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const place = async () => {
     setBusy(true);
-    setDone(false);
-    const r = await rpc<Res>("play_jackpot", { p_bet: bet }, { silentRefresh: true });
-    if (!r) return setBusy(false);
-    r.players = r.players.map((p) => ({ ...p, bet: Number(p.bet) }));
-    r.pot = Number(r.pot);
-    // traka avatara proporcionalna ulozima
-    const pick = () => {
-      let x = Math.random() * r.pot;
-      for (let i = 0; i < r.players.length; i++) {
-        x -= r.players[i].bet;
-        if (x <= 0) return i;
-      }
-      return 0;
-    };
-    const s = Array.from({ length: 60 }, pick);
-    s[WIN] = r.winner;
-    setRes(r);
-    setStrip(s);
-    setAnim(false);
-    setOffset(0);
-    setTimeout(() => {
-      const w = box.current?.clientWidth ?? 800;
-      requestAnimationFrame(() => {
-        setAnim(true);
-        setOffset(WIN * TILE - w / 2 + TILE / 2 + (Math.random() - 0.5) * TILE * 0.6);
-        sfx.spin();
-      });
-    }, 900);
-    setTimeout(async () => {
-      setDone(true);
-      if (r.won) celebrate({ title: "Jackpot!", subtitle: `Šansa je bila ${((bet / r.pot) * 100).toFixed(1)}%`, amount: Number(r.payout), tier: bet / r.pot < 0.25 ? 3 : 2 });
-      else {
-        sfx.lose();
-        toast(`Jackpot je otišao igraču ${r.players[r.winner].name}.`, "error");
-      }
-      await refresh();
-      setBusy(false);
-    }, 6100);
+    const { error } = await createClient().rpc("jackpot_bet", { p_amount: bet });
+    setBusy(false);
+    if (error) return toast(errMsg(error), "error");
+    sfx.coin();
+    refresh();
+    load();
   };
+
+  const onDrawDone = useCallback(() => {
+    const d = drawRef.current;
+    if (!d) return;
+    const me = d.last.players.find((p) => p.user_id === user?.id);
+    if (d.last.winner_id && d.last.winner_id === user?.id) {
+      celebrate({ title: "Jackpot!", subtitle: `Šansa je bila ${(((me?.bet ?? 0) / d.last.pot) * 100).toFixed(1).replace(".", ",")}%`, amount: Number(d.last.payout ?? 0), tier: (me?.bet ?? 0) / d.last.pot < 0.25 ? 3 : 2 });
+    } else if (me) {
+      sfx.lose();
+      toast(`Jackpot je osvojio ${d.last.winner}.`, "error");
+    }
+    refresh();
+  }, [user, celebrate, toast, refresh]);
+
+  const drawEntries: Entry[] = useMemo(() => {
+    if (!draw) return [];
+    const pot = draw.last.pot;
+    return draw.last.players.map((p, i) => ({ label: p.username, sub: `${((p.bet / pot) * 100).toFixed(1).replace(".", ",")}%`, color: color(i), weight: p.bet }));
+  }, [draw]);
+  const drawWinner = draw ? Math.max(0, draw.last.players.findIndex((p) => p.user_id === draw.last.winner_id)) : 0;
+
+  if (!st || now === null) return <div className="card h-96 animate-pulse" />;
+  const left = Math.max(0, new Date(st.ends_at).getTime() - (now + skew));
+  const progress = 1 - left / ROUND_MS;
+  const me = st.players.find((p) => p.user_id === user?.id);
+  const myChance = me && st.pot ? (me.bet / st.pot) * 100 : 0;
+  const R = 54;
+  const C = 2 * Math.PI * R;
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="h1">Jackpot</h1>
-        <p className="text-sm text-muted">Uđi u pot s ostalim vozačima. Što veći ulog, veća šansa. Pobjednik uzima cijeli pot (−5% provizije).</p>
-      </div>
-      <div className="card grid gap-4 p-4 md:grid-cols-[1fr_auto] md:items-end">
-        <BetInput value={bet} onChange={setBet} disabled={busy} min={1} />
-        <button className="btn-primary h-10 min-w-44" disabled={busy || bet < 1} onClick={play}>{busy ? "Runda u tijeku..." : "Uđi u jackpot"}</button>
+        <p className="mt-2 max-w-2xl text-muted">Svake minute nova runda s pravim igračima. Veći ulog znači veću šansu, a pobjednik uzima cijeli pot (−5%). Ako u rundi bude samo jedan igrač, ulog mu se vraća.</p>
       </div>
 
-      {res && (
-        <div className="space-y-4">
-          <div className="card p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="label mb-0">Pot</span>
-              <span className="font-display text-xl text-accent"><span className="coin" /> {coins(res.pot)}</span>
-            </div>
-            <div className="flex h-3 overflow-hidden rounded-full">
-              {res.players.map((p, i) => <div key={i} style={{ width: `${(p.bet / res.pot) * 100}%`, background: COLORS[i % COLORS.length] }} />)}
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {res.players.map((p, i) => (
-                <div key={i} className={`flex items-center gap-2 rounded-md border p-2 text-sm ${done && i === res.winner ? "border-accent bg-accent/10" : "border-line"}`}>
-                  <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
-                  <span className="min-w-0 flex-1 truncate">{p.name}{p.is_you && " (ti)"}</span>
-                  <span className="text-xs text-muted">{((p.bet / res.pot) * 100).toFixed(1)}%</span>
+      <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+        <div className="card relative overflow-hidden p-5">
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="relative h-36 w-36 shrink-0">
+              <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+                <circle cx="60" cy="60" r={R} fill="none" stroke="var(--color-line)" strokeWidth="8" />
+                <circle cx="60" cy="60" r={R} fill="none" stroke={left < 10_000 ? "#ef4444" : "#f5821f"} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${progress * C} ${C}`} />
+              </svg>
+              <div className="absolute inset-0 grid place-items-center text-center">
+                <div>
+                  <div className={`font-display text-4xl font-black leading-none ${left < 10_000 ? "text-red-400" : ""}`}>{Math.ceil(left / 1000)}</div>
+                  <div className="text-xs text-muted">sekundi</div>
                 </div>
-              ))}
+              </div>
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm text-muted">Trenutni pot · runda #{st.id}</div>
+              <div className="font-display text-6xl font-black leading-none text-accent">
+                <CountUp value={st.pot} />
+              </div>
+              <div className="mt-1 text-sm text-muted">
+                {st.players.length} {st.players.length === 1 ? "igrač" : "igrača"} · izvlačenje za {fmtLeft(left)}
+                {me && <> · tvoja šansa <b className="text-emerald-300">{myChance.toFixed(1).replace(".", ",")}%</b></>}
+              </div>
             </div>
           </div>
-          <div ref={box} className="card relative h-28 overflow-hidden">
-            <div className="flex h-full items-center" style={{ transform: `translateX(${-offset}px)`, transition: anim ? "transform 5s cubic-bezier(0.1,0.65,0.1,1)" : "none" }}>
-              {strip.map((pi, i) => {
-                const p = res.players[pi];
-                return (
-                  <div key={i} className="shrink-0 px-1" style={{ width: TILE }}>
-                    <div className="grid h-20 place-items-center rounded-lg border-2 bg-panel2 text-center" style={{ borderColor: COLORS[pi % COLORS.length] }}>
-                      <div className="px-1">
-                        <div className="font-display text-lg font-bold" style={{ color: COLORS[pi % COLORS.length] }}>{p.name.slice(0, 2).toUpperCase()}</div>
-                        <div className="truncate text-[10px] text-muted">{p.name}</div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="pointer-events-none absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-accent shadow-[0_0_12px_#facc15]" />
+
+          <div className="mt-5 flex h-3 overflow-hidden rounded-full bg-line">
+            {st.players.map((p, i) => <div key={p.user_id} className="transition-[width] duration-500" style={{ width: `${(p.bet / Math.max(st.pot, 0.01)) * 100}%`, background: color(i) }} title={p.username} />)}
           </div>
+          <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
+            {st.players.length === 0 && <li className="text-sm text-muted">Još nitko nije uložio u ovu rundu. Budi prvi.</li>}
+            {st.players.map((p, i) => (
+              <li key={p.user_id} className={`drop-in flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm ${p.user_id === user?.id ? "border-accent2/60 bg-accent2/10" : "border-line"}`}>
+                <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: color(i) }} />
+                <span className="grid h-5 min-w-5 place-items-center rounded bg-panel2 px-1 font-display text-xs font-bold">{p.level}</span>
+                <span className="min-w-0 flex-1 truncate font-semibold">{p.username}</span>
+                <span className="font-display font-bold text-accent">{coins(p.bet)}</span>
+                <span className="w-14 text-right text-xs text-muted">{((p.bet / Math.max(st.pot, 0.01)) * 100).toFixed(1).replace(".", ",")}%</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="card space-y-3 p-5">
+          <h2 className="font-display text-2xl font-extrabold">Uloži u ovu rundu</h2>
+          {user ? (
+            <>
+              <BetInput value={bet} onChange={setBet} disabled={busy} min={1} />
+              <button className="btn-primary w-full py-3 text-lg" disabled={busy || bet < 1 || left < 2000} onClick={place}>
+                {left < 2000 ? "Izvlačenje…" : me ? `Dodaj ${coins(bet)}` : `Uloži ${coins(bet)}`}
+              </button>
+              <p className="text-xs text-muted">Možeš ulagati više puta u istoj rundi. Ulozi se zatvaraju 2 sekunde prije izvlačenja.</p>
+            </>
+          ) : (
+            <p className="text-muted">Prijavi se da bi uložio.</p>
+          )}
+          {st.history.length > 0 && (
+            <div className="border-t border-line pt-3">
+              <div className="mb-1 font-display text-lg font-bold">Zadnji dobitnici</div>
+              <ul className="space-y-1 text-sm">
+                {st.history.map((h) => (
+                  <li key={h.id} className="flex justify-between gap-2">
+                    <span className="truncate">{h.winner} <span className="text-muted">· {h.n} igrača</span></span>
+                    <span className="font-display font-bold text-accent">{coins(h.payout)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {draw && (
+        <div className="pop space-y-2">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-display text-3xl font-extrabold tracking-tight">Izvlačenje runde #{draw.last.id}</h2>
+            <span className="text-sm text-muted">Pot {coins(draw.last.pot)}</span>
+          </div>
+          <NameReel entries={drawEntries} winner={drawWinner} spinKey={draw.key} duration={6000} onDone={onDrawDone} />
         </div>
       )}
     </div>

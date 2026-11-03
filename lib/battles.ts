@@ -28,7 +28,7 @@ export type Battle = {
   created_at: string;
   finished_at: string | null;
 };
-export type BattlePlayer = { battle_id: string; seat: number; team: number; user_id: string | null; is_bot: boolean; name: string; total: number };
+export type BattlePlayer = { battle_id: string; seat: number; team: number; user_id: string | null; is_bot: boolean; name: string; total: number; stake: number };
 export type BattleDrop = { battle_id: string; round: number; seat: number; item_id: number };
 
 // Crazy i Jackpot su neovisni prekidači i mogu se kombinirati
@@ -64,7 +64,7 @@ export async function loadBattle(id: string) {
   ]);
   return {
     battle: b ? normBattle(b) : null,
-    players: (p ?? []).map((x) => ({ ...x, total: Number(x.total) })) as BattlePlayer[],
+    players: (p ?? []).map((x) => ({ ...x, total: Number(x.total), stake: Number(x.stake ?? 1) })) as BattlePlayer[],
     drops: (d ?? []) as BattleDrop[],
   };
 }

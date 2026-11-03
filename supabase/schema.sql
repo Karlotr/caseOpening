@@ -117,6 +117,9 @@ create table if not exists public.battle_players (
   primary key (battle_id, seat)
 );
 
+-- v5: posudba — igrač može platiti samo dio ulaza (stake 0.1–1) i tada dobiva isti dio nagrade
+alter table public.battle_players add column if not exists stake numeric(5,4) not null default 1;
+
 create table if not exists public.battle_drops (
   battle_id uuid references public.battles(id) on delete cascade,
   round int not null,
@@ -156,7 +159,19 @@ create table if not exists public.admin_log (
   created_at timestamptz not null default now()
 );
 
+-- postavke stranice (admin ih uključuje/isključuje)
+create table if not exists public.site_settings (
+  key text primary key,
+  enabled boolean not null default true
+);
+insert into public.site_settings (key, enabled) values
+  ('instant_drops', false), ('weekly_drop', false), ('monthly_drop', false)
+on conflict (key) do nothing;
+
 -- ---------- RLS ----------
+alter table public.site_settings enable row level security;
+drop policy if exists "settings read" on public.site_settings;
+create policy "settings read" on public.site_settings for select using (true);
 alter table public.user_controls enable row level security;
 alter table public.affiliates enable row level security;
 alter table public.admin_log enable row level security;
@@ -250,6 +265,11 @@ begin
   end if;
   return u;
 end $$;
+
+create or replace function public._setting(p_key text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce((select enabled from public.site_settings where key = p_key), true);
+$$;
 
 create or replace function public._luck(p_uid uuid)
 returns numeric language sql stable security definer set search_path = public as $$
@@ -391,7 +411,7 @@ begin
   if cost > 0 then
     lvl := public._apply_wager(uid, cost);
     -- Instant drop: 4% šanse za bonus 10–40% cijene
-    if random()::numeric < 0.04 then
+    if public._setting('instant_drops') and random()::numeric < 0.04 then
       instant := round(cost * (0.10 + random()::numeric * 0.30), 2);
       update public.profiles set balance = balance + instant where id = uid;
     end if;
@@ -611,16 +631,19 @@ declare
 begin
   select * into p from public.profiles where id = uid for update;
   if p_kind = 'weekly' then
+    if not public._setting('weekly_drop') then raise exception 'Tjedni drop je trenutno isključen.'; end if;
     if p.xp < 100 then raise exception 'Tjedni drop zahtijeva barem 100 odigranih coina.'; end if;
     if p.last_weekly_at > now() - interval '7 days' then raise exception 'Tjedni drop je već preuzet.'; end if;
     amount := 25 + p.level * 10;
     update public.profiles set balance = balance + amount, last_weekly_at = now() where id = uid;
   elsif p_kind = 'monthly' then
+    if not public._setting('monthly_drop') then raise exception 'Mjesečni drop je trenutno isključen.'; end if;
     if p.xp < 500 then raise exception 'Mjesečni drop zahtijeva barem 500 odigranih coina.'; end if;
     if p.last_monthly_at > now() - interval '30 days' then raise exception 'Mjesečni drop je već preuzet.'; end if;
     amount := 100 + p.level * 40;
     update public.profiles set balance = balance + amount, last_monthly_at = now() where id = uid;
   elsif p_kind = 'rain' then
+    raise exception 'Kiša coina je sada u chatu: pridruži se kad počne.';
     if p.level < 2 then raise exception 'Kiša coina je dostupna od levela 2.'; end if;
     if p.last_rain_at >= win_start then raise exception 'Već si pokupio ovu kišu. Sljedeća za par minuta!'; end if;
     amount := round((1 + random()::numeric * (4 + p.level))::numeric, 2);
@@ -638,7 +661,8 @@ create or replace function public._battle_team(p_seat int, p_team_size int)
 returns int language sql immutable as $$ select p_seat / p_team_size; $$;
 
 drop function if exists public.create_battle(text, int[], boolean);
-create or replace function public.create_battle(p_mode text, p_case_ids int[], p_crazy boolean default false, p_jackpot boolean default false)
+drop function if exists public.create_battle(text, int[], boolean, boolean);
+create or replace function public.create_battle(p_mode text, p_case_ids int[], p_crazy boolean default false, p_jackpot boolean default false, p_stake numeric default 1)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare
   uid uuid := public._uid();
@@ -647,6 +671,7 @@ declare
   cost numeric;
   bid uuid;
   uname text;
+  stake numeric;
   n int := coalesce(array_length(p_case_ids, 1), 0);
 begin
   case p_mode
@@ -663,11 +688,13 @@ begin
   if cost is null or (select count(*) from unnest(p_case_ids) x(cid) join public.cases c on c.id = x.cid and c.case_type = 'normal') <> n then
     raise exception 'Neispravne kutije.';
   end if;
-  perform public._charge(uid, cost);
+  stake := round(coalesce(p_stake, 1), 4);
+  if stake < 0.1 or stake > 1 then raise exception 'Posudba: plaćaš između 10%% i 100%% ulaza.'; end if;
+  perform public._charge(uid, round(cost * stake, 2));
   select username into uname from public.profiles where id = uid;
   insert into public.battles (creator_id, mode, seats, team_size, case_ids, cost, crazy, jackpot)
   values (uid, p_mode, seats, tsize, p_case_ids, cost, coalesce(p_crazy, false), coalesce(p_jackpot, false)) returning id into bid;
-  insert into public.battle_players (battle_id, seat, team, user_id, name) values (bid, 0, 0, uid, uname);
+  insert into public.battle_players (battle_id, seat, team, user_id, name, stake) values (bid, 0, 0, uid, uname, stake);
   return bid;
 end $$;
 
@@ -685,6 +712,13 @@ declare
   drp record;
   pl record;
   tr record;
+  stakes numeric[];
+  wi int;
+  share numeric;
+  budget numeric := 0;
+  given numeric := 0;
+  paid numeric;
+  payout numeric;
   pot_total numeric;
   ticket numeric;
   acc numeric;
@@ -725,32 +759,57 @@ begin
 
   select coalesce(sum(i.value), 0) into pot_total from public.battle_drops d join public.items i on i.id = d.item_id where d.battle_id = p_id;
 
-  -- svi dropovi idu pobjedničkom timu (redom po igračima, botovi "uzmu" svoj dio)
-  select array_agg(coalesce(user_id, '00000000-0000-0000-0000-000000000000'::uuid) order by seat) into winners
+  -- svi dropovi idu pobjedničkom timu (redom po igračima, botovi "uzmu" svoj dio).
+  -- Igrač koji je posudio dio ulaza dobiva samo svoj udio (stake) vrijednosti:
+  -- najprije auti (od najvrjednijeg koji stane u udio), ostatak u coinima.
+  select array_agg(coalesce(user_id, '00000000-0000-0000-0000-000000000000'::uuid) order by seat),
+         array_agg(stake order by seat)
+    into winners, stakes
     from public.battle_players where battle_id = p_id and team = win_team;
   nw := array_length(winners, 1);
-  for drp in select * from public.battle_drops where battle_id = p_id order by round, seat loop
-    if winners[(k % nw) + 1] <> '00000000-0000-0000-0000-000000000000'::uuid then
-      insert into public.inventory (user_id, item_id, source) values (winners[(k % nw) + 1], drp.item_id, 'battle');
-    end if;
-    k := k + 1;
-  end loop;
 
   update public.battles set status = 'finished', winner_team = win_team, total_value = pot_total, finished_at = now() where id = p_id;
 
-  for pl in select * from public.battle_players where battle_id = p_id and not is_bot and user_id is not null loop
-    perform public._apply_wager(pl.user_id, b.cost);
+  for pl in select * from public.battle_players where battle_id = p_id and not is_bot and user_id is not null order by seat loop
+    paid := round(b.cost * pl.stake, 2);
+    perform public._apply_wager(pl.user_id, paid);
+    payout := 0;
+    if pl.team = win_team then
+      wi := array_position(winners, pl.user_id);
+      select coalesce(sum(x.value), 0) into share from (
+        select i.value, row_number() over (order by d.round, d.seat) - 1 as k
+          from public.battle_drops d join public.items i on i.id = d.item_id where d.battle_id = p_id
+      ) x where x.k % nw = wi - 1;
+      budget := round(share * pl.stake, 2);
+      given := 0;
+      for drp in
+        select x.item_id, x.value from (
+          select d.item_id, i.value, row_number() over (order by d.round, d.seat) - 1 as k
+            from public.battle_drops d join public.items i on i.id = d.item_id where d.battle_id = p_id
+        ) x where x.k % nw = wi - 1 order by x.value desc
+      loop
+        if given + drp.value <= budget + 0.001 then
+          insert into public.inventory (user_id, item_id, source) values (pl.user_id, drp.item_id, 'battle');
+          given := given + drp.value;
+        end if;
+      end loop;
+      if budget - given > 0 then
+        update public.profiles set balance = balance + round(budget - given, 2) where id = pl.user_id;
+      end if;
+      payout := budget;
+    end if;
     insert into public.game_log (user_id, game, wager, payout, details)
-    values (pl.user_id, 'battle', b.cost,
-            case when pl.team = win_team then round(pot_total / nw, 2) else 0 end,
-            jsonb_build_object('battle', p_id, 'mode', b.mode, 'won', pl.team = win_team));
+    values (pl.user_id, 'battle', paid, payout,
+            jsonb_build_object('battle', p_id, 'mode', b.mode, 'won', pl.team = win_team, 'stake', pl.stake, 'coins', case when pl.team = win_team then round(budget - given, 2) else 0 end));
   end loop;
 end $$;
 
-create or replace function public.join_battle(p_id uuid, p_seat int)
+drop function if exists public.join_battle(uuid, int);
+create or replace function public.join_battle(p_id uuid, p_seat int, p_stake numeric default 1)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   uid uuid := public._uid();
+  stake numeric := round(coalesce(p_stake, 1), 4);
   b public.battles;
   uname text;
   filled int;
@@ -765,10 +824,11 @@ begin
   if exists (select 1 from public.battle_players where battle_id = p_id and seat = p_seat) then
     raise exception 'Mjesto je zauzeto.';
   end if;
-  perform public._charge(uid, b.cost);
+  if stake < 0.1 or stake > 1 then raise exception 'Posudba: plaćaš između 10%% i 100%% ulaza.'; end if;
+  perform public._charge(uid, round(b.cost * stake, 2));
   select username into uname from public.profiles where id = uid;
-  insert into public.battle_players (battle_id, seat, team, user_id, name)
-  values (p_id, p_seat, public._battle_team(p_seat, b.team_size), uid, uname);
+  insert into public.battle_players (battle_id, seat, team, user_id, name, stake)
+  values (p_id, p_seat, public._battle_team(p_seat, b.team_size), uid, uname, stake);
   select count(*) into filled from public.battle_players where battle_id = p_id;
   if filled = b.seats then perform public._resolve_battle(p_id); end if;
   return jsonb_build_object('ok', true, 'started', filled = b.seats);
@@ -809,8 +869,10 @@ begin
     raise exception 'Netko se već pridružio — ne možeš otkazati.';
   end if;
   update public.battles set status = 'cancelled' where id = p_id;
-  update public.profiles set balance = balance + b.cost where id = uid;
-  return jsonb_build_object('ok', true, 'refund', b.cost);
+  update public.profiles
+     set balance = balance + round(b.cost * coalesce((select stake from public.battle_players where battle_id = p_id and user_id = uid), 1), 2)
+   where id = uid;
+  return jsonb_build_object('ok', true);
 end $$;
 
 -- ---------- JAVNI FEED / LEADERBOARD ----------
@@ -851,8 +913,8 @@ grant execute on function public.play_trinity(numeric, text) to authenticated;
 grant execute on function public.play_jackpot(numeric) to authenticated;
 grant execute on function public.claim_daily() to authenticated;
 grant execute on function public.claim_reward(text) to authenticated;
-grant execute on function public.create_battle(text, int[], boolean, boolean) to authenticated;
-grant execute on function public.join_battle(uuid, int) to authenticated;
+grant execute on function public.create_battle(text, int[], boolean, boolean, numeric) to authenticated;
+grant execute on function public.join_battle(uuid, int, numeric) to authenticated;
 grant execute on function public.fill_battle_bots(uuid) to authenticated;
 grant execute on function public.cancel_battle(uuid) to authenticated;
 grant execute on function public.recent_drops(int) to anon, authenticated;
@@ -871,6 +933,12 @@ create table if not exists public.chat_messages (
   created_at timestamptz not null default now()
 );
 create index if not exists chat_created_idx on public.chat_messages(created_at desc);
+-- v6: sistemske poruke (kiša coina, bakšiš)
+alter table public.chat_messages alter column user_id drop not null;
+alter table public.chat_messages add column if not exists kind text not null default 'msg';
+alter table public.chat_messages add column if not exists rain_id bigint;
+alter table public.chat_messages drop constraint if exists chat_messages_body_check;
+alter table public.chat_messages add constraint chat_messages_body_check check (char_length(body) between 1 and 300);
 alter table public.chat_messages enable row level security;
 drop policy if exists "chat read recent" on public.chat_messages;
 create policy "chat read recent" on public.chat_messages for select using (created_at > now() - interval '6 hours');
@@ -1141,6 +1209,332 @@ begin
   perform public._admin_log(a, null, 'item_photo', jsonb_build_object('item', p_item, 'photo', p_photo));
 end $$;
 grant execute on function public.admin_set_item_photo(int, boolean) to authenticated;
+
+
+-- ---------- KIŠA COINA (u chatu) ----------
+-- Svaki sat: zadnje 3 minute je otvoreno pridruživanje (ograničen broj mjesta). Na kraju se pot dijeli
+-- jednako svima koji su se pridružili (level 2+). Bakšiš povećava pot. Admin može pokrenuti kišu ručno.
+-- Ako se nitko ne pridruži, pot ide u sljedeću kišu.
+create table if not exists public.rain_rounds (
+  id bigserial primary key,
+  ends_at timestamptz unique not null,
+  pot numeric(14,2) not null default 0,
+  status text not null default 'open' check (status in ('open','paid')),
+  announced boolean not null default false,
+  participants int not null default 0,
+  paid_each numeric(14,2)
+);
+alter table public.rain_rounds add column if not exists slots int not null default 20;
+alter table public.rain_rounds add column if not exists window_min int not null default 3;
+alter table public.rain_rounds add column if not exists manual boolean not null default false;
+create table if not exists public.rain_entries (
+  rain_id bigint references public.rain_rounds(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (rain_id, user_id)
+);
+alter table public.rain_rounds enable row level security;
+alter table public.rain_entries enable row level security;
+drop policy if exists "rain read" on public.rain_rounds;
+create policy "rain read" on public.rain_rounds for select using (true);
+insert into public.site_settings (key, enabled) values ('coin_rain', true) on conflict (key) do nothing;
+
+create or replace function public._rain_base() returns numeric language sql immutable as $$ select 25::numeric $$;
+
+create or replace function public._rain_settle()
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  r public.rain_rounds;
+  n int;
+  each_amt numeric;
+  carry numeric := 0;
+begin
+  for r in select * from public.rain_rounds where status = 'open' and ends_at <= now() order by ends_at for update loop
+    select count(*) into n from public.rain_entries where rain_id = r.id;
+    if n > 0 then
+      each_amt := floor(r.pot / n * 100) / 100;
+      update public.profiles p set balance = balance + each_amt from public.rain_entries e where e.rain_id = r.id and e.user_id = p.id;
+      insert into public.game_log (user_id, game, wager, payout, details)
+        select e.user_id, 'rain', 0, each_amt, jsonb_build_object('rain', r.id) from public.rain_entries e where e.rain_id = r.id;
+      update public.rain_rounds set status = 'paid', participants = n, paid_each = each_amt where id = r.id;
+      insert into public.chat_messages (user_id, username, level, body, kind, rain_id)
+      values (null, 'Kiša coina', 0, format('Kiša je pala! Po %s coina za %s %s.', replace(to_char(each_amt, 'FM999990D00'), '.', ','), n, case when n = 1 then 'igrača' else 'igrača' end), 'rain_paid', r.id);
+    else
+      carry := carry + r.pot;
+      update public.rain_rounds set status = 'paid', participants = 0, paid_each = 0 where id = r.id;
+      insert into public.chat_messages (user_id, username, level, body, kind, rain_id)
+      values (null, 'Kiša coina', 0, 'Nitko se nije pridružio kiši. Pot ide u sljedeću kišu.', 'rain_paid', r.id);
+    end if;
+  end loop;
+  if carry > 0 then
+    perform public._rain_current();
+    update public.rain_rounds set pot = pot + carry where id = (select id from public.rain_rounds where status = 'open' order by ends_at limit 1);
+  end if;
+end $$;
+
+-- trenutna (sljedeća) kiša; kreira se po potrebi
+create or replace function public._rain_current()
+returns public.rain_rounds language plpgsql security definer set search_path = public as $$
+declare
+  e timestamptz := to_timestamp(ceil(extract(epoch from now()) / 3600) * 3600);
+  r public.rain_rounds;
+begin
+  select * into r from public.rain_rounds where status = 'open' and ends_at > now() order by ends_at limit 1;
+  if found then return r; end if;
+  if e <= now() then e := e + interval '1 hour'; end if;
+  insert into public.rain_rounds (ends_at, pot) values (e, public._rain_base()) on conflict (ends_at) do nothing;
+  select * into r from public.rain_rounds where ends_at = e;
+  return r;
+end $$;
+
+create or replace function public.rain_state()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  r public.rain_rounds;
+  uid uuid := auth.uid();
+  opens timestamptz;
+begin
+  if not public._setting('coin_rain') then return jsonb_build_object('enabled', false); end if;
+  perform public._rain_settle();
+  r := public._rain_current();
+  opens := r.ends_at - make_interval(mins => r.window_min);
+  if now() >= opens and not r.announced then
+    update public.rain_rounds set announced = true where id = r.id and not announced;
+    if found then
+      insert into public.chat_messages (user_id, username, level, body, kind, rain_id)
+      values (null, 'Kiša coina', 0, format('Počela je kiša coina! Pot: %s coina, %s mjesta. Pridruži se u sljedeće %s min.',
+              replace(to_char(r.pot, 'FM999990D00'), '.', ','), r.slots, r.window_min), 'rain', r.id);
+    end if;
+  end if;
+  return jsonb_build_object(
+    'enabled', true, 'id', r.id, 'pot', r.pot, 'ends_at', r.ends_at, 'opens_at', opens, 'now', now(),
+    'open', now() >= opens,
+    'slots', r.slots,
+    'participants', (select count(*) from public.rain_entries where rain_id = r.id),
+    'joined', uid is not null and exists (select 1 from public.rain_entries where rain_id = r.id and user_id = uid)
+  );
+end $$;
+
+create or replace function public.rain_join()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := public._uid();
+  r public.rain_rounds;
+  lvl int;
+begin
+  if not public._setting('coin_rain') then raise exception 'Kiša coina je isključena.'; end if;
+  perform public._rain_settle();
+  r := public._rain_current();
+  if now() < r.ends_at - make_interval(mins => r.window_min) then raise exception 'Kiša još nije počela.'; end if;
+  select level into lvl from public.profiles where id = uid;
+  if lvl < 2 then raise exception 'Kiši se možeš pridružiti od levela 2.'; end if;
+  perform 1 from public.rain_rounds where id = r.id for update;
+  if (select count(*) from public.rain_entries where rain_id = r.id) >= r.slots then
+    raise exception 'Kiša je puna — sva mjesta su zauzeta.';
+  end if;
+  insert into public.rain_entries (rain_id, user_id) values (r.id, uid) on conflict do nothing;
+  if not found then raise exception 'Već si se pridružio ovoj kiši.'; end if;
+  return public.rain_state();
+end $$;
+
+create or replace function public.rain_tip(p_amount numeric)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := public._uid();
+  r public.rain_rounds;
+  p public.profiles;
+  amt numeric := round(coalesce(p_amount, 0), 2);
+begin
+  if not public._setting('coin_rain') then raise exception 'Kiša coina je isključena.'; end if;
+  if amt < 1 then raise exception 'Najmanji bakšiš je 1 coin.'; end if;
+  perform public._rain_settle();
+  r := public._rain_current();
+  perform public._charge(uid, amt);
+  update public.rain_rounds set pot = pot + amt where id = r.id;
+  select * into p from public.profiles where id = uid;
+  insert into public.game_log (user_id, game, wager, payout, details) values (uid, 'rain_tip', amt, 0, jsonb_build_object('rain', r.id));
+  insert into public.chat_messages (user_id, username, level, body, kind, rain_id)
+  values (uid, p.username, p.level, format('je dodao %s coina u kišu', replace(to_char(amt, 'FM999990D00'), '.', ',')), 'tip', r.id);
+  return public.rain_state();
+end $$;
+
+create or replace function public.admin_trigger_rain(p_pot numeric, p_slots int default 20, p_minutes int default 3)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin(); rid bigint;
+begin
+  if p_pot < 1 or p_pot > 1000000 then raise exception 'Pot mora biti 1–1.000.000.'; end if;
+  if p_slots < 1 or p_slots > 500 then raise exception 'Broj mjesta mora biti 1–500.'; end if;
+  if p_minutes < 1 or p_minutes > 30 then raise exception 'Trajanje mora biti 1–30 minuta.'; end if;
+  perform public._rain_settle();
+  insert into public.rain_rounds (ends_at, pot, slots, window_min, manual)
+  values (date_trunc('second', now()) + make_interval(mins => p_minutes), p_pot, p_slots, p_minutes, true) returning id into rid;
+  perform public._admin_log(a, null, 'trigger_rain', jsonb_build_object('pot', p_pot, 'slots', p_slots, 'minutes', p_minutes));
+  return public.rain_state();
+end $$;
+grant execute on function public.admin_trigger_rain(numeric, int, int) to authenticated;
+
+create or replace function public.get_settings()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_object_agg(key, enabled), '{}'::jsonb) from public.site_settings;
+$$;
+
+create or replace function public.admin_set_setting(p_key text, p_enabled boolean)
+returns void language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin();
+begin
+  insert into public.site_settings (key, enabled) values (p_key, p_enabled)
+  on conflict (key) do update set enabled = excluded.enabled;
+  perform public._admin_log(a, null, 'setting', jsonb_build_object('key', p_key, 'enabled', p_enabled));
+end $$;
+
+revoke all on function public._rain_settle() from public, anon, authenticated;
+revoke all on function public._rain_current() from public, anon, authenticated;
+revoke all on function public._setting(text) from public, anon, authenticated;
+grant execute on function public.rain_state() to anon, authenticated;
+grant execute on function public.rain_join() to authenticated;
+grant execute on function public.rain_tip(numeric) to authenticated;
+grant execute on function public.get_settings() to anon, authenticated;
+grant execute on function public.admin_set_setting(text, boolean) to authenticated;
+
+
+-- ---------- JACKPOT (prava runda svake minute, samo pravi igrači) ----------
+-- Igrači ulažu tijekom runde (može više puta). Na kraju minute izvlači se pobjednik
+-- proporcionalno ulogu; pobjednik dobiva pot − 5%. Ako je ušao samo jedan igrač, ulog mu se vraća.
+create table if not exists public.jackpot_rounds (
+  id bigserial primary key,
+  ends_at timestamptz unique not null,
+  status text not null default 'open' check (status in ('open','paid','refunded')),
+  pot numeric(14,2) not null default 0,
+  winner_id uuid references public.profiles(id) on delete set null,
+  ticket numeric,
+  payout numeric(14,2),
+  players jsonb
+);
+create table if not exists public.jackpot_bets (
+  id bigserial primary key,
+  round_id bigint not null references public.jackpot_rounds(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  amount numeric(14,2) not null check (amount > 0),
+  created_at timestamptz not null default now()
+);
+create index if not exists jackpot_bets_round_idx on public.jackpot_bets(round_id);
+alter table public.jackpot_rounds enable row level security;
+alter table public.jackpot_bets enable row level security;
+drop policy if exists "jackpot read" on public.jackpot_rounds;
+create policy "jackpot read" on public.jackpot_rounds for select using (true);
+
+create or replace function public._jackpot_players(p_round bigint)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by x.first_bet), '[]'::jsonb) from (
+    select b.user_id, p.username, p.level, sum(b.amount) as bet, min(b.created_at) as first_bet
+      from public.jackpot_bets b join public.profiles p on p.id = b.user_id
+     where b.round_id = p_round group by b.user_id, p.username, p.level
+  ) x;
+$$;
+
+create or replace function public._jackpot_settle()
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  r public.jackpot_rounds;
+  pl jsonb;
+  n int;
+  t numeric;
+  acc numeric;
+  e jsonb;
+  win uuid;
+  pay numeric;
+  wname text;
+begin
+  for r in select * from public.jackpot_rounds where status = 'open' and ends_at <= now() order by ends_at for update loop
+    pl := public._jackpot_players(r.id);
+    n := jsonb_array_length(pl);
+    if n = 0 then
+      update public.jackpot_rounds set status = 'refunded', players = pl where id = r.id;
+    elsif n = 1 then
+      -- samo jedan igrač: vrati ulog
+      update public.profiles set balance = balance + r.pot where id = (pl->0->>'user_id')::uuid;
+      update public.jackpot_rounds set status = 'refunded', players = pl where id = r.id;
+    else
+      t := random()::numeric * r.pot;
+      acc := 0;
+      for e in select * from jsonb_array_elements(pl) loop
+        acc := acc + (e->>'bet')::numeric;
+        win := (e->>'user_id')::uuid;
+        wname := e->>'username';
+        exit when t < acc;
+      end loop;
+      pay := round(r.pot * 0.95, 2);
+      update public.profiles set balance = balance + pay where id = win;
+      update public.jackpot_rounds set status = 'paid', players = pl, winner_id = win, ticket = t / r.pot, payout = pay where id = r.id;
+      insert into public.game_log (user_id, game, wager, payout, details)
+        select (x->>'user_id')::uuid, 'jackpot', (x->>'bet')::numeric, case when (x->>'user_id')::uuid = win then pay else 0 end,
+               jsonb_build_object('round', r.id, 'pot', r.pot, 'players', n)
+          from jsonb_array_elements(pl) x;
+      insert into public.chat_messages (user_id, username, level, body, kind)
+      values (null, 'Jackpot', 0, format('%s je osvojio jackpot od %s coina!', wname, replace(to_char(pay, 'FM999990D00'), '.', ',')), 'rain_paid');
+    end if;
+  end loop;
+end $$;
+
+create or replace function public._jackpot_current()
+returns public.jackpot_rounds language plpgsql security definer set search_path = public as $$
+declare
+  e timestamptz := to_timestamp(ceil(extract(epoch from now()) / 60) * 60);
+  r public.jackpot_rounds;
+begin
+  select * into r from public.jackpot_rounds where status = 'open' and ends_at > now() order by ends_at limit 1;
+  if found then return r; end if;
+  if e <= now() then e := e + interval '1 minute'; end if;
+  insert into public.jackpot_rounds (ends_at) values (e) on conflict (ends_at) do nothing;
+  select * into r from public.jackpot_rounds where ends_at = e;
+  return r;
+end $$;
+
+create or replace function public.jackpot_state()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  r public.jackpot_rounds;
+begin
+  perform public._jackpot_settle();
+  r := public._jackpot_current();
+  return jsonb_build_object(
+    'id', r.id, 'ends_at', r.ends_at, 'now', now(), 'pot', r.pot,
+    'players', public._jackpot_players(r.id),
+    'last', (select to_jsonb(x) from (
+        select jr.id, jr.status, jr.pot, jr.payout, jr.ticket, jr.players, jr.ends_at, jr.winner_id, p.username as winner
+          from public.jackpot_rounds jr left join public.profiles p on p.id = jr.winner_id
+         where jr.status in ('paid','refunded') and jr.players is not null and jsonb_array_length(jr.players) > 0
+         order by jr.ends_at desc limit 1) x),
+    'history', (select coalesce(jsonb_agg(x), '[]'::jsonb) from (
+        select jr.id, jr.pot, jr.payout, p.username as winner, jsonb_array_length(jr.players) as n
+          from public.jackpot_rounds jr left join public.profiles p on p.id = jr.winner_id
+         where jr.status = 'paid' order by jr.ends_at desc limit 8) x)
+  );
+end $$;
+
+create or replace function public.jackpot_bet(p_amount numeric)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := public._uid();
+  r public.jackpot_rounds;
+  amt numeric := round(coalesce(p_amount, 0), 2);
+begin
+  if amt < 1 or amt > 10000 then raise exception 'Ulog mora biti 1–10000.'; end if;
+  perform public._jackpot_settle();
+  r := public._jackpot_current();
+  if r.ends_at - now() < interval '2 seconds' then raise exception 'Runda se upravo zatvara, pričekaj sljedeću.'; end if;
+  perform public._charge(uid, amt);
+  insert into public.jackpot_bets (round_id, user_id, amount) values (r.id, uid, amt);
+  update public.jackpot_rounds set pot = pot + amt where id = r.id;
+  perform public._apply_wager(uid, amt);
+  return public.jackpot_state();
+end $$;
+
+revoke all on function public._jackpot_settle() from public, anon, authenticated;
+revoke all on function public._jackpot_current() from public, anon, authenticated;
+revoke all on function public._jackpot_players(bigint) from public, anon, authenticated;
+grant execute on function public.jackpot_state() to anon, authenticated;
+grant execute on function public.jackpot_bet(numeric) to authenticated;
 
 -- ---------- REALTIME (battle lobby uživo) ----------
 do $$

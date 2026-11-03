@@ -191,7 +191,7 @@ export function CaseView() {
         <div className="card min-w-0 space-y-4 p-4">
           <div className="relative space-y-2 overflow-hidden rounded-lg">
             {strips.map((s, i) => (
-              <Reel key={i} size={strips.length === 1 ? "lg" : "md"} items={s} winnerIndex={WIN} spinKey={spinKey} duration={fast ? 1800 : 5600} sound={i === 0} onDone={i === 0 ? finished : undefined} />
+              <Reel key={i} size={strips.length === 1 ? "lg" : "md"} pool={c.items} items={s} winnerIndex={WIN} spinKey={spinKey} duration={fast ? 1800 : 5600} sound={i === 0} onDone={i === 0 ? finished : undefined} />
             ))}
             {/* garažna vrata */}
             <div

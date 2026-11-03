@@ -127,6 +127,12 @@ export const sfx = {
     noise(0.6, { gain: 0.14, from: 200, to: 900 });
     tone(55, 0.6, { type: "sawtooth", gain: 0.05, slideTo: 90 });
   },
+  // zlatni dijamant pogođen — uzlazni "shimmer"
+  gold: () => {
+    [880, 1109, 1319, 1760, 2217].forEach((n, i) => tone(n, 0.5, { type: "triangle", gain: 0.16, delay: i * 0.07 }));
+    noise(0.9, { gain: 0.12, from: 3000, to: 10000, delay: 0.05 });
+    tone(110, 0.8, { type: "sawtooth", gain: 0.06, slideTo: 440 });
+  },
   light: () => tone(660, 0.12, { type: "square", gain: 0.08 }),
   lightsOut: () => tone(110, 0.5, { type: "sawtooth", gain: 0.1, slideTo: 300 }),
 };

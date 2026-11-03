@@ -19,9 +19,10 @@ import { NameReel, type Entry } from "@/components/NameReel";
 import { CountUp } from "@/components/CountUp";
 import { useCelebrate } from "@/components/WinOverlay";
 import { useChat } from "@/components/Chat";
+import { StakePicker } from "@/components/StakePicker";
 
 const WIN = 32;
-const ROUND_PAUSE = 1700; // pauza nakon svake otvorene runde
+const ROUND_PAUSE = 2300; // koliko izvučeni auti ostaju u traci prije sljedeće runde
 type Phase = "idle" | "rounds" | "roulette" | "done";
 
 export function BattleView() {
@@ -38,6 +39,7 @@ export function BattleView() {
   const [items, setItems] = useState<Map<number, Item>>(new Map());
   const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [stake, setStake] = useState(1);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [revealed, setRevealed] = useState(0);
@@ -200,11 +202,12 @@ export function BattleView() {
         .forEach((d, k) => {
           if (winners[k % winners.length]?.user_id === user?.id && items.get(d.item_id)) myItems.push(items.get(d.item_id)!);
         });
-      const val = myItems.reduce((s, i) => s + i.value, 0);
+      const full = myItems.reduce((s, i) => s + i.value, 0);
+      const val = Math.round(full * me.stake * 100) / 100;
       celebrate({
-        title: "Pobjeda!",
+        title: me.stake < 1 ? `Pobjeda! (${Math.round(me.stake * 100)}%)` : "Pobjeda!",
         subtitle: isJackpot ? "Rulet je izvukao tebe" : isCrazy ? "Crazy battle je tvoj" : "Tvoja garaža je bila najjača",
-        items: myItems,
+        items: me.stake < 1 ? undefined : myItems,
         amount: val,
         tier: val >= battle.cost * 3 ? 3 : val >= battle.cost * 1.5 ? 2 : 1,
       });
@@ -288,6 +291,7 @@ export function BattleView() {
           )}
         </div>
       )}
+      {battle.status === "waiting" && user && !meIn && <StakePicker cost={battle.cost} value={stake} onChange={setStake} />}
       {battle.status === "cancelled" && <div className="card p-4 text-muted">Ovaj battle je otkazan.</div>}
 
       {(phase === "roulette" || (done && battle.jackpot)) && (
@@ -339,7 +343,8 @@ export function BattleView() {
                   <div className="flex gap-2">
                     {seats.map((seat) => {
                       const p = players.find((x) => x.seat === seat);
-                      const mine = drops.filter((d) => d.seat === seat && d.round <= revealed).sort((a, b) => b.round - a.round);
+                      const shownInReel = phase === "rounds" ? (spinning ? revealed + 1 : revealed) : -1;
+                      const mine = drops.filter((d) => d.seat === seat && d.round <= revealed && d.round !== shownInReel).sort((a, b) => b.round - a.round);
                       const isMe = p?.user_id && p.user_id === user?.id;
                       return (
                         <div key={seat} className="w-44 flex-1 space-y-2 md:w-auto md:min-w-36">
@@ -348,7 +353,10 @@ export function BattleView() {
                               {p ? (p.is_bot ? "AI" : p.name.slice(0, 2).toUpperCase()) : "?"}
                             </span>
                             <div className="min-w-0 flex-1">
-                              <div className="truncate font-semibold">{p?.name ?? "Slobodno mjesto"}{isMe && <span className="text-accent2"> (ti)</span>}</div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="truncate font-semibold">{p?.name ?? "Slobodno mjesto"}{isMe && <span className="text-accent2"> (ti)</span>}</span>
+                                {p && p.stake < 1 && <span className="shrink-0 rounded bg-amber-400/20 px-1 text-xs font-bold text-amber-300" title="Posudio dio ulaza — dobiva toliki dio nagrade">{Math.round(p.stake * 100)}%</span>}
+                              </div>
                               <div className="flex items-center gap-2 font-display text-lg font-bold leading-none text-accent">
                                 <CountUp value={totals.get(seat) ?? 0} />
                                 {isJackpot && battle.team_size === 1 && grand > 0 && (
@@ -362,8 +370,8 @@ export function BattleView() {
                               {p ? (
                                 <span className="font-display text-xl font-bold text-emerald-300">Spreman</span>
                               ) : user && !meIn ? (
-                                <button className="btn-primary" disabled={busy} onClick={() => act("join_battle", { p_id: battle.id, p_seat: seat }, "Ušao si u battle!")}>
-                                  Uđi za {coins(battle.cost)}
+                                <button className="btn-primary" disabled={busy} onClick={() => act("join_battle", { p_id: battle.id, p_seat: seat, p_stake: stake }, "Ušao si u battle!")}>
+                                  Uđi za {coins(battle.cost * stake)}
                                 </button>
                               ) : !user ? (
                                 <Link href="/login" className="btn-ghost">Prijavi se</Link>
@@ -371,18 +379,19 @@ export function BattleView() {
                                 <span className="text-muted">Čeka igrača…</span>
                               )}
                             </div>
-                          ) : spinning && strips[seat] ? (
-                            <Reel vertical items={strips[seat]} winnerIndex={WIN} spinKey={spinKey} duration={3400} sound={seat === 0} onDone={seat === 0 ? onRoundDone : undefined} />
+                          ) : phase === "rounds" && strips[seat] ? (
+                            <div className="relative">
+                              {!spinning && seat === bestSeat && revealed > 0 && (
+                                <span className="pop absolute -top-2.5 right-2 z-30 rounded bg-accent px-1.5 font-display text-sm font-bold text-ink shadow-lg">Najbolji drop runde</span>
+                              )}
+                              <Reel vertical items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} winnerIndex={WIN} spinKey={spinKey} duration={3600} sound={seat === 0} onDone={seat === 0 ? onRoundDone : undefined} />
+                            </div>
                           ) : null}
                           <div className="space-y-1.5">
                             {mine.map((d) => {
                               const it = items.get(d.item_id);
-                              const fresh = d.round === revealed && !spinning && phase === "rounds";
                               return it ? (
-                                <div key={d.round} className={`relative ${fresh ? "pop" : ""}`}>
-                                  {fresh && seat === bestSeat && (
-                                    <span className="absolute -top-2.5 right-2 z-10 rounded bg-accent px-1.5 font-display text-sm font-bold text-ink shadow-lg">Najbolji drop runde</span>
-                                  )}
+                                <div key={d.round} className="drop-in relative">
                                   <ItemCard item={it} size="sm" />
                                 </div>
                               ) : null;

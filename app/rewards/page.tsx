@@ -9,19 +9,19 @@ import { coins, levelProgress, xpForLevel } from "@/lib/format";
 import { useRpc } from "@/lib/useGame";
 import { fmtLeft, useNow } from "@/lib/useNow";
 import { useAuth } from "@/components/AuthProvider";
-import { useToast } from "@/components/Toast";
 import { RequireAuth } from "@/components/RequireAuth";
 import { CaseArt } from "@/components/CaseCard";
 import { Reel } from "@/components/Reel";
 import { ItemCard } from "@/components/ItemCard";
 import { useCelebrate } from "@/components/WinOverlay";
+import { useChat } from "@/components/Chat";
 
 export default function RewardsPage() {
   return (
     <div className="space-y-5">
       <div>
         <h1 className="h1">Nagrade i level</h1>
-        <p className="text-sm text-muted">Besplatna dnevna kutija sa streakom, kiša coina svakih 30 minuta, tjedni i mjesečni dropovi te level kutije.</p>
+        <p className="text-sm text-muted">Besplatna dnevna kutija sa streakom, kiša coina u chatu i level kutije.</p>
       </div>
       <RequireAuth what="preuzimati nagrade">
         <Rewards />
@@ -36,8 +36,9 @@ const WIN = 50;
 function Rewards() {
   const { profile, refresh } = useAuth();
   const celebrate = useCelebrate();
+  const { setOpen: openChat } = useChat();
+  const [settings, setSettings] = useState<Record<string, boolean>>({});
   const rpc = useRpc();
-  const toast = useToast();
   const now = useNow();
   const [cases, setCases] = useState<CaseWithItems[]>([]);
   const [claims, setClaims] = useState<Record<number, string>>({});
@@ -53,6 +54,7 @@ function Rewards() {
   useEffect(() => {
     getCases().then(setCases);
     loadClaims();
+    createClient().rpc("get_settings").then(({ data }) => data && setSettings(data as Record<string, boolean>));
   }, [loadClaims]);
 
   if (!profile) return null;
@@ -80,16 +82,12 @@ function Rewards() {
     setTimeout(() => setDailyWon(it), 0);
   };
 
-  const claim = async (kind: "rain" | "weekly" | "monthly") => {
+  const claim = async (kind: "weekly" | "monthly") => {
     const res = await rpc<{ amount: number }>("claim_reward", { p_kind: kind });
     if (!res) return;
-    if (kind === "rain") toast(`Kiša coina: +${coins(res.amount)}`, "success");
-    else celebrate({ title: kind === "weekly" ? "Tjedni drop" : "Mjesečni drop", subtitle: "Coini su na računu", amount: Number(res.amount), tier: kind === "monthly" ? 2 : 1 });
+    celebrate({ title: kind === "weekly" ? "Tjedni drop" : "Mjesečni drop", subtitle: "Coini su na računu", amount: Number(res.amount), tier: kind === "monthly" ? 2 : 1 });
   };
 
-  const rainNext = now ? Math.ceil(now / 1800_000) * 1800_000 : 0;
-  const rainWindow = now ? Math.floor(now / 1800_000) * 1800_000 : 0;
-  const rainClaimed = profile.last_rain_at && new Date(profile.last_rain_at).getTime() >= rainWindow;
   const left = (last: string | null, days: number) => (now && last ? new Date(last).getTime() + days * DAY - now : 0);
   const weeklyLeft = left(profile.last_weekly_at, 7);
   const monthlyLeft = left(profile.last_monthly_at, 30);
@@ -153,13 +151,18 @@ function Rewards() {
 
         {/* DROPOVI */}
         <section className="min-w-0 space-y-3">
-          <RewardRow title="🌧️ Kiša coina" desc={`Svakih 30 min · level 2+ · do ${coins(5 + profile.level)} coina`} disabled={profile.level < 2 || !!rainClaimed}
-            btn={profile.level < 2 ? "Level 2+" : rainClaimed ? `Za ${now ? fmtLeft(rainNext - now) : "—"}` : "Pokupi"} onClick={() => claim("rain")} />
-          <RewardRow title="⚡ Instant dropovi" desc="Svako otvaranje kutije ima 4% šanse za bonus od 10–40% cijene kutije." btn="Automatski" disabled />
-          <RewardRow title="📅 Tjedni drop" desc={`${coins(25 + profile.level * 10)} coina · min. 100 XP`} disabled={weeklyLeft > 0 || profile.xp < 100}
-            btn={profile.xp < 100 ? "Treba 100 XP" : weeklyLeft > 0 ? fmtLeft(weeklyLeft) : "Preuzmi"} onClick={() => claim("weekly")} />
-          <RewardRow title="🗓️ Mjesečni drop" desc={`${coins(100 + profile.level * 40)} coina · min. 500 XP`} disabled={monthlyLeft > 0 || profile.xp < 500}
-            btn={profile.xp < 500 ? "Treba 500 XP" : monthlyLeft > 0 ? fmtLeft(monthlyLeft) : "Preuzmi"} onClick={() => claim("monthly")} />
+          {settings.coin_rain !== false && (
+            <RewardRow title="Kiša coina" desc="Svaki sat u chatu. Pridruži se u zadnje 3 minute dok ima mjesta i podijeli pot s ostalima (level 2+). Bakšišem povećavaš pot." btn="Otvori chat" onClick={() => openChat(true)} />
+          )}
+          {settings.instant_drops && <RewardRow title="Instant dropovi" desc="Svako otvaranje kutije ima 4% šanse za bonus od 10–40% cijene kutije." btn="Automatski" disabled />}
+          {settings.weekly_drop && (
+            <RewardRow title="Tjedni drop" desc={`${coins(25 + profile.level * 10)} coina · min. 100 XP`} disabled={weeklyLeft > 0 || profile.xp < 100}
+              btn={profile.xp < 100 ? "Treba 100 XP" : weeklyLeft > 0 ? fmtLeft(weeklyLeft) : "Preuzmi"} onClick={() => claim("weekly")} />
+          )}
+          {settings.monthly_drop && (
+            <RewardRow title="Mjesečni drop" desc={`${coins(100 + profile.level * 40)} coina · min. 500 XP`} disabled={monthlyLeft > 0 || profile.xp < 500}
+              btn={profile.xp < 500 ? "Treba 500 XP" : monthlyLeft > 0 ? fmtLeft(monthlyLeft) : "Preuzmi"} onClick={() => claim("monthly")} />
+          )}
         </section>
       </div>
 

@@ -94,6 +94,69 @@ function StatsTab() {
         </table>
       </div>
       <p className="text-sm text-muted">Ukupno coina kod korisnika: {coins(s.total_balance)}</p>
+      <SettingsBox />
+      <RainTrigger />
+    </div>
+  );
+}
+
+const SETTING_LABELS: Record<string, string> = {
+  coin_rain: "Kiša coina u chatu",
+  instant_drops: "Instant dropovi kod otvaranja kutija",
+  weekly_drop: "Tjedni drop",
+  monthly_drop: "Mjesečni drop",
+};
+
+function RainTrigger() {
+  const toast = useToast();
+  const [pot, setPot] = useState("200");
+  const [slots, setSlots] = useState("20");
+  const [mins, setMins] = useState("3");
+  const go = async () => {
+    const { error } = await sb().rpc("admin_trigger_rain", { p_pot: Number(pot), p_slots: Number(slots), p_minutes: Number(mins) });
+    if (error) return toast(errMsg(error), "error");
+    toast("Kiša je pokrenuta i objavljena u chatu.", "success");
+  };
+  return (
+    <div className="card p-4">
+      <h3 className="font-display text-xl font-bold">Pokreni kišu coina</h3>
+      <p className="mb-3 text-sm text-muted">Kiša odmah kreće u chatu. Pot plaća kuća, a dijeli se jednako među igračima koji se pridruže (do broja mjesta).</p>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="text-sm">Pot<input className="input mt-1 w-32" type="number" min={1} value={pot} onChange={(e) => setPot(e.target.value)} /></label>
+        <label className="text-sm">Mjesta<input className="input mt-1 w-24" type="number" min={1} max={500} value={slots} onChange={(e) => setSlots(e.target.value)} /></label>
+        <label className="text-sm">Trajanje (min)<input className="input mt-1 w-24" type="number" min={1} max={30} value={mins} onChange={(e) => setMins(e.target.value)} /></label>
+        <button className="btn-primary" onClick={go}>Pokreni kišu</button>
+      </div>
+    </div>
+  );
+}
+
+function SettingsBox() {
+  const toast = useToast();
+  const [st, setSt] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    sb().rpc("get_settings").then(({ data }) => data && setSt(data as Record<string, boolean>));
+  }, []);
+  const toggle = async (k: string) => {
+    const v = !(st[k] ?? true);
+    const { error } = await sb().rpc("admin_set_setting", { p_key: k, p_enabled: v });
+    if (error) return toast(errMsg(error), "error");
+    setSt((x) => ({ ...x, [k]: v }));
+    toast(`${SETTING_LABELS[k] ?? k}: ${v ? "uključeno" : "isključeno"}`, "success");
+  };
+  return (
+    <div className="card p-4">
+      <h3 className="mb-2 font-display text-xl font-bold">Nagrade i značajke</h3>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {Object.keys(SETTING_LABELS).map((k) => (
+          <button key={k} role="switch" aria-checked={st[k] ?? true} onClick={() => toggle(k)} className="flex items-center gap-3 rounded-md border border-line p-2 text-left hover:border-white/30">
+            <span className={`flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 ${st[k] ?? true ? "bg-emerald-400" : "bg-line"}`}>
+              <span className={`h-4 w-4 rounded-full bg-white transition ${st[k] ?? true ? "translate-x-4" : ""}`} />
+            </span>
+            <span className="text-sm">{SETTING_LABELS[k]}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

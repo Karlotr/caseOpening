@@ -6,9 +6,12 @@ import { createClient } from "@/utils/supabase/client";
 import { coins, errMsg } from "@/lib/format";
 import { modeLabel, normBattle, type Battle } from "@/lib/battles";
 import { useAuth } from "./AuthProvider";
+import { sfx } from "@/lib/sound";
+import { useNow, fmtLeft } from "@/lib/useNow";
 import { useToast } from "./Toast";
 
-type Msg = { id: number; user_id: string; username: string; level: number; body: string; battle_id: string | null; created_at: string };
+type Msg = { id: number; user_id: string | null; username: string; level: number; body: string; battle_id: string | null; created_at: string; kind?: string; rain_id?: number | null };
+type Rain = { enabled: boolean; id: number; pot: number; ends_at: string; opens_at: string; now: string; open: boolean; slots: number; participants: number; joined: boolean };
 type Ctx = { open: boolean; setOpen: (o: boolean) => void; shareBattle: (id: string) => Promise<void> };
 const ChatCtx = createContext<Ctx>({ open: false, setOpen: () => {}, shareBattle: async () => {} });
 export const useChat = () => useContext(ChatCtx);
@@ -133,11 +136,27 @@ function ChatPanel() {
           </div>
           <button onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-panel hover:text-fg" aria-label="Zatvori chat">✕</button>
         </div>
+        <RainBar />
         <div ref={list} className="flex-1 space-y-2.5 overflow-y-auto px-3 py-3">
           {msgs.length === 0 && <p className="py-10 text-center text-sm text-muted">Tiho je u garaži. Napiši prvu poruku.</p>}
           {msgs.map((m) => {
             const b = m.battle_id ? battles.get(m.battle_id) : null;
             const mine = m.user_id === user?.id;
+            if (m.kind === "rain" || m.kind === "rain_paid")
+              return (
+                <div key={m.id} className="drop-in rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
+                  <span className="font-display text-base font-bold text-amber-300">{m.username} · </span>
+                  {m.body}
+                </div>
+              );
+            if (m.kind === "tip")
+              return (
+                <div key={m.id} className="drop-in flex items-center gap-1.5 text-sm">
+                  <span className="coin" />
+                  <span className="font-semibold text-amber-300">{m.username}</span>
+                  <span className="text-amber-100/90">{m.body}</span>
+                </div>
+              );
             return (
               <div key={m.id} className="drop-in">
                 <div className="flex items-center gap-1.5 text-sm">
@@ -182,5 +201,88 @@ function ChatPanel() {
         )}
       </aside>
     </>
+  );
+}
+
+// Traka s kišom coina: odbrojavanje, pot, pridruživanje i bakšiš
+function RainBar() {
+  const { user, profile, refresh } = useAuth();
+  const toast = useToast();
+  const now = useNow(1000);
+  const [rain, setRain] = useState<Rain | null>(null);
+  const [skew, setSkew] = useState(0);
+  const [tip, setTip] = useState("");
+  const [tipOpen, setTipOpen] = useState(false);
+  const wasOpen = useRef(false);
+
+  const load = useCallback(async () => {
+    const { data } = await createClient().rpc("rain_state");
+    if (!data) return;
+    const r = data as Rain;
+    setRain(r);
+    if (r.now) setSkew(new Date(r.now).getTime() - Date.now());
+    if (r.open && !wasOpen.current) sfx.coin();
+    wasOpen.current = r.open;
+  }, []);
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 5000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  if (!rain || !rain.enabled || now === null) return null;
+  const t = now + skew;
+  const toOpen = new Date(rain.opens_at).getTime() - t;
+  const toEnd = new Date(rain.ends_at).getTime() - t;
+  const open = toOpen <= 0 && toEnd > 0;
+
+  const join = async () => {
+    const { data, error } = await createClient().rpc("rain_join");
+    if (error) return toast(errMsg(error), "error");
+    setRain(data as Rain);
+    sfx.coin();
+    toast("Pridružio si se kiši! Pot se dijeli kad kiša završi.", "success");
+  };
+  const sendTip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { data, error } = await createClient().rpc("rain_tip", { p_amount: Number(tip) });
+    if (error) return toast(errMsg(error), "error");
+    setRain(data as Rain);
+    setTip("");
+    setTipOpen(false);
+    refresh();
+    toast("Bakšiš je dodan u kišu.", "success");
+  };
+
+  return (
+    <div className={`border-b border-line px-4 py-3 ${open ? "bg-amber-400/15" : ""}`}>
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="font-display text-lg font-bold leading-none text-amber-300">
+            {open ? "Kiša pada!" : "Kiša coina"} · <span className="text-fg">{coins(rain.pot)}</span>
+          </div>
+          <div className="mt-0.5 text-xs text-muted">
+            {open ? `Završava za ${fmtLeft(toEnd)} · mjesta ${rain.participants}/${rain.slots}` : `Počinje za ${fmtLeft(toOpen)} · ${rain.slots} mjesta`}
+          </div>
+        </div>
+        {open && user && (
+          <button className="btn-primary px-3 py-1.5 text-sm" onClick={join} disabled={rain.joined || (profile?.level ?? 0) < 2 || rain.participants >= rain.slots}>
+            {rain.joined ? "Pridružen" : (profile?.level ?? 0) < 2 ? "Level 2+" : rain.participants >= rain.slots ? "Puna" : "Pridruži se"}
+          </button>
+        )}
+        {user && !tipOpen && (
+          <button className="rounded-md border border-line px-2 py-1 text-xs font-semibold hover:border-amber-400" onClick={() => setTipOpen(true)}>
+            Bakšiš
+          </button>
+        )}
+      </div>
+      {tipOpen && (
+        <form onSubmit={sendTip} className="mt-2 flex gap-2">
+          <input className="input py-1" type="number" min={1} step="1" placeholder="Iznos" value={tip} onChange={(e) => setTip(e.target.value)} aria-label="Iznos bakšiša" autoFocus />
+          <button className="btn-primary px-3 py-1 text-sm" disabled={!Number(tip)}>Dodaj</button>
+          <button type="button" className="text-xs text-muted" onClick={() => setTipOpen(false)}>Odustani</button>
+        </form>
+      )}
+    </div>
   );
 }

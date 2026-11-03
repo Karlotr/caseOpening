@@ -5,8 +5,9 @@
 import type { Item } from "./types";
 import local from "./car-photos.json";
 
-export type PhotoCredit = { file: string; title: string; page: string; author: string; license: string; licenseUrl: string | null };
+export type PhotoCredit = { file: string; cutout?: boolean; title: string; page: string; author: string; license: string; licenseUrl: string | null };
 export const LOCAL_PHOTOS = local as Record<string, PhotoCredit>;
+export const isCutout = (id: number) => !!LOCAL_PHOTOS[String(id)]?.cutout;
 export const localPhoto = (id: number) => (LOCAL_PHOTOS[String(id)] ? `/cars/${LOCAL_PHOTOS[String(id)].file}` : null);
 
 const KEY = process.env.NEXT_PUBLIC_CARIMAGES_KEY;

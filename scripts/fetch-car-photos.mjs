@@ -1,12 +1,18 @@
 #!/usr/bin/env node
-// Skida fotografije automobila s Wikimedia Commonsa (slobodne licence) u public/cars/
-// i zapisuje autora + licencu u lib/car-photos.json (prikazuje se na /autori-fotografija).
+// Skida fotografije automobila s Wikimedia Commonsa (slobodne licence), uklanja pozadinu
+// (prozirni .webp u public/cars/) i zapisuje autora + licencu u lib/car-photos.json
+// (prikazuje se na /autori-fotografija).
+//
+// Jednom instaliraj alat za uklanjanje pozadine (radi lokalno, ne ide u Vercel build):
+//   npm i --no-save @imgly/background-removal-node
 //
 //   npm run car-photos                 # skine sve što još nema
-//   npm run car-photos -- --force      # skine ponovno sve
+//   npm run car-photos -- --force      # obradi ponovno sve
 //   npm run car-photos -- --only=4,16  # samo određeni id-ovi (s --force za zamjenu)
+//   npm run car-photos -- --no-cutout  # bez uklanjanja pozadine (slika s pozadinom)
 //   npm run car-photos -- --dry        # samo ispiše što bi odabrao
 //
+// Originali se čuvaju u scripts/.photo-cache/ (nije u gitu), pa ponovna obrada ne skida ponovno.
 // Izvori po autu su u scripts/car-photo-sources.json (wiki / search / file).
 import { mkdir, readFile, writeFile, access } from "node:fs/promises";
 import path from "node:path";
@@ -14,6 +20,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = path.join(ROOT, "public", "cars");
+const CACHE_DIR = path.join(ROOT, "scripts", ".photo-cache");
 const MANIFEST = path.join(ROOT, "lib", "car-photos.json");
 const SOURCES = path.join(ROOT, "scripts", "car-photo-sources.json");
 const WIKI = process.env.WIKI_API ?? "https://en.wikipedia.org/w/api.php";
@@ -25,6 +32,7 @@ const UA = process.env.WIKI_UA ?? "GarazaGG-car-photos/1.0 (hobby project; https
 const args = process.argv.slice(2);
 const force = args.includes("--force");
 const dry = args.includes("--dry");
+const noCutout = args.includes("--no-cutout");
 const only = args.find((a) => a.startsWith("--only="))?.slice(7).split(",").map((s) => s.trim()).filter(Boolean);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -78,8 +86,29 @@ async function info(fileTitle) {
   };
 }
 
+// uklanjanje pozadine + obrezivanje praznog ruba → prozirni webp
+let cutoutFn = null;
+async function loadCutout() {
+  if (noCutout) return null;
+  try {
+    const { removeBackground } = await import("@imgly/background-removal-node");
+    const sharp = (await import("sharp")).default;
+    return async (buf, mime) => {
+      const blob = await removeBackground(new Blob([buf], { type: mime }), { model: "medium", output: { format: "image/png" } });
+      const png = Buffer.from(await blob.arrayBuffer());
+      return sharp(png).ensureAlpha().trim({ threshold: 1 }).resize({ width: 640, withoutEnlargement: true }).webp({ quality: 88, alphaQuality: 90 }).toBuffer();
+    };
+  } catch {
+    console.error("Nedostaje alat za uklanjanje pozadine. Pokreni:  npm i --no-save @imgly/background-removal-node");
+    console.error("(ili dodaj --no-cutout za slike s pozadinom)");
+    process.exit(1);
+  }
+}
+
 async function main() {
   const sources = JSON.parse(await readFile(SOURCES, "utf8"));
+  if (!dry) cutoutFn = await loadCutout();
+  await mkdir(CACHE_DIR, { recursive: true });
   const manifest = (await exists(MANIFEST)) ? JSON.parse(await readFile(MANIFEST, "utf8")) : {};
   await mkdir(OUT_DIR, { recursive: true });
   const ids = Object.keys(sources).filter((k) => /^\d+$/.test(k) && (!only || only.includes(k)));
@@ -100,13 +129,27 @@ async function main() {
       const meta = await info(file);
       if (!meta?.url) throw new Error(`nema URL-a za ${file}`);
       const ext = meta.mime === "image/png" ? "png" : meta.mime === "image/webp" ? "webp" : "jpg";
-      const name = `${id}.${ext}`;
       console.log(`#${id.padStart(3)}  ${meta.title}  [${meta.license}]`);
       if (!dry) {
-        const r = await fetch(meta.url, { headers: { "User-Agent": UA } });
-        if (!r.ok) throw new Error(`download ${r.status}`);
-        await writeFile(path.join(OUT_DIR, name), Buffer.from(await r.arrayBuffer()));
-        manifest[id] = { file: name, title: meta.title, page: meta.page, author: meta.author, license: meta.license, licenseUrl: meta.licenseUrl };
+        // original (iz cachea ako je ista datoteka već skinuta)
+        const cacheFile = path.join(CACHE_DIR, `${id}-${meta.title.replace(/^File:/, "").replace(/\.[a-z]+$/i, "").replace(/[^A-Za-z0-9_-]+/g, "_").slice(0, 80)}.${ext}`);
+        let buf;
+        if (await exists(cacheFile)) buf = await readFile(cacheFile);
+        else {
+          const r = await fetch(meta.url, { headers: { "User-Agent": UA } });
+          if (!r.ok) throw new Error(`download ${r.status}`);
+          buf = Buffer.from(await r.arrayBuffer());
+          await writeFile(cacheFile, buf);
+        }
+        let name = `${id}.${ext}`;
+        let cutout = false;
+        if (cutoutFn) {
+          buf = await cutoutFn(buf, meta.mime ?? "image/jpeg");
+          name = `${id}.webp`;
+          cutout = true;
+        }
+        await writeFile(path.join(OUT_DIR, name), buf);
+        manifest[id] = { file: name, cutout, title: meta.title, page: meta.page, author: meta.author, license: meta.license, licenseUrl: meta.licenseUrl };
       }
       ok++;
     } catch (e) {

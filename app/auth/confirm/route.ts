@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type") as EmailOtpType | null;
   const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next") ?? "/rewards";
+  const next = url.searchParams.get("next") ?? (type === "recovery" ? "/nova-lozinka" : "/rewards");
   const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/rewards";
 
   const supabase = createClient(await cookies());

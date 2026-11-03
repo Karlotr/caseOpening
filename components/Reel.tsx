@@ -3,10 +3,29 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Item } from "@/lib/types";
 import { RARITY, coins } from "@/lib/format";
-import { sfx } from "@/lib/sound";
+import { rarityRank, sfx } from "@/lib/sound";
 import { CarImage } from "./CarImage";
 
+const GOLD_RANK = 4; // legendarni i mitski auti se u traci skrivaju iza zlatnog dijamanta
+
+// Zlatni dijamant (tajna) — kao "gold" u CS kutijama
+function GoldTile({ big = false }: { big?: boolean }) {
+  return (
+    <div className={`relative grid place-items-center ${big ? "h-28 w-28" : "h-14 w-14"}`}>
+      <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,#facc1588,transparent_65%)] blur-md" />
+      <div
+        className={`relative ${big ? "h-24 w-24" : "h-12 w-12"} bg-[linear-gradient(135deg,#fff7c2,#facc15_35%,#d97706_70%,#fde68a)] shadow-[0_0_24px_#facc15]`}
+        style={{ clipPath: "polygon(50% 0, 100% 38%, 50% 100%, 0 38%)" }}
+      />
+      <span className={`absolute font-display font-black text-amber-900 ${big ? "text-4xl" : "text-xl"}`} style={{ marginTop: big ? -10 : -6 }}>?</span>
+    </div>
+  );
+}
+
+type Stage = "idle" | "spin" | "gold" | "spin2" | "done";
+
 // Spinner: lista predmeta, pobjednik na `winnerIndex`. Promjena `spinKey` pokreće animaciju.
+// Ako je pobjednik legendaran ili mitski, prvo stane na zlatni dijamant, pa se vrti druga traka samo s rijetkima.
 export function Reel({
   items,
   winnerIndex,
@@ -15,6 +34,7 @@ export function Reel({
   vertical = false,
   sound = true,
   size = "md",
+  pool,
   onDone,
 }: {
   items: Item[];
@@ -24,86 +44,131 @@ export function Reel({
   vertical?: boolean;
   sound?: boolean;
   size?: "md" | "lg";
+  pool?: Item[]; // svi auti iz kutije (za drugu, "zlatnu" vrtnju)
   onDone?: () => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const [offset, setOffset] = useState(0);
   const [animate, setAnimate] = useState(false);
-  const [landed, setLanded] = useState(false);
+  const [dur, setDur] = useState(duration);
+  const [stage, setStage] = useState<Stage>("idle");
+  const [strip, setStrip] = useState<Item[]>(items);
   const lg = size === "lg" && !vertical;
   const tile = vertical ? 112 : lg ? 188 : 156;
   const H = lg ? 214 : 172;
   const doneRef = useRef(onDone);
   const itemsRef = useRef(items);
+  const poolRef = useRef(pool);
   useEffect(() => {
     doneRef.current = onDone;
     itemsRef.current = items;
-  }, [onDone, items]);
+    poolRef.current = pool;
+  }, [onDone, items, pool]);
+
+  // prije prve vrtnje prikaži trenutne predmete
+  useEffect(() => {
+    if (stage === "idle") setStrip(items);
+  }, [items, stage]);
 
   useLayoutEffect(() => {
     if (!spinKey || !box.current) return;
     const size = vertical ? box.current.clientHeight : box.current.clientWidth;
-    const jitter = (Math.random() - 0.5) * tile * 0.7;
-    setAnimate(false);
-    setLanded(false);
-    setOffset(0);
+    const timers: ReturnType<typeof setTimeout>[] = [];
     let raf = 0;
-    let lastIdx = -1;
-    const t0 = performance.now();
-    // tick zvuk kad pločica prođe ispod oznake
-    const watch = () => {
-      if (!track.current) return;
-      const m = new DOMMatrixReadOnly(getComputedStyle(track.current).transform);
-      const pos = -(vertical ? m.m42 : m.m41) + size / 2;
-      const idx = Math.floor(pos / tile);
-      if (idx !== lastIdx) {
-        if (lastIdx !== -1 && sound) sfx.tick();
-        lastIdx = idx;
-      }
-      if (performance.now() - t0 < duration + 100) raf = requestAnimationFrame(watch);
+
+    const run = (len: number, onLand: () => void) => {
+      let lastIdx = -1;
+      const t0 = performance.now();
+      const watch = () => {
+        if (!track.current) return;
+        const m = new DOMMatrixReadOnly(getComputedStyle(track.current).transform);
+        const pos = -(vertical ? m.m42 : m.m41) + size / 2;
+        const idx = Math.floor(pos / tile);
+        if (idx !== lastIdx) {
+          if (lastIdx !== -1 && sound) sfx.tick();
+          lastIdx = idx;
+        }
+        if (performance.now() - t0 < len + 100) raf = requestAnimationFrame(watch);
+      };
+      setAnimate(false);
+      setOffset(0);
+      setDur(len);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          setAnimate(true);
+          setOffset(winnerIndex * tile - size / 2 + tile / 2 + (Math.random() - 0.5) * tile * 0.7);
+          if (sound) sfx.spin();
+          raf = requestAnimationFrame(watch);
+        })
+      );
+      timers.push(setTimeout(onLand, len + 80));
     };
-    const id = requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        setAnimate(true);
-        setOffset(winnerIndex * tile - size / 2 + tile / 2 + jitter);
-        if (sound) sfx.spin();
-        raf = requestAnimationFrame(watch);
-      })
-    );
-    const t = setTimeout(() => {
-      setLanded(true);
+
+    const finish = () => {
+      setStage("done");
       const w = itemsRef.current[winnerIndex];
       if (sound && w) sfx.reveal(w.rarity);
       doneRef.current?.();
-    }, duration + 80);
+    };
+
+    const base = itemsRef.current;
+    const winner = base[winnerIndex];
+    const src = poolRef.current ?? base;
+    let rare = src.filter((i) => rarityRank(i.rarity) >= GOLD_RANK);
+    // za napetost u drugoj traci: ako je malo legendarnih, dodaj i epske
+    if (rare.length > 0 && rare.length < 4) rare = src.filter((i) => rarityRank(i.rarity) >= GOLD_RANK - 1);
+    const golden = !!winner && rarityRank(winner.rarity) >= GOLD_RANK && rare.length > 0;
+
+    setStrip(base);
+    setStage("spin");
+    run(duration, () => {
+      if (!golden) return finish();
+      // 1) zlatni dijamant "eksplodira"
+      setStage("gold");
+      if (sound) sfx.gold();
+      timers.push(
+        setTimeout(() => {
+          // 2) druga vrtnja samo s rijetkim autima
+          const s2 = Array.from({ length: Math.max(winnerIndex + 8, 30) }, () => rare[Math.floor(Math.random() * rare.length)]);
+          s2[winnerIndex] = winner;
+          setStrip(s2);
+          setStage("spin2");
+          run(Math.max(2200, duration * 0.6), finish);
+        }, 1300)
+      );
+    });
+
     return () => {
-      cancelAnimationFrame(id);
+      timers.forEach(clearTimeout);
       cancelAnimationFrame(raf);
-      clearTimeout(t);
     };
   }, [spinKey, winnerIndex, duration, vertical, tile, sound]);
 
-  const winner = items[winnerIndex];
+  const landed = stage === "done";
+  const showGoldHidden = stage === "idle" || stage === "spin" || stage === "gold";
+  const winner = strip[winnerIndex];
   const wc = winner ? RARITY[winner.rarity].color : "#f5821f";
+  const glow = stage === "gold" ? "#facc15" : landed ? wc : null;
 
   return (
     <div
       ref={box}
-      className={`reel relative w-full min-w-0 overflow-hidden rounded-lg border bg-ink transition-colors duration-500 ${vertical ? "h-[336px]" : ""}`}
-      style={{ height: vertical ? undefined : H, borderColor: landed ? wc : "var(--color-line)", boxShadow: landed ? `0 0 30px ${wc}55, inset 0 0 40px ${wc}22` : undefined }}
+      className={`reel relative w-full min-w-0 overflow-hidden rounded-lg border bg-ink transition-colors duration-500 ${vertical ? "h-[336px]" : ""} ${stage === "spin2" ? "bg-[radial-gradient(circle,#facc1522,transparent_70%)]" : ""}`}
+      style={{ height: vertical ? undefined : H, borderColor: glow ?? "var(--color-line)", boxShadow: glow ? `0 0 30px ${glow}55, inset 0 0 40px ${glow}22` : undefined }}
     >
       <div
         ref={track}
         className={vertical ? "flex flex-col" : "flex"}
         style={{
           transform: vertical ? `translateY(${-offset}px)` : `translateX(${-offset}px)`,
-          transition: animate ? `transform ${duration}ms cubic-bezier(0.08, 0.6, 0.12, 1)` : "none",
+          transition: animate ? `transform ${dur}ms cubic-bezier(0.08, 0.6, 0.12, 1)` : "none",
         }}
       >
-        {items.map((it, i) => {
+        {strip.map((it, i) => {
           const c = RARITY[it.rarity].color;
-          const isWin = landed && i === winnerIndex;
+          const isWin = (landed || stage === "gold") && i === winnerIndex;
+          const hidden = showGoldHidden && rarityRank(it.rarity) >= GOLD_RANK;
           return (
             <div
               key={i}
@@ -113,20 +178,31 @@ export function Reel({
                 height: vertical ? tile : H,
                 borderRight: vertical ? undefined : "1px solid var(--color-line)",
                 borderBottom: vertical ? "1px solid var(--color-line)" : undefined,
-                background: `radial-gradient(90% 70% at 50% 100%, ${c}${isWin ? "88" : "38"}, transparent 70%)`,
-                opacity: landed && !isWin ? 0.35 : 1,
+                background: hidden ? "radial-gradient(80% 70% at 50% 60%, #facc1533, transparent 70%)" : `radial-gradient(90% 70% at 50% 100%, ${c}${isWin ? "88" : "38"}, transparent 70%)`,
+                opacity: (landed || stage === "gold") && !isWin ? 0.25 : 1,
                 transition: "opacity .4s",
               }}
             >
-              <span className="absolute inset-x-0 bottom-0 h-[3px]" style={{ background: c }} />
-              <CarImage item={it} className={vertical ? "h-11 w-24" : lg ? "h-20 w-40" : "h-16 w-32"} />
-              <div className="mt-0.5 w-full truncate px-2 text-center text-[11px] text-muted">{it.brand}</div>
-              <div className="w-full truncate px-2 text-center text-[13px] font-semibold leading-tight">{it.model}</div>
-              <span className={`plate mt-1 ${lg ? "text-base" : "text-[13px]"} ${isWin ? "scale-125 transition-transform" : ""}`}>{coins(it.value)}</span>
+              {hidden ? (
+                <>
+                  <GoldTile big={isWin && stage === "gold"} />
+                  {!(isWin && stage === "gold") && <div className="mt-1 font-display text-sm font-bold text-amber-300">Rijetko</div>}
+                </>
+              ) : (
+                <>
+                  <span className="absolute inset-x-0 bottom-0 h-[3px]" style={{ background: c }} />
+                  <CarImage item={it} className={vertical ? "h-11 w-24" : lg ? "h-20 w-40" : "h-16 w-32"} />
+                  <div className="mt-0.5 w-full truncate px-2 text-center text-[11px] text-muted">{it.brand}</div>
+                  <div className={`w-full truncate px-2 text-center font-semibold leading-tight ${isWin ? "text-[15px]" : "text-[13px]"}`}>{it.model}</div>
+                  <span className={`plate mt-1 ${lg ? "text-base" : "text-[13px]"} ${isWin ? "scale-125 transition-transform" : ""}`}>{coins(it.value)}</span>
+                  {isWin && <span className="mt-1 text-xs font-bold" style={{ color: c }}>{RARITY[it.rarity].label}</span>}
+                </>
+              )}
             </div>
           );
         })}
       </div>
+      {stage === "gold" && <div className="flash pointer-events-none absolute inset-0 z-20 bg-[radial-gradient(circle,#facc15aa,transparent_60%)]" />}
       {/* oznaka */}
       <div className={`pointer-events-none absolute z-20 ${vertical ? "inset-x-0 top-1/2 -translate-y-1/2" : "inset-y-0 left-1/2 -translate-x-1/2"}`}>
         {vertical ? (

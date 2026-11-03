@@ -12,15 +12,23 @@ Next.js 16 + Supabase. Kutije s automobilima (od Fiće do Ferrarija 250 GTO), ca
    - *Authentication → Email Templates → Confirm signup*: link zamijeni s
      `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`
      — klik na link potvrđuje račun i odmah prijavljuje korisnika (radi i na drugom uređaju).
+   - *Email Templates → Reset password*: link zamijeni s
+     `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/nova-lozinka`
+     (zaboravljena lozinka: `/zaboravljena-lozinka` → email → `/nova-lozinka`).
 3. **Env:** `.env.local` (lokalno) / Vercel env:
    ```
    NEXT_PUBLIC_SUPABASE_URL=...
    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
    NEXT_PUBLIC_CARIMAGES_KEY=ci_...   # opcionalno: prave fotografije auta (carimagesapi.com)
    ```
-   **Fotografije auta (lokalno):** na svom računalu u mapi projekta pokreni `npm run car-photos`.
-   Skripta za svih 101 auto skine fotografiju s Wikimedia Commonsa (slobodne licence) u `public/cars/`
-   i zapiše autora/licencu u `lib/car-photos.json` (prikazano na `/autori-fotografija`). Commitaj obje stvari.
+   **Fotografije auta (lokalno, prozirna pozadina):** na svom računalu u mapi projekta pokreni
+   ```
+   npm i --no-save @imgly/background-removal-node
+   npm run car-photos
+   ```
+   Skripta za svih 101 auto skine fotografiju s Wikimedia Commonsa (slobodne licence), lokalno ukloni
+   pozadinu i spremi prozirni `.webp` u `public/cars/`, a autora/licencu u `lib/car-photos.json`
+   (prikazano na `/autori-fotografija`). Commitaj obje stvari. `--no-cutout` zadržava pozadinu.
    Izvori su u `scripts/car-photo-sources.json`; pogrešnu sliku zamijeni upisom `"file": "Ime_datoteke.jpg"`
    i `npm run car-photos -- --only=ID --force`.
 
@@ -49,12 +57,13 @@ Next.js 16 + Supabase. Kutije s automobilima (od Fiće do Ferrarija 250 GTO), ca
 | Značajka | Kako radi |
 |---|---|
 | Kutije | 1–5 odjednom, brzo otvaranje, demo vrtnja, prodaja dobitaka |
-| Battles | 1v1, 1v1v1, 1v1v1v1, 6-way, 2v2, 3v3; prekidači Crazy (manje pobjeđuje) i Jackpot (vrijednost = šansa, rulet na kraju) koji se mogu kombinirati; botovi, realtime lobby |
+| Battles | 1v1, 1v1v1, 1v1v1v1, 6-way, 2v2, 3v3; prekidači Crazy i Jackpot (kombinirati se mogu); posudba (plati 25–75% ulaza → toliki dio nagrade); zlatni dijamant za legendarne aute; botovi, realtime lobby |
 | Upgrader | više auta + coini → skuplji auto, šansa = ulog/cilj × 95%, max 80% |
 | Slide | ciljani multiplikator, šansa 96%/cilj |
 | Trinity | 30 polja: crvena 2×, crna 2×, zlatna 14× |
-| Jackpot | pot s botovima, šansa ∝ ulog, 5% provizija |
-| Nagrade | dnevna kutija sa streakom (bronca/srebro/zlato), kiša coina /30 min, tjedni i mjesečni drop, instant drop 4% |
+| Jackpot | prava runda svake minute samo s pravim igračima, pot i šanse uživo, šansa ∝ ulog, 5% provizija; sam igrač dobiva povrat |
+| Nagrade | dnevna kutija sa streakom (bronca/srebro/zlato), level kutije; instant/tjedni/mjesečni dropovi se uključuju u adminu |
+| Kiša coina | u chatu svaki sat: zadnje 3 min pridruživanje, ograničen broj mjesta, pot se dijeli jednako; bakšiš povećava pot; admin može pokrenuti kišu |
 | Gem Stash | 0,1 gem po odigranom coinu → gem kutije |
 | Admin | stanje i gemovi (+/−), sreća 0,25–5× (skrivena od korisnika), blokiranje, uloge, level, affiliate kod i provizija, poklanjanje auta, reset nagrada, statistika i RTP po igri, log svih promjena |
 | Affiliate | `/register?ref=kod` → novi igrač +50 coina, pozivatelj dobiva proviziju (default 5%) od svega što pozvani odigra |
