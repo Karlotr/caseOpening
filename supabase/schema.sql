@@ -145,6 +145,17 @@ create table if not exists public.user_controls (
   updated_at timestamptz not null default now()
 );
 
+-- izgled u chatu (postavlja admin): boja imena, efekt, oznaka
+alter table public.user_controls add column if not exists chat_color text;
+alter table public.user_controls add column if not exists chat_effect text not null default 'none';
+alter table public.user_controls add column if not exists chat_badge text;
+alter table public.user_controls drop constraint if exists user_controls_chat_color_check;
+alter table public.user_controls add constraint user_controls_chat_color_check check (chat_color is null or chat_color ~ '^#[0-9a-fA-F]{6}$');
+alter table public.user_controls drop constraint if exists user_controls_chat_effect_check;
+alter table public.user_controls add constraint user_controls_chat_effect_check check (chat_effect in ('none','glow','shine','rainbow','pulse'));
+alter table public.user_controls drop constraint if exists user_controls_chat_badge_check;
+alter table public.user_controls add constraint user_controls_chat_badge_check check (chat_badge is null or char_length(chat_badge) <= 14);
+
 alter table public.profiles add column if not exists referred_by uuid references public.profiles(id) on delete set null;
 
 create table if not exists public.affiliates (
@@ -428,6 +439,15 @@ begin
 
   return jsonb_build_object('items', results, 'instant_drop', instant) || lvl;
 end $$;
+
+-- ---------- GARAŽA (sažetak za navigaciju) ----------
+create or replace function public.garage_summary()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('count', count(*), 'value', coalesce(sum(i.value), 0))
+    from public.inventory inv join public.items i on i.id = inv.item_id
+   where inv.user_id = auth.uid() and inv.status = 'owned';
+$$;
+grant execute on function public.garage_summary() to authenticated;
 
 -- ---------- PRODAJA ----------
 create or replace function public.sell_items(p_ids bigint[])
@@ -959,9 +979,22 @@ alter table public.chat_messages add column if not exists kind text not null def
 alter table public.chat_messages add column if not exists rain_id bigint;
 alter table public.chat_messages drop constraint if exists chat_messages_body_check;
 alter table public.chat_messages add constraint chat_messages_body_check check (char_length(body) between 1 and 300);
+alter table public.chat_messages add column if not exists style jsonb;
 alter table public.chat_messages enable row level security;
 drop policy if exists "chat read recent" on public.chat_messages;
 create policy "chat read recent" on public.chat_messages for select using (created_at > now() - interval '6 hours');
+
+-- stil imena u chatu; admin bez postavljene oznake dobiva "Admin" (prazna oznaka = bez oznake)
+create or replace function public._chat_style(p_user uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when c.user_id is null then null else jsonb_strip_nulls(jsonb_build_object(
+    'color', c.chat_color,
+    'effect', nullif(c.chat_effect, 'none'),
+    'badge', nullif(coalesce(c.chat_badge, case when c.role = 'admin' then 'Admin' end), '')
+  )) end
+  from (select 1) d left join public.user_controls c on c.user_id = p_user;
+$$;
+revoke execute on function public._chat_style(uuid) from public, anon, authenticated;
 
 create or replace function public.send_chat(p_body text, p_battle_id uuid default null)
 returns bigint language plpgsql security definer set search_path = public as $$
@@ -981,8 +1014,8 @@ begin
     if not exists (select 1 from public.battles where id = p_battle_id) then raise exception 'Battle ne postoji.'; end if;
     if char_length(body) = 0 then body := 'Pridruži mi se u battleu!'; end if;
   end if;
-  insert into public.chat_messages (user_id, username, level, body, battle_id)
-  values (uid, p.username, p.level, body, p_battle_id) returning id into mid;
+  insert into public.chat_messages (user_id, username, level, body, battle_id, style)
+  values (uid, p.username, p.level, body, p_battle_id, public._chat_style(uid)) returning id into mid;
   -- čišćenje starih poruka
   delete from public.chat_messages where created_at < now() - interval '6 hours';
   return mid;
@@ -1111,6 +1144,7 @@ returns jsonb language plpgsql stable security definer set search_path = public 
 declare a uuid := public._admin();
 begin
   return jsonb_build_object(
+    'chat', (select jsonb_build_object('color', chat_color, 'effect', chat_effect, 'badge', chat_badge, 'role', role) from public.user_controls where user_id = p_user),
     'inventory_count', (select count(*) from public.inventory where user_id = p_user and status = 'owned'),
     'inventory_value', (select coalesce(sum(i.value), 0) from public.inventory inv join public.items i on i.id = inv.item_id where inv.user_id = p_user and inv.status = 'owned'),
     'wagered', (select coalesce(sum(wager), 0) from public.game_log where user_id = p_user),
@@ -1152,6 +1186,23 @@ begin
   on conflict (user_id) do update set luck = excluded.luck, banned = excluded.banned, role = excluded.role, note = excluded.note, updated_at = now();
   perform public._admin_log(a, p_user, 'controls', jsonb_build_object('luck', p_luck, 'banned', p_banned, 'role', p_role, 'note', p_note));
 end $$;
+
+create or replace function public.admin_set_chat_style(p_user uuid, p_color text, p_effect text, p_badge text)
+returns void language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin();
+begin
+  insert into public.user_controls (user_id) values (p_user) on conflict do nothing;
+  update public.user_controls
+     set chat_color = nullif(btrim(coalesce(p_color, '')), ''),
+         chat_effect = coalesce(nullif(p_effect, ''), 'none'),
+         chat_badge = case when p_badge is null then null else btrim(p_badge) end,
+         updated_at = now()
+   where user_id = p_user;
+  -- odmah primijeni i na nedavne poruke
+  update public.chat_messages set style = public._chat_style(p_user) where user_id = p_user and kind = 'msg';
+  perform public._admin_log(a, p_user, 'chat_style', jsonb_build_object('color', p_color, 'effect', p_effect, 'badge', p_badge));
+end $$;
+grant execute on function public.admin_set_chat_style(uuid, text, text, text) to authenticated;
 
 create or replace function public.admin_set_level(p_user uuid, p_level int)
 returns void language plpgsql security definer set search_path = public as $$
@@ -1296,12 +1347,12 @@ end $$;
 create or replace function public._rain_current()
 returns public.rain_rounds language plpgsql security definer set search_path = public as $$
 declare
-  e timestamptz := to_timestamp(ceil(extract(epoch from now()) / 3600) * 3600);
+  -- sljedeća kiša: u nasumičnoj minuti sljedećeg sata (igrači ne znaju kada)
+  e timestamptz := date_trunc('hour', now()) + interval '1 hour' + make_interval(mins => 5 + floor(random() * 50)::int);
   r public.rain_rounds;
 begin
   select * into r from public.rain_rounds where status = 'open' and ends_at > now() order by ends_at limit 1;
   if found then return r; end if;
-  if e <= now() then e := e + interval '1 hour'; end if;
   insert into public.rain_rounds (ends_at, pot) values (e, public._rain_base()) on conflict (ends_at) do nothing;
   select * into r from public.rain_rounds where ends_at = e;
   return r;
@@ -1331,7 +1382,12 @@ begin
     'open', now() >= opens,
     'slots', r.slots,
     'participants', (select count(*) from public.rain_entries where rain_id = r.id),
-    'joined', uid is not null and exists (select 1 from public.rain_entries where rain_id = r.id and user_id = uid)
+    'joined', uid is not null and exists (select 1 from public.rain_entries where rain_id = r.id and user_id = uid),
+    -- zadnja isplaćena kiša u kojoj je igrač sudjelovao (za obavijest i osvježavanje stanja)
+    'my_last', (select jsonb_build_object('id', rr.id, 'paid_each', rr.paid_each)
+                  from public.rain_rounds rr join public.rain_entries re on re.rain_id = rr.id
+                 where uid is not null and re.user_id = uid and rr.status = 'paid'
+                 order by rr.ends_at desc limit 1)
   );
 end $$;
 

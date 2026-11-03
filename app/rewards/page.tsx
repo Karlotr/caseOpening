@@ -152,7 +152,7 @@ function Rewards() {
         {/* DROPOVI */}
         <section className="min-w-0 space-y-3">
           {settings.coin_rain !== false && (
-            <RewardRow title="Kiša coina" desc="Svaki sat u chatu. Pridruži se u zadnje 3 minute dok ima mjesta i podijeli pot s ostalima (level 2+). Bakšišem povećavaš pot." btn="Otvori chat" onClick={() => openChat(true)} />
+            <RewardRow title="Kiša coina" desc="Pada iznenada u chatu. Kad počne, imaš par minuta da se pridružiš dok ima mjesta i podijeliš pot s ostalima (level 2+). Bakšišem povećavaš pot." btn="Otvori chat" onClick={() => openChat(true)} />
           )}
           {settings.instant_drops && <RewardRow title="Instant dropovi" desc="Svako otvaranje kutije ima 4% šanse za bonus od 10–40% cijene kutije." btn="Automatski" disabled />}
           {settings.weekly_drop && (

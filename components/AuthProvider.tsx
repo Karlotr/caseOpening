@@ -9,6 +9,7 @@ type Ctx = {
   user: User | null;
   profile: Profile | null;
   isAdmin: boolean;
+  garage: { count: number; value: number };
   loading: boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -29,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [garage, setGarage] = useState({ count: 0, value: 0 });
 
   const loadProfile = useCallback(
     async (u: User | null) => {
@@ -37,12 +39,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAdmin(false);
         return;
       }
-      const [{ data }, { data: adm }] = await Promise.all([
+      const [{ data }, { data: adm }, { data: gar }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", u.id).maybeSingle(),
         supabase.rpc("am_i_admin"),
+        supabase.rpc("garage_summary"),
       ]);
       setProfile(data ? toProfile(data) : null);
       setIsAdmin(adm === true);
+      if (gar) setGarage({ count: Number((gar as { count: number }).count), value: Number((gar as { value: number }).value) });
     },
     [supabase]
   );
@@ -76,13 +80,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await loadProfile(user);
   }, [loadProfile, user]);
 
+  // stanje se osvježava samo od sebe (npr. isplata kiše, jackpota, battlea dok si na drugoj stranici)
+  useEffect(() => {
+    if (!user) return;
+    const t = setInterval(() => loadProfile(user), 15000);
+    const onFocus = () => loadProfile(user);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [user, loadProfile]);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
   }, [supabase]);
 
-  return <AuthCtx value={{ user, profile, isAdmin, loading, refresh, signOut }}>{children}</AuthCtx>;
+  return <AuthCtx value={{ user, profile, isAdmin, garage, loading, refresh, signOut }}>{children}</AuthCtx>;
 }
 
 export function useAuth() {

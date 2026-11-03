@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ChatName, type ChatStyle } from "@/components/ChatName";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { coins, errMsg } from "@/lib/format";
@@ -10,7 +11,7 @@ import { sfx } from "@/lib/sound";
 import { useNow, fmtLeft } from "@/lib/useNow";
 import { useToast } from "./Toast";
 
-type Msg = { id: number; user_id: string | null; username: string; level: number; body: string; battle_id: string | null; created_at: string; kind?: string; rain_id?: number | null };
+type Msg = { id: number; user_id: string | null; username: string; level: number; body: string; battle_id: string | null; created_at: string; kind?: string; rain_id?: number | null; style?: ChatStyle };
 type Rain = { enabled: boolean; id: number; pot: number; ends_at: string; opens_at: string; now: string; open: boolean; slots: number; participants: number; joined: boolean };
 type Ctx = { open: boolean; setOpen: (o: boolean) => void; shareBattle: (id: string) => Promise<void> };
 const ChatCtx = createContext<Ctx>({ open: false, setOpen: () => {}, shareBattle: async () => {} });
@@ -163,7 +164,7 @@ function ChatPanel() {
                   <span className="grid h-5 min-w-5 place-items-center rounded px-1 font-display text-xs font-black text-ink" style={{ background: levelColor(m.level) }} title={`Level ${m.level}`}>
                     {m.level}
                   </span>
-                  <span className={`font-semibold ${mine ? "text-accent2" : ""}`}>{m.username}</span>
+                  <ChatName name={m.username} style={m.style} mine={mine} />
                   <span className="ml-auto text-xs text-muted">{new Date(m.created_at).toLocaleTimeString("hr-HR", { hour: "2-digit", minute: "2-digit" })}</span>
                 </div>
                 <p className="mt-0.5 break-words pl-[26px] text-[15px] leading-snug text-fg/90">{m.body}</p>
@@ -204,7 +205,7 @@ function ChatPanel() {
   );
 }
 
-// Traka s kišom coina: odbrojavanje, pot, pridruživanje i bakšiš
+// Traka s kišom coina: bez najave kada počinje; kad pada — pot, odbrojavanje, mjesta i pridruživanje
 function RainBar() {
   const { user, profile, refresh } = useAuth();
   const toast = useToast();
@@ -214,16 +215,29 @@ function RainBar() {
   const [tip, setTip] = useState("");
   const [tipOpen, setTipOpen] = useState(false);
   const wasOpen = useRef(false);
+  const lastPaid = useRef<number | null | undefined>(undefined);
 
   const load = useCallback(async () => {
     const { data } = await createClient().rpc("rain_state");
     if (!data) return;
-    const r = data as Rain;
+    const r = data as Rain & { my_last?: { id: number; paid_each: number } | null };
     setRain(r);
     if (r.now) setSkew(new Date(r.now).getTime() - Date.now());
     if (r.open && !wasOpen.current) sfx.coin();
     wasOpen.current = r.open;
-  }, []);
+    // isplata kiše u kojoj si sudjelovao → obavijest + osvježi stanje odmah
+    const lp = r.my_last?.id ?? null;
+    if (lastPaid.current === undefined) lastPaid.current = lp;
+    else if (lp !== null && lp !== lastPaid.current) {
+      lastPaid.current = lp;
+      const amt = Number(r.my_last?.paid_each ?? 0);
+      if (amt > 0) {
+        sfx.win(1);
+        toast(`Kiša je pala! +${coins(amt)} coina`, "gold");
+      }
+      refresh();
+    }
+  }, [toast, refresh]);
   useEffect(() => {
     load();
     const t = setInterval(load, 5000);
@@ -235,6 +249,8 @@ function RainBar() {
   const toOpen = new Date(rain.opens_at).getTime() - t;
   const toEnd = new Date(rain.ends_at).getTime() - t;
   const open = toOpen <= 0 && toEnd > 0;
+  const full = rain.participants >= rain.slots;
+  const lowLevel = (profile?.level ?? 0) < 2;
 
   const join = async () => {
     const { data, error } = await createClient().rpc("rain_join");
@@ -255,30 +271,36 @@ function RainBar() {
   };
 
   return (
-    <div className={`border-b border-line px-4 py-3 ${open ? "bg-amber-400/15" : ""}`}>
+    <div className={`border-b border-white/[.06] px-4 py-3 transition-colors ${open ? "bg-[linear-gradient(135deg,#ffb54726,#ff2b4e14)]" : ""}`}>
       <div className="flex items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="font-display text-lg font-bold leading-none text-amber-300">
-            {open ? "Kiša pada!" : "Kiša coina"} · <span className="text-fg">{coins(rain.pot)}</span>
-          </div>
-          <div className="mt-0.5 text-xs text-muted">
-            {open ? `Završava za ${fmtLeft(toEnd)} · mjesta ${rain.participants}/${rain.slots}` : `Počinje za ${fmtLeft(toOpen)} · ${rain.slots} mjesta`}
-          </div>
+        <div className="flex min-w-0 flex-1 items-baseline gap-2 whitespace-nowrap font-display text-lg font-extrabold leading-none">
+          <span className={open ? "text-accent" : "text-amber-200/80"}>{open ? "Kiša pada!" : "Kiša coina"}</span>
+          <span className="truncate tabular-nums text-fg">{coins(rain.pot)}</span>
         </div>
         {open && user && (
-          <button className="btn-primary px-3 py-1.5 text-sm" onClick={join} disabled={rain.joined || (profile?.level ?? 0) < 2 || rain.participants >= rain.slots}>
-            {rain.joined ? "Pridružen" : (profile?.level ?? 0) < 2 ? "Level 2+" : rain.participants >= rain.slots ? "Puna" : "Pridruži se"}
+          <button className="btn-primary shrink-0 px-3 py-1.5 text-sm" onClick={join} disabled={rain.joined || lowLevel || full}>
+            {rain.joined ? "Pridružen" : lowLevel ? "Level 2+" : full ? "Puna" : "Pridruži se"}
           </button>
         )}
+      </div>
+      <div className="mt-1.5 flex h-5 items-center gap-2 whitespace-nowrap text-xs tabular-nums text-muted">
+        {open ? (
+          <>
+            <span>Završava za <span className="inline-block w-[4ch] text-fg">{fmtLeft(toEnd)}</span></span>
+            <span className="rounded bg-black/30 px-1.5 py-px ring-1 ring-white/10">{rain.participants}/{rain.slots} mjesta</span>
+          </>
+        ) : (
+          <span>Pada iznenada, prati chat</span>
+        )}
         {user && !tipOpen && (
-          <button className="rounded-md border border-line px-2 py-1 text-xs font-semibold hover:border-amber-400" onClick={() => setTipOpen(true)}>
+          <button className="ml-auto rounded-md border border-white/10 px-2 py-0.5 font-semibold text-fg/80 transition hover:border-amber-400/60" onClick={() => setTipOpen(true)}>
             Bakšiš
           </button>
         )}
       </div>
       {tipOpen && (
         <form onSubmit={sendTip} className="mt-2 flex gap-2">
-          <input className="input py-1" type="number" min={1} step="1" placeholder="Iznos" value={tip} onChange={(e) => setTip(e.target.value)} aria-label="Iznos bakšiša" autoFocus />
+          <input className="input py-1.5" type="number" min={1} step="1" placeholder="Iznos" value={tip} onChange={(e) => setTip(e.target.value)} aria-label="Iznos bakšiša" autoFocus />
           <button className="btn-primary px-3 py-1 text-sm" disabled={!Number(tip)}>Dodaj</button>
           <button type="button" className="text-xs text-muted" onClick={() => setTipOpen(false)}>Odustani</button>
         </form>

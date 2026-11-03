@@ -9,6 +9,7 @@ import type { Item } from "@/lib/types";
 import { carName, coins, errMsg } from "@/lib/format";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
+import { CHAT_COLORS, CHAT_EFFECTS, ChatName, type ChatStyle } from "@/components/ChatName";
 
 type U = {
   id: string; username: string; email: string | null; balance: number; gems: number; level: number; xp: number;
@@ -21,6 +22,7 @@ type Stats = {
 };
 type Detail = {
   inventory_count: number; inventory_value: number; wagered: number; payout: number;
+  chat: { color: string | null; effect: string; badge: string | null; role: string } | null;
   logs: { game: string; wager: number; payout: number; created_at: string }[];
   admin_log: { action: string; details: Record<string, unknown> | null; created_at: string; admin: string }[];
 };
@@ -318,6 +320,12 @@ function UserEditor({ u, onChanged }: { u: U; onChanged: () => void }) {
         <button className="btn-primary" onClick={() => call("admin_set_controls", { p_user: u.id, p_luck: luck, p_banned: banned, p_role: role, p_note: note || null }, "Postavke su spremljene.")}>Spremi postavke</button>
       </Section>
 
+      {d && (
+        <Section title="Izgled u chatu">
+          <ChatStyleEditor key={u.id} u={u} init={d.chat} save={(args, ok) => call("admin_set_chat_style", { p_user: u.id, ...args }, ok)} />
+        </Section>
+      )}
+
       <Section title="Level">
         <div className="flex gap-2">
           <input className="input w-28" type="number" min={1} max={100} value={level} onChange={(e) => setLevel(e.target.value)} aria-label="Level" />
@@ -369,6 +377,46 @@ function UserEditor({ u, onChanged }: { u: U; onChanged: () => void }) {
           </ul>
         </Section>
       )}
+    </div>
+  );
+}
+
+function ChatStyleEditor({ u, init, save }: { u: U; init: Detail["chat"]; save: (args: Record<string, unknown>, ok: string) => void }) {
+  const [color, setColor] = useState(init?.color ?? "");
+  const [effect, setEffect] = useState(init?.effect ?? "none");
+  // null = zadano (admin dobiva oznaku "Admin"), "" = bez oznake
+  const [badge, setBadge] = useState<string | null>(init?.badge ?? null);
+  const isAdminRole = (init?.role ?? u.role) === "admin";
+  const shownBadge = badge === null ? (isAdminRole ? "Admin" : "") : badge;
+  const preview: ChatStyle = { color: color || undefined, effect: effect === "none" ? undefined : (effect as NonNullable<ChatStyle>["effect"]), badge: shownBadge || undefined };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 rounded-lg border border-line bg-ink/60 px-3 py-2 text-sm">
+        <span className="grid h-5 min-w-5 place-items-center rounded bg-emerald-400 px-1 font-display text-xs font-black text-ink">{u.level}</span>
+        <ChatName name={u.username} style={preview} />
+        <span className="ml-auto text-xs text-muted">pregled</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Boja imena">
+        <button type="button" onClick={() => setColor("")} className={`h-7 rounded-md border px-2 text-xs ${!color ? "border-fg" : "border-line text-muted"}`}>Zadana</button>
+        {CHAT_COLORS.map((c) => (
+          <button key={c.hex} type="button" title={c.name} aria-label={c.name} onClick={() => setColor(c.hex)}
+            className={`h-7 w-7 rounded-md border-2 transition ${color.toLowerCase() === c.hex ? "border-fg scale-110" : "border-transparent"}`} style={{ background: c.hex }} />
+        ))}
+        <input type="color" aria-label="Vlastita boja" value={color || "#ffc53d"} onChange={(e) => setColor(e.target.value)} className="h-7 w-9 cursor-pointer rounded-md border border-line bg-transparent" />
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {CHAT_EFFECTS.map((f) => (
+          <button key={f.id} type="button" onClick={() => setEffect(f.id)}
+            className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${effect === f.id ? "border-accent bg-accent/15 text-accent" : "border-line text-muted hover:text-fg"}`}>{f.name}</button>
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <input className="input" maxLength={14} placeholder={isAdminRole ? "Oznaka (zadano: Admin)" : "Oznaka (npr. VIP)"} value={badge ?? ""} onChange={(e) => setBadge(e.target.value || null)} aria-label="Oznaka uz ime" />
+        <button type="button" className="btn-ghost shrink-0 text-xs" onClick={() => setBadge("")}>Bez oznake</button>
+      </div>
+      <button className="btn-primary" onClick={() => save({ p_color: color || null, p_effect: effect, p_badge: badge === null ? null : badge.trim() }, "Izgled u chatu je spremljen.")}>Spremi izgled</button>
+      <p className="text-xs text-muted">Promjena se odmah vidi i na porukama iz zadnjih 6 sati.</p>
     </div>
   );
 }

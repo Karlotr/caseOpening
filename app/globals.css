@@ -211,6 +211,25 @@ body {
 .float { animation: float 5s ease-in-out infinite; }
 @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 
+
+/* Stilovi imena u chatu (postavlja admin) */
+.cn { color: var(--cn, inherit); }
+.cn-glow { text-shadow: 0 0 6px color-mix(in oklab, var(--cn, #fff) 80%, transparent), 0 0 16px color-mix(in oklab, var(--cn, #fff) 45%, transparent); }
+.cn-shine {
+  background: linear-gradient(100deg, var(--cn, #e8e6ff) 0%, var(--cn, #e8e6ff) 38%, #fff 50%, var(--cn, #e8e6ff) 62%, var(--cn, #e8e6ff) 100%) 0 0 / 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: cnShine 2.8s linear infinite;
+}
+.cn-rainbow {
+  background: linear-gradient(90deg, #ff2b4e, #ffb547, #f5f05a, #4ade80, #5ce1ff, #8b5cf6, #ff2b4e) 0 0 / 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: cnShine 4s linear infinite;
+}
+.cn-pulse { animation: cnPulse 1.8s ease-in-out infinite; }
+@keyframes cnShine { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+@keyframes cnPulse { 0%,100% { text-shadow: 0 0 0 transparent; } 50% { text-shadow: 0 0 12px var(--cn, #fff); } }
+.cn-badge { border: 1px solid color-mix(in oklab, var(--cn) 60%, transparent); background: color-mix(in oklab, var(--cn) 16%, transparent); color: var(--cn); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .trail { display: none; }
