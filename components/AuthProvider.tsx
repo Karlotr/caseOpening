@@ -8,6 +8,7 @@ import type { Profile } from "@/lib/types";
 type Ctx = {
   user: User | null;
   profile: Profile | null;
+  isAdmin: boolean;
   loading: boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -27,20 +28,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const loadProfile = useCallback(
     async (u: User | null) => {
       if (!u) {
         setProfile(null);
+        setIsAdmin(false);
         return;
       }
-      const { data } = await supabase.from("profiles").select("*").eq("id", u.id).maybeSingle();
+      const [{ data }, { data: adm }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", u.id).maybeSingle(),
+        supabase.rpc("am_i_admin"),
+      ]);
       setProfile(data ? toProfile(data) : null);
+      setIsAdmin(adm === true);
     },
     [supabase]
   );
 
   useEffect(() => {
+    // affiliate: zapamti ?ref=KOD iz linka za registraciju
+    try {
+      const ref = new URLSearchParams(window.location.search).get("ref");
+      if (ref && /^[A-Za-z0-9_]{3,20}$/.test(ref)) localStorage.setItem("garaza-ref", ref.toLowerCase());
+    } catch {}
     let alive = true;
     supabase.auth.getUser().then(async ({ data }) => {
       if (!alive) return;
@@ -70,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   }, [supabase]);
 
-  return <AuthCtx value={{ user, profile, loading, refresh, signOut }}>{children}</AuthCtx>;
+  return <AuthCtx value={{ user, profile, isAdmin, loading, refresh, signOut }}>{children}</AuthCtx>;
 }
 
 export function useAuth() {

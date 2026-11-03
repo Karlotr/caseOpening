@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { errMsg } from "@/lib/format";
 
@@ -15,6 +15,12 @@ export default function RegisterPage() {
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
+  const [ref, setRef] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      setRef(localStorage.getItem("garaza-ref"));
+    } catch {}
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +38,7 @@ export default function RegisterPage() {
     const { data, error } = await sb.auth.signUp({
       email,
       password,
-      options: { data: { username }, emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/confirm` : undefined },
+      options: { data: ref ? { username, ref } : { username }, emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/confirm` : undefined },
     });
     setBusy(false);
     if (error) return setErr(errMsg(error));
@@ -50,6 +56,11 @@ export default function RegisterPage() {
         <div className="checker-strip -mx-6 -mt-6 mb-2 sm:-mx-8 sm:-mt-8" />
         <h1 className="h1">Registracija</h1>
         <p className="text-sm text-muted">Dobivaš <span className="text-accent">1.000 virtualnih coina</span> i besplatnu dnevnu kutiju.</p>
+        {ref && (
+          <p className="rounded-md border border-emerald-400/40 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200">
+            Pozvao te <b>{ref}</b>: dobivaš dodatnih 50 coina.
+          </p>
+        )}
         <div>
           <label className="label" htmlFor="u">Korisničko ime</label>
           <input id="u" required className="input" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" />

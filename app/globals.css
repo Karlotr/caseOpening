@@ -116,3 +116,9 @@ body {
 /* auto "uleti" u hero nakon što se svjetla ugase */
 .hero-car { animation: heroCar 1s 2.75s cubic-bezier(.15,.9,.2,1) both; }
 @keyframes heroCar { from { transform: translateX(110%); } to { transform: none; } }
+
+/* bljesak u boji rijetkosti kad reel stane */
+.flash { animation: flash .6s ease-out forwards; }
+@keyframes flash { 0% { opacity: .55; } 100% { opacity: 0; } }
+/* garažna vrata preko reela */
+.door { transition: transform .65s cubic-bezier(.6,0,.3,1); }

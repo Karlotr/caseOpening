@@ -122,7 +122,43 @@ create table if not exists public.battle_drops (
   primary key (battle_id, round, seat)
 );
 
+-- ---------- ADMIN, SREĆA, AFFILIATE ----------
+-- Osjetljiva polja su u zasebnoj tablici bez RLS politika (klijent ih ne može čitati).
+create table if not exists public.user_controls (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  role text not null default 'user' check (role in ('user','admin')),
+  luck numeric(4,2) not null default 1 check (luck between 0.25 and 5),
+  banned boolean not null default false,
+  note text,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.profiles add column if not exists referred_by uuid references public.profiles(id) on delete set null;
+
+create table if not exists public.affiliates (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  code text unique not null check (code ~ '^[a-z0-9_]{3,20}$'),
+  rate numeric(5,4) not null default 0.05 check (rate between 0 and 0.5),
+  earned_total numeric(14,2) not null default 0,
+  claimable numeric(14,2) not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.admin_log (
+  id bigserial primary key,
+  admin_id uuid references public.profiles(id) on delete set null,
+  target_id uuid references public.profiles(id) on delete set null,
+  action text not null,
+  details jsonb,
+  created_at timestamptz not null default now()
+);
+
 -- ---------- RLS ----------
+alter table public.user_controls enable row level security;
+alter table public.affiliates enable row level security;
+alter table public.admin_log enable row level security;
+drop policy if exists "affiliates own" on public.affiliates;
+create policy "affiliates own" on public.affiliates for select using (auth.uid() = user_id);
 alter table public.profiles enable row level security;
 alter table public.items enable row level security;
 alter table public.cases enable row level security;
@@ -162,6 +198,8 @@ declare
   base text;
   uname text;
   n int := 0;
+  ref_code text;
+  ref_uid uuid;
 begin
   base := coalesce(nullif(regexp_replace(new.raw_user_meta_data->>'username', '[^A-Za-z0-9_]', '', 'g'), ''),
                    regexp_replace(split_part(coalesce(new.email, 'vozac'), '@', 1), '[^A-Za-z0-9_]', '', 'g'));
@@ -172,7 +210,20 @@ begin
     n := n + 1;
     uname := left(base, 16) || n::text;
   end loop;
-  insert into public.profiles (id, username) values (new.id, uname);
+  ref_code := lower(nullif(btrim(new.raw_user_meta_data->>'ref'), ''));
+  if ref_code is not null then
+    select user_id into ref_uid from public.affiliates where code = ref_code;
+  end if;
+  insert into public.profiles (id, username, referred_by, balance)
+  values (new.id, uname, ref_uid, case when ref_uid is null then 1000 else 1050 end);
+  -- vlastiti affiliate kod = korisničko ime (ako je slobodno)
+  insert into public.affiliates (user_id, code)
+  values (new.id, left(lower(regexp_replace(uname, '[^A-Za-z0-9_]', '', 'g')) || case when char_length(uname) < 3 then 'xx' else '' end, 20))
+  on conflict do nothing;
+  if not found then
+    insert into public.affiliates (user_id, code) values (new.id, left(lower(uname), 14) || substr(md5(new.id::text), 1, 6)) on conflict do nothing;
+  end if;
+  insert into public.user_controls (user_id) values (new.id) on conflict do nothing;
   return new;
 end $$;
 
@@ -187,12 +238,30 @@ $$;
 
 -- ---------- POMOĆNE FUNKCIJE ----------
 create or replace function public._uid()
-returns uuid language plpgsql stable as $$
+returns uuid language plpgsql stable security definer set search_path = public as $$
 declare u uuid := auth.uid();
 begin
   if u is null then raise exception 'Moraš biti prijavljen.'; end if;
+  if exists (select 1 from public.user_controls where user_id = u and banned) then
+    raise exception 'Tvoj račun je blokiran. Javi se administratoru.';
+  end if;
   return u;
 end $$;
+
+create or replace function public._luck(p_uid uuid)
+returns numeric language sql stable security definer set search_path = public as $$
+  select coalesce((select luck from public.user_controls where user_id = p_uid), 1);
+$$;
+
+create or replace function public._is_admin(p_uid uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.user_controls where user_id = p_uid and role = 'admin');
+$$;
+
+create or replace function public.am_i_admin()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public._is_admin(auth.uid());
+$$;
 
 -- level iz XP-a: XP potreban za level L = 25*(L-1)^2
 create or replace function public.level_for_xp(p_xp numeric)
@@ -213,6 +282,12 @@ begin
   update public.profiles
      set xp = xp + p_amount, gems = gems + round(p_amount * 0.10, 2)
    where id = p_uid returning * into p;
+  if p.referred_by is not null then
+    update public.affiliates
+       set earned_total = earned_total + round(p_amount * rate, 2),
+           claimable = claimable + round(p_amount * rate, 2)
+     where user_id = p.referred_by;
+  end if;
   new_level := public.level_for_xp(p.xp);
   if new_level > p.level then
     for l in (p.level + 1)..new_level loop bonus := bonus + l * 10; end loop;
@@ -233,19 +308,25 @@ begin
   update public.profiles set balance = balance - p_amount where id = p_uid;
 end $$;
 
-create or replace function public._roll_case(p_case_id int)
+-- sreća (luck): 1 = normalno; >1 naginje težine prema skupljim autima, <1 prema jeftinijima
+drop function if exists public._roll_case(int);
+create or replace function public._roll_case(p_case_id int, p_luck numeric default 1)
 returns int language plpgsql volatile security definer set search_path = public as $$
 declare
   total numeric;
   r numeric;
   acc numeric := 0;
   rec record;
+  t numeric := (least(greatest(coalesce(p_luck, 1), 0.25), 5) - 1) * 0.35;
 begin
-  select sum(weight) into total from public.case_items where case_id = p_case_id;
+  select sum(ci.weight * power(i.value, t)) into total
+    from public.case_items ci join public.items i on i.id = ci.item_id where ci.case_id = p_case_id;
   if total is null then raise exception 'Kutija je prazna.'; end if;
   r := random()::numeric * total;
-  for rec in select item_id, weight from public.case_items where case_id = p_case_id order by item_id loop
-    acc := acc + rec.weight;
+  for rec in select ci.item_id, ci.weight * power(i.value, t) as w
+               from public.case_items ci join public.items i on i.id = ci.item_id
+              where ci.case_id = p_case_id order by ci.item_id loop
+    acc := acc + rec.w;
     if r < acc then return rec.item_id; end if;
   end loop;
   return rec.item_id;
@@ -297,7 +378,7 @@ begin
   end if;
 
   for i in 1..p_count loop
-    item_id := public._roll_case(c.id);
+    item_id := public._roll_case(c.id, public._luck(uid));
     insert into public.inventory (user_id, item_id, source) values (uid, item_id, 'case:' || c.slug)
       returning id into inv_id;
     total_value := total_value + (select value from public.items where id = item_id);
@@ -350,6 +431,7 @@ declare
   won boolean;
   inv_id bigint;
   lvl jsonb;
+  luck numeric;
 begin
   if p_coins < 0 then raise exception 'Neispravan iznos.'; end if;
   perform 1 from public.profiles where id = uid for update;
@@ -366,7 +448,8 @@ begin
   if target is null then raise exception 'Ciljani auto ne postoji.'; end if;
   if target <= input_value then raise exception 'Cilj mora vrijediti više od uloga.'; end if;
 
-  chance := least(input_value / target * 0.95, 0.80);
+  luck := public._luck(uid);
+  chance := least(input_value / target * 0.95 * luck, case when luck > 1 then 0.95 else 0.80 end);
   roll := random()::numeric;
   won := roll < chance;
 
@@ -506,7 +589,7 @@ begin
   streak := case when last = today - 1 then p.daily_streak + 1 else 1 end;
   select * into c from public.cases where case_type = 'daily' and streak_min <= streak
    order by streak_min desc limit 1;
-  item_id := public._roll_case(c.id);
+  item_id := public._roll_case(c.id, public._luck(uid));
   insert into public.inventory (user_id, item_id, source) values (uid, item_id, 'daily:' || c.slug) returning id into inv_id;
   update public.profiles set daily_streak = streak, last_daily_at = now() where id = uid;
   insert into public.game_log (user_id, game, wager, payout, details)
@@ -608,7 +691,8 @@ begin
   if b.status <> 'waiting' then return; end if;
   for r in 1..array_length(b.case_ids, 1) loop
     for s in 0..(b.seats - 1) loop
-      item := public._roll_case(b.case_ids[r]);
+      item := public._roll_case(b.case_ids[r],
+                coalesce((select public._luck(bp.user_id) from public.battle_players bp where bp.battle_id = p_id and bp.seat = s and bp.user_id is not null), 1));
       insert into public.battle_drops (battle_id, round, seat, item_id) values (p_id, r, s, item);
     end loop;
   end loop;
@@ -747,7 +831,10 @@ $$;
 revoke all on function public._uid() from public, anon, authenticated;
 revoke all on function public._apply_wager(uuid, numeric) from public, anon, authenticated;
 revoke all on function public._charge(uuid, numeric) from public, anon, authenticated;
-revoke all on function public._roll_case(int) from public, anon, authenticated;
+revoke all on function public._roll_case(int, numeric) from public, anon, authenticated;
+revoke all on function public._luck(uuid) from public, anon, authenticated;
+revoke all on function public._is_admin(uuid) from public, anon, authenticated;
+grant execute on function public.am_i_admin() to authenticated;
 revoke all on function public._resolve_battle(uuid) from public, anon, authenticated;
 revoke all on function public.handle_new_user() from public, anon, authenticated;
 grant execute on function public._uid() to authenticated;
@@ -809,6 +896,237 @@ begin
   return mid;
 end $$;
 grant execute on function public.send_chat(text, uuid) to authenticated;
+
+
+-- ---------- AFFILIATE (preporuke) ----------
+-- postojeći korisnici dobivaju affiliate kod i kontrolni red
+insert into public.affiliates (user_id, code)
+  select id, left(lower(regexp_replace(username, '[^A-Za-z0-9_]', '', 'g')), 20) from public.profiles
+  where char_length(regexp_replace(username, '[^A-Za-z0-9_]', '', 'g')) >= 3
+on conflict do nothing;
+insert into public.affiliates (user_id, code)
+  select id, 'v' || substr(md5(id::text), 1, 10) from public.profiles p
+  where not exists (select 1 from public.affiliates a where a.user_id = p.id)
+on conflict do nothing;
+insert into public.user_controls (user_id) select id from public.profiles on conflict do nothing;
+
+create or replace function public.affiliate_info()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare
+  uid uuid := public._uid();
+  a public.affiliates;
+begin
+  select * into a from public.affiliates where user_id = uid;
+  return jsonb_build_object(
+    'code', a.code, 'rate', a.rate, 'earned_total', a.earned_total, 'claimable', a.claimable,
+    'referrals', (select count(*) from public.profiles where referred_by = uid),
+    'referral_wagered', (select coalesce(sum(xp), 0) from public.profiles where referred_by = uid),
+    'recent', (select coalesce(jsonb_agg(jsonb_build_object('username', username, 'level', level, 'created_at', created_at) order by created_at desc), '[]'::jsonb)
+                 from (select username, level, created_at from public.profiles where referred_by = uid order by created_at desc limit 10) x)
+  );
+end $$;
+
+create or replace function public.claim_affiliate()
+returns numeric language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := public._uid();
+  amt numeric;
+begin
+  select claimable into amt from public.affiliates where user_id = uid for update;
+  if coalesce(amt, 0) < 1 then raise exception 'Za isplatu treba barem 1 coin zarade.'; end if;
+  update public.affiliates set claimable = 0 where user_id = uid;
+  update public.profiles set balance = balance + amt where id = uid;
+  insert into public.game_log (user_id, game, wager, payout, details) values (uid, 'affiliate', 0, amt, null);
+  return amt;
+end $$;
+
+create or replace function public.set_affiliate_code(p_code text)
+returns text language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := public._uid();
+  c text := lower(btrim(p_code));
+begin
+  if c !~ '^[a-z0-9_]{3,20}$' then raise exception 'Kod: 3–20 znakova (mala slova, brojevi, _).'; end if;
+  if exists (select 1 from public.affiliates where code = c and user_id <> uid) then raise exception 'Taj kod je zauzet.'; end if;
+  update public.affiliates set code = c where user_id = uid;
+  return c;
+end $$;
+
+-- ---------- ADMIN ----------
+-- Prvog admina postavi ručno u SQL Editoru:
+--   update public.user_controls set role = 'admin'
+--   where user_id = (select id from public.profiles where username = 'TvojeIme');
+
+create or replace function public._admin()
+returns uuid language plpgsql stable security definer set search_path = public as $$
+declare u uuid := public._uid();
+begin
+  if not public._is_admin(u) then raise exception 'Samo za administratore.'; end if;
+  return u;
+end $$;
+
+create or replace function public._admin_log(p_admin uuid, p_target uuid, p_action text, p_details jsonb)
+returns void language sql security definer set search_path = public as $$
+  insert into public.admin_log (admin_id, target_id, action, details) values (p_admin, p_target, p_action, p_details);
+$$;
+
+create or replace function public.admin_stats()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare a uuid := public._admin();
+begin
+  return jsonb_build_object(
+    'users', (select count(*) from public.profiles),
+    'new_24h', (select count(*) from public.profiles where created_at > now() - interval '24 hours'),
+    'active_24h', (select count(distinct user_id) from public.game_log where created_at > now() - interval '24 hours'),
+    'wagered_24h', (select coalesce(sum(wager), 0) from public.game_log where created_at > now() - interval '24 hours'),
+    'payout_24h', (select coalesce(sum(payout), 0) from public.game_log where created_at > now() - interval '24 hours' and game not in ('reward','daily','affiliate')),
+    'rewards_24h', (select coalesce(sum(payout), 0) from public.game_log where created_at > now() - interval '24 hours' and game in ('reward','daily','affiliate')),
+    'total_balance', (select coalesce(sum(balance), 0) from public.profiles),
+    'open_battles', (select count(*) from public.battles where status = 'waiting'),
+    'banned', (select count(*) from public.user_controls where banned),
+    'by_game', (select coalesce(jsonb_agg(x order by x.wager desc), '[]'::jsonb) from (
+       select game, count(*) as rounds, coalesce(sum(wager), 0) as wager, coalesce(sum(payout), 0) as payout
+         from public.game_log where created_at > now() - interval '24 hours' group by game) x)
+  );
+end $$;
+
+create or replace function public.admin_users(p_search text default '', p_limit int default 50)
+returns table (id uuid, username text, email text, balance numeric, gems numeric, level int, xp numeric,
+               role text, luck numeric, banned boolean, note text, aff_code text, aff_rate numeric, aff_earned numeric,
+               referrals bigint, referred_by text, created_at timestamptz, last_game timestamptz)
+language plpgsql stable security definer set search_path = public as $$
+declare a uuid := public._admin();
+begin
+  return query
+  select p.id, p.username, u.email::text, p.balance, p.gems, p.level, p.xp,
+         coalesce(c.role, 'user'), coalesce(c.luck, 1), coalesce(c.banned, false), c.note,
+         af.code, af.rate, af.earned_total,
+         (select count(*) from public.profiles r where r.referred_by = p.id),
+         (select rp.username from public.profiles rp where rp.id = p.referred_by),
+         p.created_at,
+         (select max(g.created_at) from public.game_log g where g.user_id = p.id)
+    from public.profiles p
+    left join auth.users u on u.id = p.id
+    left join public.user_controls c on c.user_id = p.id
+    left join public.affiliates af on af.user_id = p.id
+   where coalesce(p_search, '') = '' or p.username ilike '%' || p_search || '%' or u.email ilike '%' || p_search || '%'
+   order by p.created_at desc
+   limit least(greatest(p_limit, 1), 500);
+end $$;
+
+create or replace function public.admin_user_detail(p_user uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare a uuid := public._admin();
+begin
+  return jsonb_build_object(
+    'inventory_count', (select count(*) from public.inventory where user_id = p_user and status = 'owned'),
+    'inventory_value', (select coalesce(sum(i.value), 0) from public.inventory inv join public.items i on i.id = inv.item_id where inv.user_id = p_user and inv.status = 'owned'),
+    'wagered', (select coalesce(sum(wager), 0) from public.game_log where user_id = p_user),
+    'payout', (select coalesce(sum(payout), 0) from public.game_log where user_id = p_user),
+    'logs', (select coalesce(jsonb_agg(x), '[]'::jsonb) from (
+        select game, wager, payout, created_at from public.game_log where user_id = p_user order by created_at desc limit 25) x),
+    'admin_log', (select coalesce(jsonb_agg(x), '[]'::jsonb) from (
+        select l.action, l.details, l.created_at, ap.username as admin
+          from public.admin_log l left join public.profiles ap on ap.id = l.admin_id
+         where l.target_id = p_user order by l.created_at desc limit 25) x)
+  );
+end $$;
+
+create or replace function public.admin_adjust(p_user uuid, p_balance numeric default 0, p_gems numeric default 0, p_reason text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin(); p public.profiles;
+begin
+  update public.profiles
+     set balance = greatest(0, balance + coalesce(p_balance, 0)),
+         gems = greatest(0, gems + coalesce(p_gems, 0))
+   where id = p_user returning * into p;
+  if not found then raise exception 'Korisnik ne postoji.'; end if;
+  perform public._admin_log(a, p_user, 'adjust', jsonb_build_object('balance', p_balance, 'gems', p_gems, 'reason', p_reason));
+  if coalesce(p_balance, 0) <> 0 then
+    insert into public.game_log (user_id, game, wager, payout, details)
+    values (p_user, 'admin', 0, greatest(p_balance, 0), jsonb_build_object('reason', p_reason, 'delta', p_balance));
+  end if;
+  return jsonb_build_object('balance', p.balance, 'gems', p.gems);
+end $$;
+
+create or replace function public.admin_set_controls(p_user uuid, p_luck numeric, p_banned boolean, p_role text, p_note text default null)
+returns void language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin();
+begin
+  if p_user = a and p_role <> 'admin' then raise exception 'Ne možeš sebi maknuti admin ulogu.'; end if;
+  if p_user = a and p_banned then raise exception 'Ne možeš blokirati sebe.'; end if;
+  insert into public.user_controls (user_id, luck, banned, role, note, updated_at)
+  values (p_user, p_luck, p_banned, p_role, p_note, now())
+  on conflict (user_id) do update set luck = excluded.luck, banned = excluded.banned, role = excluded.role, note = excluded.note, updated_at = now();
+  perform public._admin_log(a, p_user, 'controls', jsonb_build_object('luck', p_luck, 'banned', p_banned, 'role', p_role, 'note', p_note));
+end $$;
+
+create or replace function public.admin_set_level(p_user uuid, p_level int)
+returns void language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin();
+begin
+  if p_level < 1 or p_level > 100 then raise exception 'Level mora biti 1–100.'; end if;
+  update public.profiles set level = p_level, xp = 25 * (p_level - 1) ^ 2 where id = p_user;
+  perform public._admin_log(a, p_user, 'level', jsonb_build_object('level', p_level));
+end $$;
+
+create or replace function public.admin_set_affiliate(p_user uuid, p_code text, p_rate numeric)
+returns void language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin(); c text := lower(btrim(p_code));
+begin
+  if c !~ '^[a-z0-9_]{3,20}$' then raise exception 'Kod: 3–20 znakova (mala slova, brojevi, _).'; end if;
+  if p_rate < 0 or p_rate > 0.5 then raise exception 'Provizija mora biti 0–50%%.'; end if;
+  if exists (select 1 from public.affiliates where code = c and user_id <> p_user) then raise exception 'Taj kod je zauzet.'; end if;
+  insert into public.affiliates (user_id, code, rate) values (p_user, c, p_rate)
+  on conflict (user_id) do update set code = excluded.code, rate = excluded.rate;
+  perform public._admin_log(a, p_user, 'affiliate', jsonb_build_object('code', c, 'rate', p_rate));
+end $$;
+
+create or replace function public.admin_give_item(p_user uuid, p_item int)
+returns void language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin();
+begin
+  if not exists (select 1 from public.items where id = p_item) then raise exception 'Auto ne postoji.'; end if;
+  insert into public.inventory (user_id, item_id, source) values (p_user, p_item, 'admin');
+  perform public._admin_log(a, p_user, 'give_item', jsonb_build_object('item', p_item));
+end $$;
+
+create or replace function public.admin_reset_cooldowns(p_user uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin();
+begin
+  update public.profiles set last_daily_at = null, last_weekly_at = null, last_monthly_at = null, last_rain_at = null where id = p_user;
+  delete from public.level_case_claims where user_id = p_user;
+  perform public._admin_log(a, p_user, 'reset_cooldowns', null);
+end $$;
+
+create or replace function public.admin_recent_log(p_limit int default 50)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare a uuid := public._admin();
+begin
+  return (select coalesce(jsonb_agg(x), '[]'::jsonb) from (
+    select l.action, l.details, l.created_at, ap.username as admin, tp.username as target
+      from public.admin_log l
+      left join public.profiles ap on ap.id = l.admin_id
+      left join public.profiles tp on tp.id = l.target_id
+     order by l.created_at desc limit least(p_limit, 200)) x);
+end $$;
+
+revoke all on function public._admin() from public, anon, authenticated;
+revoke all on function public._admin_log(uuid, uuid, text, jsonb) from public, anon, authenticated;
+grant execute on function public.affiliate_info() to authenticated;
+grant execute on function public.claim_affiliate() to authenticated;
+grant execute on function public.set_affiliate_code(text) to authenticated;
+grant execute on function public.admin_stats() to authenticated;
+grant execute on function public.admin_users(text, int) to authenticated;
+grant execute on function public.admin_user_detail(uuid) to authenticated;
+grant execute on function public.admin_adjust(uuid, numeric, numeric, text) to authenticated;
+grant execute on function public.admin_set_controls(uuid, numeric, boolean, text, text) to authenticated;
+grant execute on function public.admin_set_level(uuid, int) to authenticated;
+grant execute on function public.admin_set_affiliate(uuid, text, numeric) to authenticated;
+grant execute on function public.admin_give_item(uuid, int) to authenticated;
+grant execute on function public.admin_reset_cooldowns(uuid) to authenticated;
+grant execute on function public.admin_recent_log(int) to authenticated;
 
 -- ---------- REALTIME (battle lobby uživo) ----------
 do $$

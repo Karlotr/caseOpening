@@ -121,6 +121,12 @@ export const sfx = {
     tone(1319, 0.08, { type: "square", gain: 0.08 });
     tone(1760, 0.18, { type: "square", gain: 0.08, delay: 0.07 });
   },
+  count: () => tone(1800 + Math.random() * 400, 0.025, { type: "square", gain: 0.035 }),
+  flip: () => noise(0.12, { gain: 0.12, from: 1500, to: 5000 }),
+  door: () => {
+    noise(0.6, { gain: 0.14, from: 200, to: 900 });
+    tone(55, 0.6, { type: "sawtooth", gain: 0.05, slideTo: 90 });
+  },
   light: () => tone(660, 0.12, { type: "square", gain: 0.08 }),
   lightsOut: () => tone(110, 0.5, { type: "sawtooth", gain: 0.1, slideTo: 300 }),
 };

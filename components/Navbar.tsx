@@ -57,7 +57,7 @@ function StaticLinks() {
 }
 
 function UserBox() {
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, isAdmin, loading, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   if (loading) return <div className="h-9 w-40 animate-pulse rounded-md bg-white/5" />;
   if (!user)
@@ -91,6 +91,8 @@ function UserBox() {
         <div className="absolute right-0 top-12 z-40 w-52 rounded-lg border border-line bg-panel2 p-1 shadow-2xl" onMouseLeave={() => setOpen(false)}>
           <Link href="/profile" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Garaža (inventar)</Link>
           <Link href="/rewards" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Nagrade i level</Link>
+          <Link href="/affiliate" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Pozovi prijatelje</Link>
+          {isAdmin && <Link href="/admin" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm font-semibold text-accent2 hover:bg-white/5">Admin panel</Link>}
           <button onClick={() => { setOpen(false); signOut(); }} className="block w-full rounded px-3 py-2 text-left text-sm text-red-400 hover:bg-white/5">
             Odjava
           </button>

@@ -11,7 +11,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { ItemCard } from "@/components/ItemCard";
 
 type Log = { id: number; game: string; wager: number; payout: number; created_at: string };
-const GAME: Record<string, string> = { case: "Kutija", battle: "Battle", upgrader: "Upgrader", slide: "Slide", trinity: "Trinity", jackpot: "Jackpot", daily: "Dnevna kutija", reward: "Nagrada" };
+const GAME: Record<string, string> = { case: "Kutija", battle: "Battle", upgrader: "Upgrader", slide: "Slide", trinity: "Trinity", jackpot: "Jackpot", daily: "Dnevna kutija", reward: "Nagrada", affiliate: "Affiliate", admin: "Admin" };
 
 export default function ProfilePage() {
   return (

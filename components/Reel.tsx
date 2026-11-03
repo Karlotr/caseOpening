@@ -14,6 +14,7 @@ export function Reel({
   duration = 5000,
   vertical = false,
   sound = true,
+  size = "md",
   onDone,
 }: {
   items: Item[];
@@ -22,6 +23,7 @@ export function Reel({
   duration?: number;
   vertical?: boolean;
   sound?: boolean;
+  size?: "md" | "lg";
   onDone?: () => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -29,7 +31,9 @@ export function Reel({
   const [offset, setOffset] = useState(0);
   const [animate, setAnimate] = useState(false);
   const [landed, setLanded] = useState(false);
-  const tile = vertical ? 112 : 156;
+  const lg = size === "lg" && !vertical;
+  const tile = vertical ? 112 : lg ? 188 : 156;
+  const H = lg ? 214 : 172;
   const doneRef = useRef(onDone);
   const itemsRef = useRef(items);
   useEffect(() => {
@@ -86,8 +90,8 @@ export function Reel({
   return (
     <div
       ref={box}
-      className={`reel relative w-full min-w-0 overflow-hidden rounded-lg border bg-ink transition-colors duration-500 ${vertical ? "h-[336px]" : "h-[172px]"}`}
-      style={{ borderColor: landed ? wc : "var(--color-line)", boxShadow: landed ? `0 0 30px ${wc}55, inset 0 0 40px ${wc}22` : undefined }}
+      className={`reel relative w-full min-w-0 overflow-hidden rounded-lg border bg-ink transition-colors duration-500 ${vertical ? "h-[336px]" : ""}`}
+      style={{ height: vertical ? undefined : H, borderColor: landed ? wc : "var(--color-line)", boxShadow: landed ? `0 0 30px ${wc}55, inset 0 0 40px ${wc}22` : undefined }}
     >
       <div
         ref={track}
@@ -106,7 +110,7 @@ export function Reel({
               className={`relative flex shrink-0 flex-col items-center justify-center ${isWin ? "landed z-10" : ""}`}
               style={{
                 width: vertical ? "100%" : tile,
-                height: vertical ? tile : 172,
+                height: vertical ? tile : H,
                 borderRight: vertical ? undefined : "1px solid var(--color-line)",
                 borderBottom: vertical ? "1px solid var(--color-line)" : undefined,
                 background: `radial-gradient(90% 70% at 50% 100%, ${c}${isWin ? "88" : "38"}, transparent 70%)`,
@@ -115,10 +119,10 @@ export function Reel({
               }}
             >
               <span className="absolute inset-x-0 bottom-0 h-[3px]" style={{ background: c }} />
-              <CarArt id={it.id} body={it.body} rarity={it.rarity} className={vertical ? "h-11 w-24" : "h-16 w-32"} />
+              <CarArt id={it.id} body={it.body} rarity={it.rarity} className={vertical ? "h-11 w-24" : lg ? "h-20 w-40" : "h-16 w-32"} />
               <div className="mt-0.5 w-full truncate px-2 text-center text-[11px] text-muted">{it.brand}</div>
               <div className="w-full truncate px-2 text-center text-[13px] font-semibold leading-tight">{it.model}</div>
-              <span className="plate mt-1 text-[13px]">{coins(it.value)}</span>
+              <span className={`plate mt-1 ${lg ? "text-base" : "text-[13px]"} ${isWin ? "scale-125 transition-transform" : ""}`}>{coins(it.value)}</span>
             </div>
           );
         })}

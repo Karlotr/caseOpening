@@ -17,7 +17,13 @@ Next.js 16 + Supabase. Kutije s automobilima (od Fiće do Ferrarija 250 GTO), ca
    NEXT_PUBLIC_SUPABASE_URL=...
    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
    ```
-4. `npm install` → `npm run dev`
+4. **Prvi admin** — nakon registracije pokreni u SQL Editoru:
+   ```sql
+   update public.user_controls set role = 'admin'
+   where user_id = (select id from public.profiles where username = 'TvojeIme');
+   ```
+   Admin panel je na `/admin` (pregled, korisnici, admin log).
+5. `npm install` → `npm run dev`
 
 ## Arhitektura
 
@@ -41,6 +47,8 @@ Next.js 16 + Supabase. Kutije s automobilima (od Fiće do Ferrarija 250 GTO), ca
 | Jackpot | pot s botovima, šansa ∝ ulog, 5% provizija |
 | Nagrade | dnevna kutija sa streakom (bronca/srebro/zlato), kiša coina /30 min, tjedni i mjesečni drop, instant drop 4% |
 | Gem Stash | 0,1 gem po odigranom coinu → gem kutije |
+| Admin | stanje i gemovi (+/−), sreća 0,25–5× (skrivena od korisnika), blokiranje, uloge, level, affiliate kod i provizija, poklanjanje auta, reset nagrada, statistika i RTP po igri, log svih promjena |
+| Affiliate | `/register?ref=kod` → novi igrač +50 coina, pozivatelj dobiva proviziju (default 5%) od svega što pozvani odigra |
 | Chat | poruke se čuvaju 6 sati, level + ime uz poruku, dijeljenje battlea u chat |
 | Zvuk | sintetizirani efekti (Web Audio), gumb za isključivanje u navigaciji |
 | Level | XP = odigrani coini, level L traži 25·(L−1)² XP, bonus L×10 coina, level kutije svaka 24h |
