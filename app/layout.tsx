@@ -28,7 +28,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <footer className="border-t border-line">
                 <div className="livery-band h-1" />
                 <p className="py-6 text-center text-xs text-muted">
-                  GARAŽA.gg je hobi projekt. Coini, gemovi i automobili su virtualni i nemaju stvarnu vrijednost. Nema uplata ni isplata.
+                  GARAŽA.gg je hobi projekt. Coini, gemovi i automobili su virtualni i nemaju stvarnu vrijednost. Nema uplata ni isplata.{" "}
+                  <a href="/autori-fotografija" className="underline hover:text-fg">Autori fotografija</a>
                 </p>
               </footer>
               </ChatProvider>

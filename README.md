@@ -18,7 +18,13 @@ Next.js 16 + Supabase. Kutije s automobilima (od Fiće do Ferrarija 250 GTO), ca
    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
    NEXT_PUBLIC_CARIMAGES_KEY=ci_...   # opcionalno: prave fotografije auta (carimagesapi.com)
    ```
-   Bez `NEXT_PUBLIC_CARIMAGES_KEY` prikazuju se crteži. Ključ je javan (tako ga API predviđa) pa ga u
+   **Fotografije auta (lokalno):** na svom računalu u mapi projekta pokreni `npm run car-photos`.
+   Skripta za svih 101 auto skine fotografiju s Wikimedia Commonsa (slobodne licence) u `public/cars/`
+   i zapiše autora/licencu u `lib/car-photos.json` (prikazano na `/autori-fotografija`). Commitaj obje stvari.
+   Izvori su u `scripts/car-photo-sources.json`; pogrešnu sliku zamijeni upisom `"file": "Ime_datoteke.jpg"`
+   i `npm run car-photos -- --only=ID --force`.
+
+   Bez lokalnih fotografija i bez `NEXT_PUBLIC_CARIMAGES_KEY` prikazuju se crteži. Ključ je javan (tako ga API predviđa) pa ga u
    CarImages dashboardu zaključaj na svoju domenu. Pogrešne fotografije isključi u `/admin` → Slike.
 4. **Prvi admin** — nakon registracije pokreni u SQL Editoru:
    ```sql

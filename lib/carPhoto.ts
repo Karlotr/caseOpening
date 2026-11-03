@@ -1,9 +1,16 @@
-// Prave fotografije automobila preko CarImages API-ja (https://carimagesapi.com).
-// Ključ je javni (tako ga API i predviđa) — u njihovom dashboardu ga zaključaj na svoju domenu.
+// Fotografije automobila:
+//  1) lokalne (public/cars/, skinute s Wikimedia Commonsa skriptom `npm run car-photos`)
+//  2) opcionalno CarImages API (NEXT_PUBLIC_CARIMAGES_KEY) za aute bez lokalne slike
+//  3) inače crtež (CarArt)
 import type { Item } from "./types";
+import local from "./car-photos.json";
+
+export type PhotoCredit = { file: string; title: string; page: string; author: string; license: string; licenseUrl: string | null };
+export const LOCAL_PHOTOS = local as Record<string, PhotoCredit>;
+export const localPhoto = (id: number) => (LOCAL_PHOTOS[String(id)] ? `/cars/${LOCAL_PHOTOS[String(id)].file}` : null);
 
 const KEY = process.env.NEXT_PUBLIC_CARIMAGES_KEY;
-export const photosEnabled = !!KEY;
+export const photosEnabled = !!KEY || Object.keys(LOCAL_PHOTOS).length > 0;
 
 // Nazivi u našem katalogu → nazivi koje API prepoznaje (nadimci i šifre šasija maknuti)
 const MODEL: Record<string, { make?: string; model: string }> = {
@@ -75,6 +82,8 @@ const MODEL: Record<string, { make?: string; model: string }> = {
   "300 SLR Uhlenhaut Coupé": { model: "300 SLR" },
 };
 
+export const photoSource = (i: Pick<Item, "id">) => (localPhoto(i.id) ? "lokalna" : KEY ? "CarImages API" : "crtež");
+
 export function photoQuery(i: Pick<Item, "brand" | "model" | "year">) {
   const o = MODEL[i.model];
   const clean = i.model.replace(/"[^"]*"/g, "").replace(/\([^)]*\)/g, "").trim();
@@ -82,7 +91,9 @@ export function photoQuery(i: Pick<Item, "brand" | "model" | "year">) {
 }
 
 // Jedna širina svugdje → preglednik i CDN keširaju istu sliku (manje zahtjeva prema kvoti)
-export function photoUrl(i: Pick<Item, "brand" | "model" | "year">) {
+export function photoUrl(i: Pick<Item, "id" | "brand" | "model" | "year">) {
+  const l = localPhoto(i.id);
+  if (l) return l;
   if (!KEY) return null;
   const q = photoQuery(i);
   const p = new URLSearchParams({ make: q.make, model: q.model, year: String(q.year), width: "480", format: "webp", key: KEY });

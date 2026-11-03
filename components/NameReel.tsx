@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { sfx } from "@/lib/sound";
 
-export type Entry = { label: string; sub?: string; color: string; weight: number };
+export type Entry = { label: string; names?: string; sub?: string; color: string; weight: number };
 
 // Rulet s imenima (Jackpot) — širina "šanse" je proporcionalna težini
 export function NameReel({ entries, winner, spinKey, duration = 6000, onDone }: { entries: Entry[]; winner: number; spinKey: number; duration?: number; onDone?: () => void }) {
-  const TILE = 132;
+  const TILE = 168;
   const WIN = 58;
   const box = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
@@ -76,11 +76,10 @@ export function NameReel({ entries, winner, spinKey, duration = 6000, onDone }: 
           const isWin = landed && i === WIN;
           return (
             <div key={i} className={`shrink-0 px-1 ${isWin ? "landed relative z-10" : ""}`} style={{ width: TILE, opacity: landed && !isWin ? 0.3 : 1, transition: "opacity .4s" }}>
-              <div className="grid h-24 place-items-center rounded-lg border-2 bg-panel2 px-2 text-center" style={{ borderColor: e.color, boxShadow: isWin ? `0 0 30px ${e.color}` : undefined }}>
-                <div className="min-w-0">
-                  <div className="truncate font-display text-xl font-black leading-none" style={{ color: e.color }}>{e.label}</div>
-                  {e.sub && <div className="mt-1 truncate text-xs text-muted">{e.sub}</div>}
-                </div>
+              <div className="flex h-24 w-full flex-col items-center justify-center overflow-hidden rounded-lg border-2 bg-panel2 px-2 text-center" style={{ borderColor: e.color, boxShadow: isWin ? `0 0 30px ${e.color}` : undefined }}>
+                <div className="w-full truncate font-display text-lg font-black leading-tight" style={{ color: e.color }} title={e.label}>{e.label}</div>
+                {e.names && <div className="w-full truncate text-xs text-fg/80" title={e.names}>{e.names}</div>}
+                {e.sub && <div className="mt-0.5 w-full truncate text-xs text-muted">{e.sub}</div>}
               </div>
             </div>
           );

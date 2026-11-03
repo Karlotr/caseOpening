@@ -171,10 +171,17 @@ export function BattleView() {
       teams.map((_, ti) => {
         const w = jackpotWeight(teamTotal(ti), isCrazy);
         const sum = teams.reduce((a, __, k) => a + jackpotWeight(teamTotal(k), isCrazy), 0);
-        return { label: teamName(ti), sub: grand ? `${((w / sum) * 100).toFixed(1)}% šanse` : "", color: TEAM_COLORS[ti % TEAM_COLORS.length], weight: w };
+        const team = (battle?.team_size ?? 1) > 1;
+        return {
+          label: team ? `Tim ${ti + 1}` : teamName(ti),
+          names: team ? teamName(ti) : undefined,
+          sub: grand ? `${((w / sum) * 100).toFixed(1).replace(".", ",")}% šanse` : "",
+          color: TEAM_COLORS[ti % TEAM_COLORS.length],
+          weight: w,
+        };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [teams, teamName, chanceKey, grand, isCrazy]
+    [teams, teamName, chanceKey, grand, isCrazy, battle?.team_size]
   );
 
   // pobjeda / poraz obavijest
@@ -301,7 +308,7 @@ export function BattleView() {
           <span className="checker h-10 w-10 rounded" />
           <div>
             <div className="text-sm text-muted">Pobjednik</div>
-            <div className="font-display text-3xl font-black leading-none">{myWin ? "Ti! Auti su u tvojoj garaži." : teamName(battle.winner_team ?? 0)}</div>
+            <div className="break-words font-display text-3xl font-black leading-none">{myWin ? "Ti! Auti su u tvojoj garaži." : teamName(battle.winner_team ?? 0)}</div>
           </div>
           <div className="ml-auto flex gap-2">
             <button className="btn-ghost" onClick={startPlayback}>Pogledaj ponovno</button>

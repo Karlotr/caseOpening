@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { getItems, resetDataCache } from "@/lib/data";
-import { photoQuery, photosEnabled } from "@/lib/carPhoto";
+import { photoQuery, photoSource, photosEnabled } from "@/lib/carPhoto";
 import { CarImage } from "@/components/CarImage";
 import type { Item } from "@/lib/types";
 import { carName, coins, errMsg } from "@/lib/format";
@@ -373,12 +373,12 @@ function PhotosTab() {
     <div className="space-y-4">
       {!photosEnabled && (
         <div className="card border-accent/50 p-4 text-sm">
-          Fotografije nisu uključene. Dodaj <code className="rounded bg-ink px-1">NEXT_PUBLIC_CARIMAGES_KEY</code> u .env.local i na Vercel, pa ponovno deployaj. Do tada se prikazuju crteži.
+          Još nema fotografija. Na svom računalu u mapi projekta pokreni <code className="rounded bg-ink px-1">npm run car-photos</code>, commitaj <code className="rounded bg-ink px-1">public/cars</code> i <code className="rounded bg-ink px-1">lib/car-photos.json</code> i deployaj. Do tada se prikazuju crteži.
         </div>
       )}
       <div className="flex flex-wrap items-center gap-3">
         <p className="max-w-2xl text-sm text-muted">
-          Ako API ne prepozna auto, vraća generičku sliku umjesto greške. Isključi fotografiju za takve aute i prikazat će se crtež.
+          Pogrešnu fotografiju isključi ovdje (prikazat će se crtež) ili je zamijeni: upiši točnu datoteku s Commonsa pod tim id-om u scripts/car-photo-sources.json i pokreni npm run car-photos -- --only=ID --force.
         </p>
         <select className="input ml-auto w-auto" value={filter} onChange={(e) => setFilter(e.target.value as "all" | "on" | "off")} aria-label="Filtar">
           <option value="all">Svi ({items.length})</option>
@@ -395,7 +395,7 @@ function PhotosTab() {
                 <CarImage item={it} className="h-20 w-full" />
               </div>
               <div className="mt-1 truncate text-sm font-semibold">{it.brand} {it.model}</div>
-              <div className="truncate text-xs text-muted">API: {q.make} {q.model} {q.year}</div>
+              <div className="truncate text-xs text-muted">{photoSource(it)}{photoSource(it) === "CarImages API" ? `: ${q.make} ${q.model} ${q.year}` : ""} · id {it.id}</div>
               <button className={`mt-2 w-full rounded-md border px-2 py-1 text-xs font-semibold ${it.photo === false ? "border-line" : "border-emerald-400/60 text-emerald-300"}`} onClick={() => toggle(it)}>
                 {it.photo === false ? "Uključi fotografiju" : "Fotografija uključena"}
               </button>
