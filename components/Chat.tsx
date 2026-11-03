@@ -79,6 +79,15 @@ function ChatPanel() {
     const { data } = await createClient().from("chat_messages").select("*").order("created_at", { ascending: false }).limit(80);
     if (!data) return;
     const rows = (data as Msg[]).reverse();
+    // level se uzima uživo s profila, da promjena vrijedi i za starije poruke
+    const ids = [...new Set(rows.map((r) => r.user_id).filter((x): x is string => !!x))];
+    if (ids.length) {
+      const { data: ps } = await createClient().from("profiles").select("id, level").in("id", ids);
+      const lv = new Map((ps ?? []).map((p: { id: string; level: number }) => [p.id, p.level]));
+      rows.forEach((r) => {
+        if (r.user_id && lv.has(r.user_id)) r.level = lv.get(r.user_id)!;
+      });
+    }
     setMsgs((prev) => {
       const lastPrev = prev[prev.length - 1]?.id ?? 0;
       const fresh = rows.filter((r) => r.id > lastPrev).length;

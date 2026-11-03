@@ -72,8 +72,15 @@ export function Reel({
     if (stage === "idle") setStrip(items);
   }, [items, stage]);
 
+  // vrtnju pokreće SAMO nova vrijednost spinKey (ne promjena brzine, veličine itd.)
+  const cfg = useRef({ winnerIndex, duration, vertical, tile, sound });
+  useLayoutEffect(() => {
+    cfg.current = { winnerIndex, duration, vertical, tile, sound };
+  }, [winnerIndex, duration, vertical, tile, sound]);
+
   useLayoutEffect(() => {
     if (!spinKey || !box.current) return;
+    const { winnerIndex, duration, vertical, tile, sound } = cfg.current;
     const size = vertical ? box.current.clientHeight : box.current.clientWidth;
     const timers: ReturnType<typeof setTimeout>[] = [];
     let raf = 0;
@@ -144,7 +151,7 @@ export function Reel({
       timers.forEach(clearTimeout);
       cancelAnimationFrame(raf);
     };
-  }, [spinKey, winnerIndex, duration, vertical, tile, sound]);
+  }, [spinKey]);
 
   const landed = stage === "done";
   const showGoldHidden = stage === "idle" || stage === "spin" || stage === "gold";

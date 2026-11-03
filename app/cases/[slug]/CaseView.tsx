@@ -151,8 +151,9 @@ export function CaseView() {
     }
   };
 
-  // razmaknica = otvori ponovno
+  // razmaknica = otvori ponovno (samo kad je već otvorena kutija i prikazan rezultat pravog otvaranja)
   useEffect(() => {
+    if (!showWon || !won[0]?.inventory_id) return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (e.code !== "Space" || ["INPUT", "TEXTAREA", "BUTTON", "SELECT"].includes(t.tagName)) return;
@@ -161,7 +162,7 @@ export function CaseView() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, user, c]);
+  }, [open, user, c, showWon, won]);
 
   if (missing) return <div className="card p-8 text-center">Ova kutija ne postoji. <Link href="/cases" className="text-accent2">Natrag na kutije</Link></div>;
   if (!c) return <div className="card h-96 animate-pulse" />;
