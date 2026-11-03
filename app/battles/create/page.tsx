@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getCases } from "@/lib/data";
-import { MODES } from "@/lib/battles";
+import { MODES, WIN_MODES, type WinMode } from "@/lib/battles";
 import type { CaseWithItems } from "@/lib/types";
 import { coins } from "@/lib/format";
 import { useRpc } from "@/lib/useGame";
@@ -15,7 +15,7 @@ export default function CreateBattle() {
   const rpc = useRpc();
   const [cases, setCases] = useState<CaseWithItems[]>([]);
   const [mode, setMode] = useState<string>("1v1");
-  const [crazy, setCrazy] = useState(false);
+  const [win, setWin] = useState<WinMode>("normal");
   const [picked, setPicked] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -35,7 +35,7 @@ export default function CreateBattle() {
 
   const create = async () => {
     setBusy(true);
-    const id = await rpc<string>("create_battle", { p_mode: mode, p_case_ids: picked, p_crazy: crazy });
+    const id = await rpc<string>("create_battle", { p_mode: mode, p_case_ids: picked, p_crazy: win === "crazy", p_jackpot: win === "jackpot" });
     setBusy(false);
     if (id) router.push(`/battles/${id}`);
   };
@@ -43,23 +43,36 @@ export default function CreateBattle() {
   return (
     <RequireAuth what="kreirati battle">
       <div className="space-y-5">
-        <h1 className="h1">Kreiraj battle</h1>
+        <h1 className="h1">Novi battle</h1>
         <div className="card space-y-4 p-4">
           <div>
             <span className="label">Mod</span>
             <div className="flex flex-wrap gap-1.5">
               {MODES.map((x) => (
-                <button key={x.k} onClick={() => setMode(x.k)} className={mode === x.k ? "btn-primary" : "btn-ghost"}>{x.l}</button>
+                <button key={x.k} onClick={() => setMode(x.k)} className={`rounded-md border px-4 py-2 font-display text-lg font-bold ${mode === x.k ? "border-accent bg-accent text-ink" : "border-line hover:border-white/30"}`}>{x.l}</button>
               ))}
             </div>
             <p className="mt-2 text-xs text-muted">
               {m.seats} igrača{m.team > 1 ? `, timovi po ${m.team}` : ", svatko za sebe"}. Pobjednički tim dijeli sve osvojene automobile.
             </p>
           </div>
-          <label className="flex w-fit cursor-pointer items-center gap-2 text-sm">
-            <input type="checkbox" checked={crazy} onChange={(e) => setCrazy(e.target.checked)} className="accent-fuchsia-400" />
-            <span><b className="text-fuchsia-300">Crazy mod</b> — pobjeđuje najmanja ukupna vrijednost</span>
-          </label>
+          <div>
+            <span className="label">Tko pobjeđuje</span>
+            <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Način pobjede">
+              {WIN_MODES.map((w) => (
+                <button
+                  key={w.k}
+                  role="radio"
+                  aria-checked={win === w.k}
+                  onClick={() => setWin(w.k)}
+                  className={`rounded-lg border p-3 text-left transition ${win === w.k ? (w.k === "jackpot" ? "border-emerald-400 bg-emerald-400/10" : w.k === "crazy" ? "border-fuchsia-400 bg-fuchsia-400/10" : "border-accent2 bg-accent2/10") : "border-line hover:border-white/30"}`}
+                >
+                  <div className="font-display text-xl font-bold">{w.l}</div>
+                  <div className="text-sm text-muted">{w.d}</div>
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <span className="label">Odabrane kutije ({picked.length}/25)</span>
             <div className="flex min-h-16 flex-wrap gap-1.5 rounded-md border border-dashed border-line p-2">

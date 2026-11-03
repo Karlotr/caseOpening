@@ -5,23 +5,32 @@ import { useParams } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { getCases, getItems, randomFromCase } from "@/lib/data";
-import { loadBattle, type Battle, type BattleDrop, type BattlePlayer } from "@/lib/battles";
+import { TEAM_COLORS, WIN_MODES, loadBattle, winModeOf, type Battle, type BattleDrop, type BattlePlayer } from "@/lib/battles";
 import type { CaseWithItems, Item } from "@/lib/types";
 import { coins } from "@/lib/format";
 import { useRpc } from "@/lib/useGame";
+import { sfx } from "@/lib/sound";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { CaseArt } from "@/components/CaseCard";
 import { ItemCard } from "@/components/ItemCard";
 import { Reel } from "@/components/Reel";
+import { NameReel, type Entry } from "@/components/NameReel";
+import { CountUp } from "@/components/CountUp";
+import { useCelebrate } from "@/components/WinOverlay";
+import { useChat } from "@/components/Chat";
 
 const WIN = 32;
+const ROUND_PAUSE = 1700; // pauza nakon svake otvorene runde
+type Phase = "idle" | "rounds" | "roulette" | "done";
 
 export function BattleView() {
   const { id } = useParams<{ id: string }>();
   const { user, refresh } = useAuth();
   const rpc = useRpc();
   const toast = useToast();
+  const celebrate = useCelebrate();
+  const { shareBattle } = useChat();
   const [battle, setBattle] = useState<Battle | null>(null);
   const [players, setPlayers] = useState<BattlePlayer[]>([]);
   const [drops, setDrops] = useState<BattleDrop[]>([]);
@@ -30,11 +39,13 @@ export function BattleView() {
   const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // animacija
+  const [phase, setPhase] = useState<Phase>("idle");
   const [revealed, setRevealed] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [strips, setStrips] = useState<Item[][]>([]);
   const [spinKey, setSpinKey] = useState(0);
+  const [rouletteKey, setRouletteKey] = useState(0);
+  const [announce, setAnnounce] = useState(false);
   const decided = useRef(false);
 
   const reload = useCallback(async () => {
@@ -65,24 +76,33 @@ export function BattleView() {
   }, [id, reload]);
 
   const rounds = battle?.case_ids.length ?? 0;
+  const mode = battle ? winModeOf(battle) : "normal";
 
   const spinRound = useCallback(
     (r: number) => {
       if (!battle) return;
       const c = cases.get(battle.case_ids[r]);
       if (!c) return;
-      const s = Array.from({ length: battle.seats }, (_, seat) => {
-        const strip = Array.from({ length: 40 }, () => randomFromCase(c));
-        const d = drops.find((x) => x.round === r + 1 && x.seat === seat);
-        if (d && items.get(d.item_id)) strip[WIN] = items.get(d.item_id)!;
-        return strip;
-      });
-      setStrips(s);
+      setStrips(
+        Array.from({ length: battle.seats }, (_, seat) => {
+          const strip = Array.from({ length: 40 }, () => randomFromCase(c));
+          const d = drops.find((x) => x.round === r + 1 && x.seat === seat);
+          if (d && items.get(d.item_id)) strip[WIN] = items.get(d.item_id)!;
+          return strip;
+        })
+      );
       setSpinning(true);
       setSpinKey((k) => k + 1);
     },
     [battle, cases, drops, items]
   );
+
+  const startPlayback = useCallback(() => {
+    setAnnounce(false);
+    setRevealed(0);
+    setPhase("rounds");
+    setTimeout(() => spinRound(0), 500);
+  }, [spinRound]);
 
   // kad battle završi: animiraj ako je svjež, inače odmah pokaži rezultat
   useEffect(() => {
@@ -90,22 +110,38 @@ export function BattleView() {
     decided.current = true;
     const age = Date.now() - new Date(battle.finished_at ?? battle.created_at).getTime();
     if (age < 90_000) {
-      setRevealed(0);
-      setTimeout(() => spinRound(0), 400);
+      sfx.lightsOut();
+      startPlayback();
     } else {
       setRevealed(rounds);
+      setPhase("done");
     }
-  }, [battle, drops, cases, items, rounds, spinRound]);
+  }, [battle, drops, cases, items, rounds, startPlayback]);
 
   const onRoundDone = useCallback(() => {
     setSpinning(false);
     setRevealed((r) => {
       const next = r + 1;
-      if (next < rounds) setTimeout(() => spinRound(next), 700);
-      else refresh();
+      setTimeout(() => {
+        if (next < rounds) spinRound(next);
+        else if (battle?.jackpot) {
+          setPhase("roulette");
+          setRouletteKey((k) => k + 1);
+        } else {
+          setPhase("done");
+          setAnnounce(true);
+        }
+      }, ROUND_PAUSE);
       return next;
     });
-  }, [rounds, spinRound, refresh]);
+  }, [rounds, spinRound, battle]);
+
+  const onRouletteDone = useCallback(() => {
+    setTimeout(() => {
+      setPhase("done");
+      setAnnounce(true);
+    }, 600);
+  }, []);
 
   const totals = useMemo(() => {
     const t = new Map<number, number>();
@@ -113,13 +149,60 @@ export function BattleView() {
     return t;
   }, [drops, revealed, items]);
 
-  if (notFound) return <div className="card p-8 text-center">Battle ne postoji. <Link href="/battles" className="text-accent">Natrag</Link></div>;
+  const teams = useMemo(
+    () => (battle ? Array.from({ length: battle.seats / battle.team_size }, (_, t) => Array.from({ length: battle.team_size }, (_, i) => t * battle.team_size + i)) : []),
+    [battle]
+  );
+  const teamTotal = useCallback((ti: number) => teams[ti]?.reduce((s, seat) => s + (totals.get(seat) ?? 0), 0) ?? 0, [teams, totals]);
+  const grand = teams.reduce((s, _, ti) => s + teamTotal(ti), 0);
+  const teamName = useCallback(
+    (ti: number) => teams[ti]?.map((s) => players.find((p) => p.seat === s)?.name ?? "?").join(" & ") ?? "",
+    [teams, players]
+  );
+
+  const entries: Entry[] = useMemo(
+    () => teams.map((_, ti) => ({ label: teamName(ti), sub: grand ? `${((teamTotal(ti) / grand) * 100).toFixed(1)}% šanse` : "", color: TEAM_COLORS[ti % TEAM_COLORS.length], weight: teamTotal(ti) })),
+    [teams, teamName, teamTotal, grand]
+  );
+
+  // pobjeda / poraz obavijest
+  useEffect(() => {
+    if (!announce || !battle) return;
+    setAnnounce(false);
+    refresh();
+    const me = players.find((p) => p.user_id === user?.id);
+    if (!me) return;
+    const winners = players.filter((p) => p.team === battle.winner_team);
+    if (me.team === battle.winner_team) {
+      const myItems: Item[] = [];
+      drops
+        .slice()
+        .sort((a, b) => a.round - b.round || a.seat - b.seat)
+        .forEach((d, k) => {
+          if (winners[k % winners.length]?.user_id === user?.id && items.get(d.item_id)) myItems.push(items.get(d.item_id)!);
+        });
+      const val = myItems.reduce((s, i) => s + i.value, 0);
+      celebrate({
+        title: "Pobjeda!",
+        subtitle: mode === "jackpot" ? "Rulet je izvukao tebe" : mode === "crazy" ? "Crazy battle je tvoj" : "Tvoja garaža je bila najjača",
+        items: myItems,
+        amount: val,
+        tier: val >= battle.cost * 3 ? 3 : val >= battle.cost * 1.5 ? 2 : 1,
+      });
+    } else {
+      sfx.lose();
+      toast(`Battle je dobio ${teamName(battle.winner_team ?? 0)}. Probaj ponovno.`, "error");
+    }
+  }, [announce, battle, players, user, drops, items, celebrate, toast, teamName, mode, refresh]);
+
+  if (notFound) return <div className="card p-8 text-center">Ovaj battle ne postoji. <Link href="/battles" className="text-accent2">Natrag na battles</Link></div>;
   if (!battle) return <div className="card h-96 animate-pulse" />;
 
-  const done = battle.status === "finished" && revealed >= rounds;
+  const done = phase === "done";
   const meIn = players.some((p) => p.user_id === user?.id);
   const isCreator = user?.id === battle.creator_id;
-  const teams = Array.from({ length: battle.seats / battle.team_size }, (_, t) => Array.from({ length: battle.team_size }, (_, i) => t * battle.team_size + i));
+  const myWin = done && players.find((p) => p.user_id === user?.id)?.team === battle.winner_team;
+  const modeInfo = WIN_MODES.find((m) => m.k === mode)!;
 
   const act = async (fn: string, args: Record<string, unknown>, msg?: string) => {
     setBusy(true);
@@ -129,113 +212,172 @@ export function BattleView() {
     await reload();
   };
 
-  const replay = () => {
-    setRevealed(0);
-    spinRound(0);
-  };
-
-  const myWin = done && players.find((p) => p.user_id === user?.id)?.team === battle.winner_team;
+  // najbolji drop u zadnjoj otkrivenoj rundi
+  const lastRoundDrops = drops.filter((d) => d.round === revealed);
+  const bestSeat = lastRoundDrops.length ? lastRoundDrops.reduce((a, b) => ((items.get(a.item_id)?.value ?? 0) >= (items.get(b.item_id)?.value ?? 0) ? a : b)).seat : -1;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
-        <Link href="/battles" className="hover:text-fg">Battles</Link> <span>/</span>
-        <span className="font-display text-fg">{battle.mode}</span>
-        {battle.crazy && <span className="rounded bg-fuchsia-500/20 px-1.5 text-[10px] font-bold uppercase text-fuchsia-300">Crazy</span>}
-        <span className="ml-auto">Ulaz: <span className="text-accent"><span className="coin" /> {coins(battle.cost)}</span></span>
-        {battle.status === "finished" && <span>· Ukupno: <span className="text-accent">{coins(battle.total_value)}</span></span>}
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+        <div>
+          <Link href="/battles" className="text-sm text-muted hover:text-fg">Battles</Link>
+          <h1 className="h1 flex items-center gap-3">
+            {battle.mode}
+            <span className={`rounded px-2 py-0.5 font-display text-base font-bold ${mode === "jackpot" ? "bg-emerald-400/20 text-emerald-300" : mode === "crazy" ? "bg-fuchsia-500/20 text-fuchsia-300" : "bg-accent2/15 text-accent2"}`}>
+              {modeInfo.l}
+            </span>
+          </h1>
+          <p className="mt-1 text-sm text-muted">{modeInfo.d}</p>
+        </div>
+        <div className="ml-auto flex gap-5 text-right">
+          <div>
+            <div className="text-sm text-muted">Ulaz</div>
+            <div className="font-display text-2xl font-bold text-accent"><span className="coin" /> {coins(battle.cost)}</div>
+          </div>
+          <div>
+            <div className="text-sm text-muted">Na stolu</div>
+            <div className="font-display text-2xl font-bold"><CountUp value={grand} /></div>
+          </div>
+        </div>
       </div>
 
-      <div className="card flex gap-1.5 overflow-x-auto p-2">
+      <div className="card flex items-center gap-1.5 overflow-x-auto p-2">
         {battle.case_ids.map((cid, i) => {
           const c = cases.get(cid);
-          const active = battle.status === "finished" && (spinning ? i === revealed : i < revealed);
+          const current = spinning && i === revealed;
+          const past = i < revealed;
           return c ? (
-            <div key={i} className={`shrink-0 rounded-lg p-0.5 ${spinning && i === revealed ? "ring-2 ring-accent" : active ? "opacity-60" : ""}`}>
-              <CaseArt c={c} className="h-14 w-24 [&_svg]:h-9 [&_svg]:w-20" />
+            <div key={i} className={`relative shrink-0 rounded-lg p-0.5 transition ${current ? "ring-2 ring-accent" : past ? "opacity-40" : ""}`}>
+              <CaseArt c={c} className="h-14 w-24" />
+              <span className="absolute bottom-1 right-1.5 font-display text-sm font-bold text-white/80">{i + 1}</span>
             </div>
           ) : null;
         })}
-        <div className="ml-auto self-center whitespace-nowrap px-3 font-display text-sm text-muted">
-          Runda {Math.min(revealed + (spinning ? 1 : 0), rounds)}/{rounds}
+        <div className="ml-auto self-center whitespace-nowrap px-3 font-display text-xl font-bold">
+          Runda {Math.min(revealed + (spinning ? 1 : 0), rounds)}<span className="text-muted">/{rounds}</span>
         </div>
       </div>
 
       {battle.status === "waiting" && (
-        <div className="card flex flex-wrap items-center gap-3 p-3">
-          <span className="text-sm text-muted">Čeka se igrače ({players.length}/{battle.seats})…</span>
+        <div className="card flex flex-wrap items-center gap-3 p-4">
+          <span className="text-muted">Čekamo igrače: <b className="text-fg">{players.length}/{battle.seats}</b>. Battle kreće čim se sva mjesta popune.</span>
+          {user && <button className="btn-ghost" onClick={() => shareBattle(battle.id)}>Podijeli u chat</button>}
           {isCreator && (
             <div className="ml-auto flex gap-2">
-              <button className="btn-primary" disabled={busy} onClick={() => act("fill_battle_bots", { p_id: battle.id })}>🤖 Popuni botovima i kreni</button>
-              {players.length === 1 && <button className="btn-ghost" disabled={busy} onClick={() => act("cancel_battle", { p_id: battle.id }, "Battle otkazan, coini vraćeni.")}>Otkaži</button>}
+              <button className="btn-primary" disabled={busy} onClick={() => act("fill_battle_bots", { p_id: battle.id })}>Popuni botovima i kreni</button>
+              {players.length === 1 && <button className="btn-ghost" disabled={busy} onClick={() => act("cancel_battle", { p_id: battle.id }, "Battle otkazan, coini su vraćeni.")}>Otkaži battle</button>}
             </div>
           )}
         </div>
       )}
-      {battle.status === "cancelled" && <div className="card p-3 text-sm text-muted">Ovaj battle je otkazan.</div>}
+      {battle.status === "cancelled" && <div className="card p-4 text-muted">Ovaj battle je otkazan.</div>}
+
+      {(phase === "roulette" || (done && battle.jackpot)) && (
+        <div className="pop space-y-2">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-display text-3xl font-extrabold tracking-tight">Jackpot rulet</h2>
+            <span className="text-sm text-muted">Šansa svakog tima = njegova vrijednost / {coins(grand)}</span>
+          </div>
+          <div className="flex h-3 overflow-hidden rounded-full">
+            {entries.map((e, i) => <div key={i} style={{ width: `${grand ? (e.weight / grand) * 100 : 0}%`, background: e.color }} title={`${e.label}: ${e.sub}`} />)}
+          </div>
+          <NameReel entries={entries} winner={battle.winner_team ?? 0} spinKey={rouletteKey} onDone={onRouletteDone} />
+        </div>
+      )}
 
       {done && (
-        <div className={`pop card flex flex-wrap items-center gap-3 p-4 ${myWin ? "border-accent" : ""}`}>
-          <span className="checker h-8 w-8 rounded" />
-          <div className="font-display text-lg font-bold">
-            {myWin ? "Pobijedio si! Svi automobili su u tvojoj garaži." : `Pobjednik: ${teams[battle.winner_team ?? 0].map((s) => players.find((p) => p.seat === s)?.name).join(" & ")}`}
+        <div className={`pop flex flex-wrap items-center gap-4 rounded-xl border p-4 ${myWin ? "border-accent bg-accent/10" : "border-line bg-panel"}`}>
+          <span className="checker h-10 w-10 rounded" />
+          <div>
+            <div className="text-sm text-muted">Pobjednik</div>
+            <div className="font-display text-3xl font-black leading-none">{myWin ? "Ti! Auti su u tvojoj garaži." : teamName(battle.winner_team ?? 0)}</div>
           </div>
           <div className="ml-auto flex gap-2">
-            <button className="btn-ghost" onClick={replay}>↻ Replay</button>
-            {myWin && <Link className="btn-primary" href="/profile">Garaža</Link>}
+            <button className="btn-ghost" onClick={startPlayback}>Pogledaj ponovno</button>
+            {user && <button className="btn-ghost" onClick={() => shareBattle(battle.id)}>Podijeli u chat</button>}
+            {myWin && <Link className="btn-primary" href="/profile">Otvori garažu</Link>}
           </div>
         </div>
       )}
 
       <div className="overflow-x-auto pb-2">
         <div className="flex min-w-max gap-2 md:min-w-0">
-          {teams.map((seats, ti) => (
-            <Fragment key={ti}>
-              {ti > 0 && <div className="grid w-8 shrink-0 place-items-center font-display text-lg font-bold text-accent">VS</div>}
-              <div className={`flex flex-1 gap-2 rounded-xl ${done && battle.winner_team === ti ? "bg-accent/10 ring-1 ring-accent/50" : ""} p-1`}>
-                {seats.map((seat) => {
-                  const p = players.find((x) => x.seat === seat);
-                  const mine = drops.filter((d) => d.seat === seat && d.round <= revealed).sort((a, b) => b.round - a.round);
-                  return (
-                    <div key={seat} className="w-44 flex-1 space-y-2 md:w-auto md:min-w-36">
-                      <div className="card flex items-center gap-2 p-2">
-                        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md text-xs font-bold ${p ? (p.is_bot ? "bg-sky-500/20 text-sky-300" : "bg-accent text-black") : "border border-dashed border-line text-muted"}`}>
-                          {p ? (p.is_bot ? "🤖" : p.name.slice(0, 2).toUpperCase()) : "?"}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-semibold">{p?.name ?? "Slobodno mjesto"}</div>
-                          <div className="font-display text-xs text-accent">{coins(totals.get(seat) ?? 0)}</div>
-                        </div>
-                      </div>
-                      {battle.status === "waiting" ? (
-                        <div className="card grid h-[312px] place-items-center p-3 text-center">
-                          {p ? (
-                            <span className="text-sm text-emerald-400">Spreman ✓</span>
-                          ) : user && !meIn ? (
-                            <button className="btn-primary" disabled={busy} onClick={() => act("join_battle", { p_id: battle.id, p_seat: seat }, "Pridružio si se battleu!")}>
-                              Pridruži se<br />{coins(battle.cost)}
-                            </button>
-                          ) : !user ? (
-                            <Link href="/login" className="btn-ghost">Prijavi se</Link>
-                          ) : (
-                            <span className="text-sm text-muted">Čeka igrača…</span>
-                          )}
-                        </div>
-                      ) : spinning && strips[seat] ? (
-                        <Reel vertical items={strips[seat]} winnerIndex={WIN} spinKey={spinKey} duration={3200} onDone={seat === 0 ? onRoundDone : undefined} />
-                      ) : null}
-                      <div className="space-y-1.5">
-                        {mine.map((d) => {
-                          const it = items.get(d.item_id);
-                          return it ? <div key={d.round} className={d.round === revealed ? "pop" : ""}><ItemCard item={it} size="sm" /></div> : null;
-                        })}
-                      </div>
+          {teams.map((seats, ti) => {
+            const won = done && battle.winner_team === ti;
+            const tc = TEAM_COLORS[ti % TEAM_COLORS.length];
+            return (
+              <Fragment key={ti}>
+                {ti > 0 && <div className="grid w-10 shrink-0 place-items-center font-display text-2xl font-black text-muted">VS</div>}
+                <div className={`flex flex-1 flex-col gap-2 rounded-xl p-1.5 transition ${won ? "bg-accent/10 ring-2 ring-accent" : done ? "opacity-60" : ""}`}>
+                  {battle.team_size > 1 && (
+                    <div className="flex items-center justify-between px-1 font-display text-lg font-bold">
+                      <span style={{ color: tc }}>Tim {ti + 1}</span>
+                      <span className="flex items-center gap-2">
+                        {mode === "jackpot" && grand > 0 && <span className="text-sm text-emerald-300">{((teamTotal(ti) / grand) * 100).toFixed(1)}%</span>}
+                        <CountUp value={teamTotal(ti)} />
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-            </Fragment>
-          ))}
+                  )}
+                  <div className="flex gap-2">
+                    {seats.map((seat) => {
+                      const p = players.find((x) => x.seat === seat);
+                      const mine = drops.filter((d) => d.seat === seat && d.round <= revealed).sort((a, b) => b.round - a.round);
+                      const isMe = p?.user_id && p.user_id === user?.id;
+                      return (
+                        <div key={seat} className="w-44 flex-1 space-y-2 md:w-auto md:min-w-36">
+                          <div className="card flex items-center gap-2 p-2" style={{ boxShadow: `inset 3px 0 0 ${tc}` }}>
+                            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-md font-display text-base font-black ${p ? (p.is_bot ? "bg-panel2 text-accent2" : "bg-accent text-ink") : "border border-dashed border-line text-muted"}`}>
+                              {p ? (p.is_bot ? "AI" : p.name.slice(0, 2).toUpperCase()) : "?"}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-semibold">{p?.name ?? "Slobodno mjesto"}{isMe && <span className="text-accent2"> (ti)</span>}</div>
+                              <div className="flex items-center gap-2 font-display text-lg font-bold leading-none text-accent">
+                                <CountUp value={totals.get(seat) ?? 0} />
+                                {mode === "jackpot" && battle.team_size === 1 && grand > 0 && (
+                                  <span className="text-sm text-emerald-300">{(((totals.get(seat) ?? 0) / grand) * 100).toFixed(1)}%</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {battle.status === "waiting" ? (
+                            <div className="card grid h-[336px] place-items-center p-3 text-center">
+                              {p ? (
+                                <span className="font-display text-xl font-bold text-emerald-300">Spreman</span>
+                              ) : user && !meIn ? (
+                                <button className="btn-primary" disabled={busy} onClick={() => act("join_battle", { p_id: battle.id, p_seat: seat }, "Ušao si u battle!")}>
+                                  Uđi za {coins(battle.cost)}
+                                </button>
+                              ) : !user ? (
+                                <Link href="/login" className="btn-ghost">Prijavi se</Link>
+                              ) : (
+                                <span className="text-muted">Čeka igrača…</span>
+                              )}
+                            </div>
+                          ) : spinning && strips[seat] ? (
+                            <Reel vertical items={strips[seat]} winnerIndex={WIN} spinKey={spinKey} duration={3400} sound={seat === 0} onDone={seat === 0 ? onRoundDone : undefined} />
+                          ) : null}
+                          <div className="space-y-1.5">
+                            {mine.map((d) => {
+                              const it = items.get(d.item_id);
+                              const fresh = d.round === revealed && !spinning && phase === "rounds";
+                              return it ? (
+                                <div key={d.round} className={`relative ${fresh ? "pop" : ""}`}>
+                                  {fresh && seat === bestSeat && (
+                                    <span className="absolute -top-2.5 right-2 z-10 rounded bg-accent px-1.5 font-display text-sm font-bold text-ink shadow-lg">Najbolji drop runde</span>
+                                  )}
+                                  <ItemCard item={it} size="sm" />
+                                </div>
+                              ) : null;
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </Fragment>
+            );
+          })}
         </div>
       </div>
     </div>

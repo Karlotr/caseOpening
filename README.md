@@ -6,8 +6,12 @@ Next.js 16 + Supabase. Kutije s automobilima (od Fiće do Ferrarija 250 GTO), ca
 
 1. **Baza:** u Supabase dashboardu → *SQL Editor* → zalijepi i pokreni cijeli `supabase/schema.sql`
    (tablice, RLS, sve funkcije igara i seed s ~100 automobila i 22 kutije). Može se pokretati više puta.
-2. **Auth:** *Authentication → Providers → Email* mora biti uključen. Za lokalni razvoj možeš isključiti
-   *Confirm email* da se korisnik odmah prijavi nakon registracije.
+2. **Auth:** *Authentication → Providers → Email* uključen.
+   - *Authentication → URL Configuration*: Site URL = tvoja Vercel domena, a u *Redirect URLs* dodaj
+     `https://<domena>/auth/confirm` i `http://localhost:3000/auth/confirm`.
+   - *Authentication → Email Templates → Confirm signup*: link zamijeni s
+     `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`
+     — klik na link potvrđuje račun i odmah prijavljuje korisnika (radi i na drugom uređaju).
 3. **Env:** `.env.local` (lokalno) / Vercel env:
    ```
    NEXT_PUBLIC_SUPABASE_URL=...
@@ -30,11 +34,13 @@ Next.js 16 + Supabase. Kutije s automobilima (od Fiće do Ferrarija 250 GTO), ca
 | Značajka | Kako radi |
 |---|---|
 | Kutije | 1–5 odjednom, brzo otvaranje, demo vrtnja, prodaja dobitaka |
-| Battles | 1v1, 1v1v1, 1v1v1v1, 6-way, 2v2, 3v3, Crazy mod (najmanje pobjeđuje), botovi, realtime lobby |
+| Battles | 1v1, 1v1v1, 1v1v1v1, 6-way, 2v2, 3v3; Klasično / Crazy (najmanje pobjeđuje) / Jackpot (vrijednost = šansa, rulet na kraju); botovi, realtime lobby |
 | Upgrader | više auta + coini → skuplji auto, šansa = ulog/cilj × 95%, max 80% |
 | Slide | ciljani multiplikator, šansa 96%/cilj |
 | Trinity | 30 polja: crvena 2×, crna 2×, zlatna 14× |
 | Jackpot | pot s botovima, šansa ∝ ulog, 5% provizija |
 | Nagrade | dnevna kutija sa streakom (bronca/srebro/zlato), kiša coina /30 min, tjedni i mjesečni drop, instant drop 4% |
 | Gem Stash | 0,1 gem po odigranom coinu → gem kutije |
+| Chat | poruke se čuvaju 6 sati, level + ime uz poruku, dijeljenje battlea u chat |
+| Zvuk | sintetizirani efekti (Web Audio), gumb za isključivanje u navigaciji |
 | Level | XP = odigrani coini, level L traži 25·(L−1)² XP, bonus L×10 coina, level kutije svaka 24h |

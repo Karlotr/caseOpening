@@ -20,6 +20,8 @@ export type Battle = {
   case_ids: number[];
   cost: number;
   crazy: boolean;
+  jackpot: boolean;
+  jackpot_ticket: number | null;
   status: "waiting" | "finished" | "cancelled";
   winner_team: number | null;
   total_value: number | null;
@@ -29,8 +31,20 @@ export type Battle = {
 export type BattlePlayer = { battle_id: string; seat: number; team: number; user_id: string | null; is_bot: boolean; name: string; total: number };
 export type BattleDrop = { battle_id: string; round: number; seat: number; item_id: number };
 
+export const WIN_MODES = [
+  { k: "normal", l: "Klasično", d: "Najveća ukupna vrijednost pobjeđuje." },
+  { k: "crazy", l: "Crazy", d: "Najmanja ukupna vrijednost pobjeđuje." },
+  { k: "jackpot", l: "Jackpot", d: "Vrijednost određuje šansu. Na kraju se vrti rulet." },
+] as const;
+export type WinMode = (typeof WIN_MODES)[number]["k"];
+export const winModeOf = (b: { crazy: boolean; jackpot?: boolean }): WinMode => (b.jackpot ? "jackpot" : b.crazy ? "crazy" : "normal");
+
+export const TEAM_COLORS = ["#f5821f", "#8fcbeb", "#a78bfa", "#34d399", "#f472b6", "#facc15"];
+
 export const normBattle = (b: Record<string, unknown>): Battle => ({
   ...(b as unknown as Battle),
+  jackpot: !!b.jackpot,
+  jackpot_ticket: b.jackpot_ticket == null ? null : Number(b.jackpot_ticket),
   cost: Number(b.cost),
   total_value: b.total_value === null ? null : Number(b.total_value),
 });

@@ -7,6 +7,8 @@ import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { BetInput } from "@/components/BetInput";
 import { RequireAuth } from "@/components/RequireAuth";
+import { useCelebrate } from "@/components/WinOverlay";
+import { sfx } from "@/lib/sound";
 
 type Color = "red" | "black" | "gold";
 type Res = { slot: number; color: Color; won: boolean; payout: number };
@@ -34,6 +36,7 @@ function Trinity() {
   const rpc = useRpc();
   const toast = useToast();
   const { refresh } = useAuth();
+  const celebrate = useCelebrate();
   const [bet, setBet] = useState(1);
   const [busy, setBusy] = useState(false);
   const [offset, setOffset] = useState(0);
@@ -60,11 +63,19 @@ function Trinity() {
       requestAnimationFrame(() => {
         setAnim(true);
         setOffset(idx * TILE - w / 2 + TILE / 2 + (Math.random() - 0.5) * TILE * 0.7);
+        sfx.spin();
       })
     );
     setTimeout(async () => {
       setHistory((h) => [res.color, ...h].slice(0, 20));
-      toast(res.won ? `${STYLE[res.color].label}! Dobitak ${coins(res.payout)}` : `Pala je ${STYLE[res.color].label.toLowerCase()}.`, res.won ? (res.color === "gold" ? "gold" : "success") : "error");
+      if (res.won && res.color === "gold") celebrate({ title: "Zlatna 14×!", subtitle: "Trinity", amount: Number(res.payout), tier: 3 });
+      else if (res.won) {
+        sfx.win(1);
+        toast(`${STYLE[res.color].label}! Dobitak ${coins(res.payout)}`, "success");
+      } else {
+        sfx.lose();
+        toast(`Pala je ${STYLE[res.color].label.toLowerCase()}.`, "error");
+      }
       await refresh();
       setBusy(false);
     }, 5100);

@@ -98,6 +98,9 @@ create table if not exists public.battles (
   created_at timestamptz not null default now(),
   finished_at timestamptz
 );
+-- v2: Jackpot mod (pobjednik se izvlači proporcionalno vrijednosti)
+alter table public.battles add column if not exists jackpot boolean not null default false;
+alter table public.battles add column if not exists jackpot_ticket numeric;
 create index if not exists battles_status_idx on public.battles(status, created_at desc);
 
 create table if not exists public.battle_players (
@@ -548,7 +551,8 @@ end $$;
 create or replace function public._battle_team(p_seat int, p_team_size int)
 returns int language sql immutable as $$ select p_seat / p_team_size; $$;
 
-create or replace function public.create_battle(p_mode text, p_case_ids int[], p_crazy boolean default false)
+drop function if exists public.create_battle(text, int[], boolean);
+create or replace function public.create_battle(p_mode text, p_case_ids int[], p_crazy boolean default false, p_jackpot boolean default false)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare
   uid uuid := public._uid();
@@ -569,14 +573,15 @@ begin
     else raise exception 'Nepoznat mod.';
   end case;
   if n < 1 or n > 25 then raise exception 'Battle mora imati 1–25 kutija.'; end if;
+  if coalesce(p_crazy, false) and coalesce(p_jackpot, false) then raise exception 'Odaberi Crazy ili Jackpot, ne oboje.'; end if;
   select sum(c.price) into cost from unnest(p_case_ids) as x(cid) join public.cases c on c.id = x.cid and c.case_type = 'normal';
   if cost is null or (select count(*) from unnest(p_case_ids) x(cid) join public.cases c on c.id = x.cid and c.case_type = 'normal') <> n then
     raise exception 'Neispravne kutije.';
   end if;
   perform public._charge(uid, cost);
   select username into uname from public.profiles where id = uid;
-  insert into public.battles (creator_id, mode, seats, team_size, case_ids, cost, crazy)
-  values (uid, p_mode, seats, tsize, p_case_ids, cost, coalesce(p_crazy, false)) returning id into bid;
+  insert into public.battles (creator_id, mode, seats, team_size, case_ids, cost, crazy, jackpot)
+  values (uid, p_mode, seats, tsize, p_case_ids, cost, coalesce(p_crazy, false), coalesce(p_jackpot, false)) returning id into bid;
   insert into public.battle_players (battle_id, seat, team, user_id, name) values (bid, 0, 0, uid, uname);
   return bid;
 end $$;
@@ -594,7 +599,10 @@ declare
   k int := 0;
   drp record;
   pl record;
+  tr record;
   pot_total numeric;
+  ticket numeric;
+  acc numeric;
 begin
   select * into b from public.battles where id = p_id for update;
   if b.status <> 'waiting' then return; end if;
@@ -609,10 +617,23 @@ begin
                             where d.battle_id = p_id and d.seat = bp.seat), 0)
    where bp.battle_id = p_id;
 
-  -- pobjednički tim (crazy = najmanje), izjednačenje → nasumično
-  select t.team into win_team from (
-    select bp2.team, sum(bp2.total) as tt from public.battle_players bp2 where bp2.battle_id = p_id group by bp2.team
-  ) t order by case when b.crazy then t.tt else -t.tt end, random()::numeric limit 1;
+  if b.jackpot then
+    -- Jackpot: šansa tima = njegova vrijednost / ukupna vrijednost
+    select coalesce(sum(bp2.total), 0) into pot_total from public.battle_players bp2 where bp2.battle_id = p_id;
+    ticket := random()::numeric;
+    acc := 0;
+    for tr in select bp2.team, sum(bp2.total) as tt from public.battle_players bp2 where bp2.battle_id = p_id group by bp2.team order by bp2.team loop
+      acc := acc + tr.tt / greatest(pot_total, 0.01);
+      win_team := tr.team;
+      exit when ticket < acc;
+    end loop;
+    update public.battles set jackpot_ticket = ticket where id = p_id;
+  else
+    -- pobjednički tim (crazy = najmanje), izjednačenje → nasumično
+    select t.team into win_team from (
+      select bp2.team, sum(bp2.total) as tt from public.battle_players bp2 where bp2.battle_id = p_id group by bp2.team
+    ) t order by case when b.crazy then t.tt else -t.tt end, random()::numeric limit 1;
+  end if;
 
   select coalesce(sum(i.value), 0) into pot_total from public.battle_drops d join public.items i on i.id = d.item_id where d.battle_id = p_id;
 
@@ -739,13 +760,55 @@ grant execute on function public.play_trinity(numeric, text) to authenticated;
 grant execute on function public.play_jackpot(numeric) to authenticated;
 grant execute on function public.claim_daily() to authenticated;
 grant execute on function public.claim_reward(text) to authenticated;
-grant execute on function public.create_battle(text, int[], boolean) to authenticated;
+grant execute on function public.create_battle(text, int[], boolean, boolean) to authenticated;
 grant execute on function public.join_battle(uuid, int) to authenticated;
 grant execute on function public.fill_battle_bots(uuid) to authenticated;
 grant execute on function public.cancel_battle(uuid) to authenticated;
 grant execute on function public.recent_drops(int) to anon, authenticated;
 grant execute on function public.leaderboard() to anon, authenticated;
 grant execute on function public.username_available(text) to anon, authenticated;
+
+
+-- ---------- CHAT (poruke se čuvaju 6 sati) ----------
+create table if not exists public.chat_messages (
+  id bigserial primary key,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  username text not null,
+  level int not null,
+  body text not null check (char_length(body) between 1 and 300),
+  battle_id uuid references public.battles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists chat_created_idx on public.chat_messages(created_at desc);
+alter table public.chat_messages enable row level security;
+drop policy if exists "chat read recent" on public.chat_messages;
+create policy "chat read recent" on public.chat_messages for select using (created_at > now() - interval '6 hours');
+
+create or replace function public.send_chat(p_body text, p_battle_id uuid default null)
+returns bigint language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := public._uid();
+  p public.profiles;
+  body text := btrim(coalesce(p_body, ''));
+  mid bigint;
+begin
+  select * into p from public.profiles where id = uid;
+  if char_length(body) = 0 and p_battle_id is null then raise exception 'Poruka je prazna.'; end if;
+  if char_length(body) > 300 then raise exception 'Poruka može imati najviše 300 znakova.'; end if;
+  if exists (select 1 from public.chat_messages where user_id = uid and created_at > now() - interval '1 second') then
+    raise exception 'Polako, jedna poruka u sekundi.';
+  end if;
+  if p_battle_id is not null then
+    if not exists (select 1 from public.battles where id = p_battle_id) then raise exception 'Battle ne postoji.'; end if;
+    if char_length(body) = 0 then body := 'Pridruži mi se u battleu!'; end if;
+  end if;
+  insert into public.chat_messages (user_id, username, level, body, battle_id)
+  values (uid, p.username, p.level, body, p_battle_id) returning id into mid;
+  -- čišćenje starih poruka
+  delete from public.chat_messages where created_at < now() - interval '6 hours';
+  return mid;
+end $$;
+grant execute on function public.send_chat(text, uuid) to authenticated;
 
 -- ---------- REALTIME (battle lobby uživo) ----------
 do $$
@@ -757,6 +820,10 @@ begin
     end;
     begin
       alter publication supabase_realtime add table public.battle_players;
+    exception when duplicate_object then null;
+    end;
+    begin
+      alter publication supabase_realtime add table public.chat_messages;
     exception when duplicate_object then null;
     end;
   end if;

@@ -11,6 +11,8 @@ import { useToast } from "@/components/Toast";
 import { ItemCard } from "@/components/ItemCard";
 import { CarArt } from "@/components/CarArt";
 import { RequireAuth } from "@/components/RequireAuth";
+import { useCelebrate } from "@/components/WinOverlay";
+import { sfx } from "@/lib/sound";
 
 type Res = { won: boolean; chance: number; roll: number };
 
@@ -26,6 +28,7 @@ function Upgrader() {
   const rpc = useRpc();
   const toast = useToast();
   const { profile, refresh } = useAuth();
+  const celebrate = useCelebrate();
   const [inv, setInv] = useState<InvRow[]>([]);
   const [all, setAll] = useState<Item[]>([]);
   const [sel, setSel] = useState<number[]>([]);
@@ -64,6 +67,7 @@ function Upgrader() {
     const roll = Number(res.roll);
     setAnim(false);
     setAngle(0);
+    sfx.spin();
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         setAnim(true);
@@ -72,7 +76,13 @@ function Upgrader() {
     );
     setTimeout(async () => {
       setResult({ ...res, roll });
-      toast(res.won ? `🏆 Upgrade uspio! ${carName(target)} je tvoj.` : "Upgrade nije uspio. Više sreće sljedeći put!", res.won ? "gold" : "error");
+      if (res.won) {
+        const mult = target.value / Math.max(input, 0.01);
+        celebrate({ title: "Upgrade uspio!", subtitle: `${mult.toFixed(2)}× · šansa ${(Number(res.chance) * 100).toFixed(1)}%`, items: [target], amount: target.value, tier: mult >= 5 ? 3 : mult >= 2 ? 2 : 1 });
+      } else {
+        sfx.lose();
+        toast(`Upgrade nije uspio. ${carName(target)} je ostao u salonu.`, "error");
+      }
       setSel([]);
       setExtra(0);
       await Promise.all([reload(), refresh()]);

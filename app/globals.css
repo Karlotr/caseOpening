@@ -1,95 +1,118 @@
 @import "tailwindcss";
 
+/* GARAŽA.gg — motorsport TV grafika u Gulf livery bojama, noćni asfalt */
 @theme {
-  --color-bg: #0c0d10;
-  --color-panel: #15171c;
-  --color-panel2: #1c1f26;
-  --color-line: #2a2e37;
-  --color-fg: #eceef2;
-  --color-muted: #8b92a1;
-  --color-accent: #facc15;
-  --color-accent2: #f97316;
-  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
-  --font-display: var(--font-chakra), var(--font-geist-sans), sans-serif;
+  --color-ink: #0c1424;
+  --color-bg: #0c1424;
+  --color-panel: #13203a;
+  --color-panel2: #1a2a48;
+  --color-line: #263a5e;
+  --color-fg: #eef2f8;
+  --color-muted: #8d9cb8;
+  --color-accent: #f5821f; /* Gulf narančasta — akcije, vrijednosti, dobitak */
+  --color-accent2: #8fcbeb; /* Gulf plava — livery, info */
+  --font-sans: var(--font-barlow), system-ui, sans-serif;
+  --font-display: var(--font-shoulders), var(--font-barlow), sans-serif;
 }
 
 html { color-scheme: dark; }
 
 body {
-  background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(250, 204, 21, 0.06), transparent 60%),
-    radial-gradient(900px 400px at 100% 0%, rgba(249, 115, 22, 0.05), transparent 60%),
-    var(--color-bg);
+  background-color: var(--color-ink);
+  background-image:
+    radial-gradient(1000px 520px at 85% -10%, rgba(143, 203, 235, 0.10), transparent 60%),
+    radial-gradient(800px 420px at 0% 0%, rgba(245, 130, 31, 0.07), transparent 60%);
+  background-attachment: fixed;
   color: var(--color-fg);
   font-family: var(--font-sans);
+  font-size: 16px;
 }
 
+:focus-visible { outline: 2px solid var(--color-accent2); outline-offset: 2px; }
+
 @layer components {
+  /* kosi "broadcast" gumbi */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-bold text-black transition hover:brightness-110 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-40;
+    @apply inline-flex items-center justify-center gap-2 bg-accent px-5 py-2 font-display text-[15px] font-bold tracking-wide text-ink transition hover:brightness-110 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40;
+    clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-md border border-line bg-panel px-4 py-2 text-sm font-semibold transition hover:border-white/25 hover:bg-panel2 disabled:cursor-not-allowed disabled:opacity-40;
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-line bg-panel px-4 py-2 text-sm font-semibold transition hover:border-accent2/60 hover:bg-panel2 disabled:cursor-not-allowed disabled:opacity-40;
   }
-  .card {
-    @apply rounded-xl border border-line bg-panel;
+  .card { @apply rounded-xl border border-line bg-panel; }
+  .input { @apply w-full rounded-md border border-line bg-ink/60 px-3 py-2 text-sm outline-none transition focus:border-accent2; }
+  .h1 { @apply font-display text-4xl font-extrabold leading-none tracking-tight sm:text-5xl; }
+  .label { @apply mb-1 block text-sm font-medium text-muted; }
+  /* registarska pločica za vrijednosti */
+  .plate {
+    @apply inline-flex items-center gap-1 rounded-[4px] border border-white/20 bg-[#f4f6fa] px-1.5 font-display font-bold leading-tight text-ink;
+    box-shadow: inset 4px 0 0 #2756c8;
   }
-  .input {
-    @apply w-full rounded-md border border-line bg-black/30 px-3 py-2 text-sm outline-none transition focus:border-accent;
-  }
-  .h1 {
-    @apply font-display text-2xl font-bold tracking-wide sm:text-3xl;
-  }
-  .label {
-    @apply mb-1 block text-xs font-semibold uppercase tracking-wider text-muted;
-  }
+}
+
+/* Gulf livery traka: plava s narančastom crtom */
+.livery {
+  background: linear-gradient(180deg, transparent 0 38%, #8fcbeb 38% 56%, #f5821f 56% 66%, #8fcbeb 66% 76%, transparent 76%);
+}
+.livery-band {
+  background: linear-gradient(90deg, #8fcbeb 0 70%, #f5821f 70% 85%, #8fcbeb 85%);
 }
 
 .coin {
-  display: inline-block;
-  width: 0.85em;
-  height: 0.85em;
-  border-radius: 999px;
+  display: inline-block; width: .85em; height: .85em; border-radius: 999px;
   background: radial-gradient(circle at 35% 35%, #fff3a3, #facc15 45%, #b45309);
-  box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.25);
-  vertical-align: -0.08em;
+  box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.25); vertical-align: -.08em;
 }
 .gem {
-  display: inline-block;
-  width: 0.8em;
-  height: 0.8em;
+  display: inline-block; width: .8em; height: .8em; border-radius: 2px; transform: rotate(45deg);
   background: linear-gradient(135deg, #6ee7b7, #10b981 50%, #047857);
-  transform: rotate(45deg);
-  border-radius: 2px;
 }
 .checker {
   background-color: #fff;
-  background-image:
-    linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%),
-    linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%);
-  background-size: 10px 10px;
-  background-position: 0 0, 5px 5px;
+  background-image: linear-gradient(45deg,#000 25%,transparent 25%,transparent 75%,#000 75%), linear-gradient(45deg,#000 25%,transparent 25%,transparent 75%,#000 75%);
+  background-size: 10px 10px; background-position: 0 0, 5px 5px;
 }
 .checker-strip {
-  height: 6px;
-  background-color: #fff;
-  background-image:
-    linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%),
-    linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%);
-  background-size: 6px 6px;
-  background-position: 0 0, 3px 3px;
-  opacity: 0.8;
+  height: 6px; background-color: #fff; opacity: .85;
+  background-image: linear-gradient(45deg,#000 25%,transparent 25%,transparent 75%,#000 75%), linear-gradient(45deg,#000 25%,transparent 25%,transparent 75%,#000 75%);
+  background-size: 6px 6px; background-position: 0 0, 3px 3px;
 }
-.reel::before,
-.reel::after {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  pointer-events: none;
+/* roll-up vrata garaže */
+.garage-door {
+  background-image: repeating-linear-gradient(180deg, rgba(255,255,255,.05) 0 2px, transparent 2px 14px);
 }
-.toast-in { animation: toastIn 0.25s ease-out; }
-@keyframes toastIn { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
-.pop { animation: pop 0.4s cubic-bezier(.2,1.4,.4,1); }
-@keyframes pop { from { transform: scale(0.85); opacity: 0; } to { transform: none; opacity: 1; } }
-.drop-in { animation: dropIn 0.35s ease-out; }
-@keyframes dropIn { from { transform: translateX(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* reel: pobjednička pločica nakon zaustavljanja */
+.landed { animation: landed .7s cubic-bezier(.2,1.5,.4,1) both; }
+@keyframes landed { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1.06); } }
+
+/* F1 startna svjetla */
+.light { background: #2b0d0d; box-shadow: inset 0 0 0 3px #1a0606; transition: background .08s, box-shadow .08s; }
+.light.on { background: radial-gradient(circle at 40% 35%, #ff9b8a, #ff2a12 45%, #8b0a00); box-shadow: 0 0 22px #ff2a12, 0 0 60px rgba(255,42,18,.45); }
+
+.toast-in { animation: toastIn .35s cubic-bezier(.2,1.3,.4,1); }
+@keyframes toastIn { from { transform: translateX(30px) scale(.95); opacity: 0; } to { transform: none; opacity: 1; } }
+.pop { animation: pop .45s cubic-bezier(.2,1.4,.4,1); }
+@keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+.drop-in { animation: dropIn .4s ease-out; }
+@keyframes dropIn { from { transform: translateY(-10px); opacity: 0; } to { transform: none; opacity: 1; } }
+.win-pop { animation: winPop .6s cubic-bezier(.2,1.5,.35,1); }
+@keyframes winPop { from { transform: scale(.6) rotate(-3deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.shake { animation: winPop .6s cubic-bezier(.2,1.5,.35,1), shake .5s .55s ease-in-out; }
+@keyframes shake { 0%,100% { translate: 0 0; } 20% { translate: -8px 2px; } 40% { translate: 7px -3px; } 60% { translate: -5px 2px; } 80% { translate: 3px -1px; } }
+.rays {
+  background: repeating-conic-gradient(from 0deg, var(--ray) 0 6deg, transparent 6deg 18deg);
+  mask-image: radial-gradient(circle, #000 0, transparent 65%);
+  animation: spinRays 14s linear infinite;
+}
+@keyframes spinRays { to { transform: translate(-50%, -50%) rotate(360deg); } }
+.glow-pulse { animation: glowPulse 1.6s ease-in-out infinite; }
+@keyframes glowPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(245,130,31,.0); } 50% { box-shadow: 0 0 28px 2px rgba(245,130,31,.45); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+/* auto "uleti" u hero nakon što se svjetla ugase */
+.hero-car { animation: heroCar 1s 2.75s cubic-bezier(.15,.9,.2,1) both; }
+@keyframes heroCar { from { transform: translateX(110%); } to { transform: none; } }

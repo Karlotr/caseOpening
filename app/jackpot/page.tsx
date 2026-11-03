@@ -7,6 +7,8 @@ import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { BetInput } from "@/components/BetInput";
 import { RequireAuth } from "@/components/RequireAuth";
+import { useCelebrate } from "@/components/WinOverlay";
+import { sfx } from "@/lib/sound";
 
 type P = { name: string; bet: number; is_you: boolean };
 type Res = { players: P[]; pot: number; winner: number; won: boolean; payout: number };
@@ -26,6 +28,7 @@ function Jackpot() {
   const rpc = useRpc();
   const toast = useToast();
   const { refresh } = useAuth();
+  const celebrate = useCelebrate();
   const [bet, setBet] = useState(5);
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<Res | null>(null);
@@ -63,11 +66,16 @@ function Jackpot() {
       requestAnimationFrame(() => {
         setAnim(true);
         setOffset(WIN * TILE - w / 2 + TILE / 2 + (Math.random() - 0.5) * TILE * 0.6);
+        sfx.spin();
       });
     }, 900);
     setTimeout(async () => {
       setDone(true);
-      toast(r.won ? `🏆 Osvojio si jackpot od ${coins(r.payout)}!` : `Jackpot je otišao igraču ${r.players[r.winner].name}.`, r.won ? "gold" : "error");
+      if (r.won) celebrate({ title: "Jackpot!", subtitle: `Šansa je bila ${((bet / r.pot) * 100).toFixed(1)}%`, amount: Number(r.payout), tier: bet / r.pot < 0.25 ? 3 : 2 });
+      else {
+        sfx.lose();
+        toast(`Jackpot je otišao igraču ${r.players[r.winner].name}.`, "error");
+      }
       await refresh();
       setBusy(false);
     }, 6100);

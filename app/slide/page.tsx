@@ -7,6 +7,8 @@ import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { BetInput } from "@/components/BetInput";
 import { RequireAuth } from "@/components/RequireAuth";
+import { useCelebrate } from "@/components/WinOverlay";
+import { sfx } from "@/lib/sound";
 
 type Res = { result: number; won: boolean; payout: number };
 const TILE = 96;
@@ -25,6 +27,7 @@ function Slide() {
   const rpc = useRpc();
   const toast = useToast();
   const { refresh } = useAuth();
+  const celebrate = useCelebrate();
   const [bet, setBet] = useState(1);
   const [target, setTarget] = useState(2);
   const [strip, setStrip] = useState<number[]>([]);
@@ -54,11 +57,19 @@ function Slide() {
       requestAnimationFrame(() => {
         setAnim(true);
         setOffset(WIN * TILE - w / 2 + TILE / 2 + (Math.random() - 0.5) * TILE * 0.6);
+        sfx.spin();
       })
     );
     setTimeout(async () => {
       setLast((l) => [m, ...l].slice(0, 14));
-      toast(res.won ? `Slide ${m.toFixed(2)}x — dobitak ${coins(res.payout)}!` : `Slide ${m.toFixed(2)}x — ispod cilja.`, res.won ? "success" : "error");
+      if (res.won && target >= 3) celebrate({ title: `${m.toFixed(2)}×`, subtitle: `Cilj ${target}× pogođen`, amount: Number(res.payout), tier: target >= 10 ? 3 : 2 });
+      else if (res.won) {
+        sfx.win(1);
+        toast(`Traka je stala na ${m.toFixed(2)}×. Dobitak ${coins(res.payout)}!`, "success");
+      } else {
+        sfx.lose();
+        toast(`Traka je stala na ${m.toFixed(2)}×, ispod cilja ${target}×.`, "error");
+      }
       await refresh();
       setBusy(false);
     }, 4300);

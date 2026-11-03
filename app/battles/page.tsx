@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { getCases } from "@/lib/data";
-import { normBattle, type Battle, type BattlePlayer } from "@/lib/battles";
+import { normBattle, winModeOf, type Battle, type BattlePlayer } from "@/lib/battles";
 import type { CaseWithItems } from "@/lib/types";
 import { coins } from "@/lib/format";
 import { CaseArt } from "@/components/CaseCard";
@@ -50,9 +50,9 @@ export default function BattlesPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="h1">Case Battles</h1>
-          <p className="text-sm text-muted">Otvarajte iste kutije — tim s najvrjednijim autima nosi sve. U Crazy modu pobjeđuje najmanja vrijednost.</p>
+          <p className="mt-2 max-w-2xl text-muted">Svi otvaraju iste kutije. Klasično pobjeđuje najvrjednija garaža, u Crazy modu najmanja, a u Jackpot modu vrijednost određuje šansu na završnom ruletu.</p>
         </div>
-        <Link href="/battles/create" className="btn-primary">+ Kreiraj battle</Link>
+        <Link href="/battles/create" className="btn-primary px-6 py-3 text-lg">Novi battle</Link>
       </div>
       <div className="flex gap-1">
         <button className={tab === "waiting" ? "btn-primary" : "btn-ghost"} onClick={() => setTab("waiting")}>Otvoreni ({battles.filter((b) => b.status === "waiting").length})</button>
@@ -65,13 +65,14 @@ export default function BattlesPage() {
           return (
             <Link key={b.id} href={`/battles/${b.id}`} className="card flex flex-col gap-3 p-3 transition hover:border-white/25 md:flex-row md:items-center">
               <div className="flex w-28 shrink-0 flex-col">
-                <span className="font-display text-lg font-bold">{b.mode}</span>
-                {b.crazy && <span className="w-fit rounded bg-fuchsia-500/20 px-1.5 text-[10px] font-bold uppercase text-fuchsia-300">Crazy</span>}
+                <span className="font-display text-3xl font-black leading-none">{b.mode}</span>
+                {winModeOf(b) === "crazy" && <span className="w-fit rounded bg-fuchsia-500/20 px-1.5 text-xs font-bold text-fuchsia-300">Crazy</span>}
+                {winModeOf(b) === "jackpot" && <span className="w-fit rounded bg-emerald-400/20 px-1.5 text-xs font-bold text-emerald-300">Jackpot</span>}
               </div>
               <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
                 {b.case_ids.map((cid, i) => {
                   const c = byId.get(cid);
-                  return c ? <CaseArt key={i} c={c} className="h-12 w-20 shrink-0 [&_svg]:h-8 [&_svg]:w-16" /> : <div key={i} className="h-12 w-20 shrink-0 rounded bg-white/5" />;
+                  return c ? <CaseArt key={i} c={c} className="h-12 w-20 shrink-0 " /> : <div key={i} className="h-12 w-20 shrink-0 rounded bg-white/5" />;
                 })}
               </div>
               <div className="flex shrink-0 gap-1">
@@ -86,10 +87,10 @@ export default function BattlesPage() {
                 })}
               </div>
               <div className="w-32 shrink-0 text-right">
-                <div className="font-display text-accent"><span className="coin" /> {coins(b.cost)}</div>
+                <div className="font-display text-2xl font-bold text-accent"><span className="coin" /> {coins(b.cost)}</div>
                 <div className="text-xs text-muted">{b.case_ids.length} rundi</div>
               </div>
-              <span className={b.status === "waiting" ? "btn-primary" : "btn-ghost"}>{b.status === "waiting" ? "Pridruži se" : "Pogledaj"}</span>
+              <span className={b.status === "waiting" ? "btn-primary" : "btn-ghost"}>{b.status === "waiting" ? "Uđi" : "Pogledaj"}</span>
             </Link>
           );
         })}

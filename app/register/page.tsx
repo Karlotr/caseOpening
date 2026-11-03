@@ -32,7 +32,7 @@ export default function RegisterPage() {
     const { data, error } = await sb.auth.signUp({
       email,
       password,
-      options: { data: { username }, emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined },
+      options: { data: { username }, emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/confirm` : undefined },
     });
     setBusy(false);
     if (error) return setErr(errMsg(error));

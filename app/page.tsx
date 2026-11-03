@@ -5,72 +5,100 @@ import { useEffect, useState } from "react";
 import { getCases } from "@/lib/data";
 import type { CaseWithItems } from "@/lib/types";
 import { CaseCard } from "@/components/CaseCard";
-import { LiveDrops } from "@/components/LiveDrops";
+import { DropTower } from "@/components/LiveDrops";
 import { CarArt } from "@/components/CarArt";
 
 const MODES = [
-  { href: "/cases", t: "Kutije", d: "Od Fiće do Ferrarija 250 GTO", c: "#facc15" },
-  { href: "/battles", t: "Case Battles", d: "1v1, 2v2, 3v3 i 6-way", c: "#ef4444" },
-  { href: "/upgrader", t: "Upgrader", d: "Zamijeni Golfa za Porschea", c: "#8b5cf6" },
-  { href: "/slide", t: "Slide", d: "Odaberi multiplikator", c: "#06b6d4" },
-  { href: "/trinity", t: "Trinity", d: "Crvena, crna ili zlatna", c: "#f97316" },
-  { href: "/jackpot", t: "Jackpot", d: "Pobjednik nosi sve", c: "#10b981" },
+  { href: "/battles", t: "Case Battles", d: "1v1 do 6-way. Najjača garaža nosi sve, ili u Jackpot modu vrijednost određuje šansu.", c: "#f5821f" },
+  { href: "/upgrader", t: "Upgrader", d: "Daj Golfa, uzmi Porschea. Ti biraš šansu.", c: "#a78bfa" },
+  { href: "/slide", t: "Slide", d: "Odaberi multiplikator i pusti traku.", c: "#8fcbeb" },
+  { href: "/trinity", t: "Trinity", d: "Crvena, crna ili zlatna 14×.", c: "#ef4444" },
+  { href: "/jackpot", t: "Jackpot", d: "Veći ulog, veća šansa. Pobjednik uzima pot.", c: "#34d399" },
+  { href: "/rewards", t: "Nagrade", d: "Dnevna kutija, kiša coina, tjedni i mjesečni drop.", c: "#facc15" },
 ];
+
+function StartLights() {
+  const [on, setOn] = useState(0);
+  const [out, setOut] = useState(false);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setOut(true);
+      return;
+    }
+    const ts = [1, 2, 3, 4, 5].map((n) => setTimeout(() => setOn(n), 250 + n * 380));
+    ts.push(setTimeout(() => setOut(true), 250 + 5 * 380 + 650));
+    return () => ts.forEach(clearTimeout);
+  }, []);
+  return (
+    <div className="flex gap-2.5" aria-hidden>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <div key={n} className="flex flex-col gap-1.5 rounded-md bg-[#0a0a0a] p-1.5">
+          <span className={`light h-6 w-6 rounded-full sm:h-7 sm:w-7 ${!out && on >= n ? "on" : ""}`} />
+          <span className={`light h-6 w-6 rounded-full sm:h-7 sm:w-7 ${!out && on >= n ? "on" : ""}`} />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Home() {
   const [cases, setCases] = useState<CaseWithItems[]>([]);
   const [err, setErr] = useState("");
   useEffect(() => {
-    getCases().then(setCases).catch(() => setErr("Ne mogu učitati kutije — je li pokrenut supabase/schema.sql?"));
+    getCases().then(setCases).catch(() => setErr("Kutije se nisu učitale. Provjeri je li supabase/schema.sql pokrenut u Supabaseu."));
   }, []);
   const normal = cases.filter((c) => c.case_type === "normal");
 
   return (
-    <div className="space-y-8">
-      <section className="card relative overflow-hidden p-6 sm:p-10">
-        <div className="checker-strip absolute inset-x-0 top-0" />
-        <div className="relative z-10 max-w-xl">
-          <div className="text-xs font-semibold uppercase tracking-[0.25em] text-accent">Kutije · Battles · Oldtajmeri</div>
-          <h1 className="mt-3 font-display text-4xl font-bold leading-tight sm:text-5xl">
-            Od <span className="text-accent">Fiće</span> do <span className="text-accent2">Ferrarija 250 GTO</span>.
-          </h1>
-          <p className="mt-3 text-muted">
-            Otvaraj kutije pune legendarnih automobila, bori se u case battleovima, skupljaj gemove i penji se po levelima. Svaki dan besplatna kutija.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Link href="/cases" className="btn-primary">Otvori kutiju</Link>
-            <Link href="/battles" className="btn-ghost">Case Battles</Link>
-            <Link href="/rewards" className="btn-ghost">Besplatne nagrade</Link>
+    <div className="space-y-12">
+      <section className="relative grid gap-6 lg:grid-cols-[1fr_340px]">
+        <div className="relative overflow-hidden rounded-2xl border border-line bg-panel p-6 pb-44 sm:p-10 sm:pb-48">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 sm:h-48">
+            <div className="livery absolute inset-x-0 bottom-0 h-full opacity-90" />
+            <div className="absolute inset-x-0 bottom-0 h-6 bg-[repeating-linear-gradient(90deg,#ffffff1a_0_40px,transparent_40px_80px)]" />
+          </div>
+          <div className="relative z-10 max-w-xl">
+            <StartLights />
+            <h1 className="mt-8 font-display text-6xl font-black leading-[0.9] tracking-tight sm:text-7xl">
+              Od Fiće do Ferrarija 250 GTO
+            </h1>
+            <p className="mt-4 max-w-md text-lg text-muted">
+              Otvaraj kutije s pravim modelima i oldtajmerima, bori se u battleovima i slaži svoju garažu.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link href="/cases" className="btn-primary px-7 py-3 text-lg">Otvori kutiju</Link>
+              <Link href="/battles" className="btn-ghost px-5 py-3">Uđi u battle</Link>
+            </div>
+          </div>
+          <div className="hero-car pointer-events-none absolute bottom-2 right-4 w-[85%] max-w-[460px] sm:right-10">
+            <CarArt id={3} body="super" rarity="mythic" className="w-full drop-shadow-[0_24px_30px_rgba(0,0,0,.7)]" />
           </div>
         </div>
-        <div className="pointer-events-none absolute -right-10 bottom-0 hidden w-[560px] opacity-90 md:block">
-          <CarArt id={3} body="super" rarity="mythic" className="w-full" />
-        </div>
+        <DropTower />
       </section>
 
-      <LiveDrops />
-
       <section>
-        <h2 className="mb-3 font-display text-xl font-semibold tracking-wide">Igre</h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+        <h2 className="mb-4 font-display text-4xl font-extrabold tracking-tight">Igre</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {MODES.map((m) => (
-            <Link key={m.href} href={m.href} className="card group p-4 transition hover:-translate-y-0.5" style={{ borderTopColor: m.c, borderTopWidth: 3 }}>
-              <div className="font-display font-semibold">{m.t}</div>
-              <div className="mt-1 text-xs text-muted">{m.d}</div>
+            <Link key={m.href} href={m.href} className="group relative overflow-hidden rounded-xl border border-line bg-panel p-5 transition hover:border-white/30">
+              <span className="absolute inset-y-0 left-0 w-1.5 transition-all group-hover:w-2.5" style={{ background: m.c }} />
+              <div className="font-display text-3xl font-extrabold leading-none tracking-tight">{m.t}</div>
+              <p className="mt-2 text-muted">{m.d}</p>
             </Link>
           ))}
         </div>
       </section>
 
       <section>
-        <div className="mb-3 flex items-end justify-between">
-          <h2 className="font-display text-xl font-semibold tracking-wide">Popularne kutije</h2>
-          <Link href="/cases" className="text-sm text-accent hover:underline">Sve kutije →</Link>
+        <div className="mb-4 flex items-end justify-between">
+          <h2 className="font-display text-4xl font-extrabold tracking-tight">Kutije</h2>
+          <Link href="/cases" className="font-semibold text-accent2 hover:underline">Sve kutije</Link>
         </div>
-        {err && <div className="card p-4 text-sm text-red-400">{err}</div>}
+        {err && <div className="card p-4 text-red-300">{err}</div>}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {(normal.length ? normal.slice(0, 8) : Array.from({ length: 8 })).map((c, i) =>
-            c ? <CaseCard key={(c as CaseWithItems).id} c={c as CaseWithItems} /> : <div key={i} className="card h-52 animate-pulse" />
+            c ? <CaseCard key={(c as CaseWithItems).id} c={c as CaseWithItems} /> : <div key={i} className="card aspect-[4/4] animate-pulse" />
           )}
         </div>
       </section>

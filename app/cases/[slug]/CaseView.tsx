@@ -12,6 +12,8 @@ import { useToast } from "@/components/Toast";
 import { CaseArt } from "@/components/CaseCard";
 import { ItemCard } from "@/components/ItemCard";
 import { Reel } from "@/components/Reel";
+import { tierFor, useCelebrate } from "@/components/WinOverlay";
+import { rarityRank } from "@/lib/sound";
 
 const WIN = 50;
 type OpenResult = { items: Item[]; instant_drop: number | null };
@@ -21,6 +23,7 @@ export function CaseView() {
   const { user, profile, refresh } = useAuth();
   const rpc = useRpc();
   const toast = useToast();
+  const celebrate = useCelebrate();
   const [c, setC] = useState<CaseWithItems | null>(null);
   const [missing, setMissing] = useState(false);
   const [count, setCount] = useState(1);
@@ -79,7 +82,25 @@ export function CaseView() {
     setSpinning(false);
     setShowWon(true);
     await refresh();
-    if (instant) toast(`⚡ Instant drop! +${coins(instant)} coina`, "gold");
+    const real = !!won[0]?.inventory_id;
+    if (real) {
+      const total = won.reduce((s, w) => s + w.value, 0);
+      const cost = c.case_type === "normal" ? c.price * won.length : 0;
+      const ratio = cost ? total / cost : 1;
+      const best = Math.max(...won.map((w) => rarityRank(w.rarity)));
+      if (ratio >= 1 || best >= 3 || c.case_type !== "normal") {
+        celebrate({
+          title: ratio >= 3 ? "Veliki drop!" : "Osvojio si!",
+          subtitle: cost ? `${ratio.toFixed(2)}× uloga` : c.name,
+          items: won,
+          amount: total,
+          tier: tierFor(won, ratio),
+        });
+      } else {
+        toast(`Osvojio si ${won.length > 1 ? `${won.length} auta` : won[0].model} vrijednosti ${coins(total)}`, "info");
+      }
+    }
+    if (instant) setTimeout(() => toast(`Instant drop! +${coins(instant)} coina na račun`, "gold"), 900);
   };
 
   const sellAll = async () => {
@@ -115,19 +136,19 @@ export function CaseView() {
 
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         <div className="card p-4">
-          <CaseArt c={c} className="h-44" />
-          <h1 className="mt-3 font-display text-2xl font-bold">{c.name}</h1>
+          <CaseArt c={c} className="aspect-[4/3]" />
+          <h1 className="mt-3 font-display text-4xl font-black leading-none tracking-tight">{c.name}</h1>
           <p className="text-sm text-muted">{c.description}</p>
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted">
-            <div className="rounded-md bg-black/30 p-2">Najskuplji<div className="font-semibold text-fg">{c.items[0]?.model}</div></div>
-            <div className="rounded-md bg-black/30 p-2">Automobila<div className="font-semibold text-fg">{c.items.length}</div></div>
+            <div className="rounded-md bg-ink/60 p-2">Najskuplji<div className="font-semibold text-fg">{c.items[0]?.model}</div></div>
+            <div className="rounded-md bg-ink/60 p-2">Automobila<div className="font-semibold text-fg">{c.items.length}</div></div>
           </div>
         </div>
 
         <div className="card min-w-0 space-y-3 p-4">
           <div className="space-y-2">
             {strips.map((s, i) => (
-              <Reel key={i} items={s} winnerIndex={WIN} spinKey={spinKey} duration={fast ? 1800 : 5200} onDone={i === 0 ? finished : undefined} />
+              <Reel key={i} items={s} winnerIndex={WIN} spinKey={spinKey} duration={fast ? 1800 : 5200} sound={i === 0} onDone={i === 0 ? finished : undefined} />
             ))}
           </div>
 
@@ -135,7 +156,7 @@ export function CaseView() {
             {c.case_type !== "level" && c.case_type !== "daily" && (
               <div className="flex overflow-hidden rounded-md border border-line">
                 {[1, 2, 3, 4, 5].map((n) => (
-                  <button key={n} disabled={spinning} onClick={() => setCount(n)} className={`px-3 py-2 text-sm font-semibold ${count === n ? "bg-accent text-black" : "bg-panel hover:bg-panel2"}`}>
+                  <button key={n} disabled={spinning} onClick={() => setCount(n)} className={`px-3.5 py-2 font-display text-lg font-bold ${count === n ? "bg-accent2 text-ink" : "bg-panel hover:bg-panel2"}`}>
                     {n}x
                   </button>
                 ))}
@@ -146,8 +167,8 @@ export function CaseView() {
             ) : !user ? (
               <Link href="/login" className="btn-primary">Prijavi se za otvaranje</Link>
             ) : (
-              <button className="btn-primary min-w-44" onClick={open} disabled={!canOpen || spinning}>
-                {spinning ? "Vrti se..." : c.case_type === "level" && (profile?.level ?? 0) < c.min_level ? `Potreban level ${c.min_level}` : <>Otvori · {costLabel}</>}
+              <button className={`btn-primary min-w-52 py-3 text-lg ${!spinning && canOpen ? "glow-pulse" : ""}`} onClick={open} disabled={!canOpen || spinning}>
+                {spinning ? "Vrti se…" : c.case_type === "level" && (profile?.level ?? 0) < c.min_level ? `Potreban level ${c.min_level}` : <>Otvori za {costLabel}</>}
               </button>
             )}
             <button className="btn-ghost" onClick={demo} disabled={spinning}>Demo vrtnja</button>
@@ -157,10 +178,10 @@ export function CaseView() {
           </div>
 
           {showWon && won.length > 0 && (
-            <div className="pop rounded-lg border border-accent/40 bg-accent/5 p-3">
+            <div className="pop rounded-lg border border-line bg-ink/50 p-3">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <div className="font-display font-semibold">
-                  {won[0].inventory_id ? "Osvojio si" : "Demo rezultat"} · <span className="text-accent">{coins(won.reduce((s, w) => s + w.value, 0))}</span>
+                <div className="font-display text-2xl font-bold">
+                  {won[0].inventory_id ? "Tvoj drop" : "Demo, ništa nije spremljeno"}: <span className="text-accent">{coins(won.reduce((s, w) => s + w.value, 0))}</span>
                 </div>
                 {won[0].inventory_id && (
                   <div className="flex gap-2">
@@ -179,7 +200,7 @@ export function CaseView() {
       </div>
 
       <section>
-        <h2 className="mb-3 font-display text-lg font-semibold">Sadržaj kutije</h2>
+        <h2 className="mb-3 font-display text-3xl font-extrabold tracking-tight">Što je u kutiji</h2>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {c.items.map((i) => <ItemCard key={i.id} item={i} chance={i.chance} size="sm" />)}
         </div>

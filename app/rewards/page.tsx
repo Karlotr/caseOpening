@@ -14,6 +14,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { CaseArt } from "@/components/CaseCard";
 import { Reel } from "@/components/Reel";
 import { ItemCard } from "@/components/ItemCard";
+import { useCelebrate } from "@/components/WinOverlay";
 
 export default function RewardsPage() {
   return (
@@ -34,6 +35,7 @@ const WIN = 50;
 
 function Rewards() {
   const { profile, refresh } = useAuth();
+  const celebrate = useCelebrate();
   const rpc = useRpc();
   const toast = useToast();
   const now = useNow();
@@ -80,7 +82,9 @@ function Rewards() {
 
   const claim = async (kind: "rain" | "weekly" | "monthly") => {
     const res = await rpc<{ amount: number }>("claim_reward", { p_kind: kind });
-    if (res) toast(`+${coins(res.amount)} coina!`, "success");
+    if (!res) return;
+    if (kind === "rain") toast(`Kiša coina: +${coins(res.amount)}`, "success");
+    else celebrate({ title: kind === "weekly" ? "Tjedni drop" : "Mjesečni drop", subtitle: "Coini su na računu", amount: Number(res.amount), tier: kind === "monthly" ? 2 : 1 });
   };
 
   const rainNext = now ? Math.ceil(now / 1800_000) * 1800_000 : 0;
@@ -95,7 +99,7 @@ function Rewards() {
     <div className="space-y-5">
       {/* LEVEL */}
       <section className="card flex flex-wrap items-center gap-5 p-5">
-        <div className="grid h-20 w-20 place-items-center rounded-xl bg-accent font-display text-3xl font-bold text-black">{profile.level}</div>
+        <div className="grid h-20 w-20 place-items-center rounded-xl bg-accent2 font-display text-5xl font-black text-ink">{profile.level}</div>
         <div className="min-w-60 flex-1">
           <div className="flex justify-between text-sm">
             <span className="font-display font-semibold">Level {profile.level}</span>
@@ -129,11 +133,11 @@ function Rewards() {
               );
             })}
           </div>
-          {strip.length > 0 && <Reel items={strip} winnerIndex={WIN} spinKey={spinKey} duration={4500} onDone={() => { setSpinning(false); refresh(); }} />}
+          {strip.length > 0 && <Reel items={strip} winnerIndex={WIN} spinKey={spinKey} duration={4500} onDone={() => { setSpinning(false); refresh(); if (dailyWon) celebrate({ title: "Dnevni drop!", subtitle: `Streak ${nextStreak} ${nextStreak === 1 ? "dan" : "dana"}`, items: [dailyWon], amount: dailyWon.value }); }} />}
           {dailyWon && !spinning && (
             <div className="pop flex items-center gap-3">
               <div className="w-40"><ItemCard item={dailyWon} size="sm" /></div>
-              <div className="text-sm">Osvojio si <b>{dailyWon.brand} {dailyWon.model}</b>! <Link href="/profile" className="text-accent">U garažu →</Link></div>
+              <div className="text-sm">Osvojio si <b>{dailyWon.brand} {dailyWon.model}</b>! <Link href="/profile" className="text-accent2 underline">Otvori garažu</Link></div>
             </div>
           )}
           <div className="flex flex-wrap items-center gap-3">
