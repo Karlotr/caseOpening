@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { Item, Rarity } from "@/lib/types";
 import { RARITY, coins } from "@/lib/format";
 import { rarityRank, sfx } from "@/lib/sound";
-import { CarArt } from "./CarArt";
+import { CarImage } from "./CarImage";
 import { CountUp } from "./CountUp";
 
 export type Celebration = {
@@ -107,7 +107,7 @@ export function WinOverlayProvider({ children }: { children: React.ReactNode }) 
                 <h2 className="font-display text-5xl font-black leading-none tracking-tight sm:text-6xl">{c.title}</h2>
                 {best && (
                   <div className="mx-auto mt-4 max-w-sm">
-                    <CarArt id={best.id} body={best.body} rarity={best.rarity} className="mx-auto h-28 w-64 drop-shadow-[0_12px_30px_rgba(0,0,0,.6)]" />
+                    <CarImage item={best} className="mx-auto h-28 w-64 drop-shadow-[0_12px_30px_rgba(0,0,0,.6)]" />
                     <div className="mt-1 text-muted">{best.brand} · {best.year}</div>
                     <div className="font-display text-2xl font-bold">{best.model}</div>
                     <div className="mt-1 text-sm font-semibold" style={{ color: rc }}>{RARITY[best.rarity].label}</div>

@@ -6,7 +6,7 @@ import { getCases } from "@/lib/data";
 import type { CaseWithItems } from "@/lib/types";
 import { CaseCard } from "@/components/CaseCard";
 import { DropTower } from "@/components/LiveDrops";
-import { CarArt } from "@/components/CarArt";
+import { CarImage } from "@/components/CarImage";
 
 const MODES = [
   { href: "/battles", t: "Case Battles", d: "1v1 do 6-way. Najjača garaža nosi sve, ili u Jackpot modu vrijednost određuje šansu.", c: "#f5821f" },
@@ -71,7 +71,7 @@ export default function Home() {
             </div>
           </div>
           <div className="hero-car pointer-events-none absolute bottom-2 right-4 w-[85%] max-w-[460px] sm:right-10">
-            <CarArt id={3} body="super" rarity="mythic" className="w-full drop-shadow-[0_24px_30px_rgba(0,0,0,.7)]" />
+            <CarImage item={{ id: 3, brand: "Ferrari", model: "F40", year: 1989, body: "super", rarity: "legendary" }} className="w-full drop-shadow-[0_24px_30px_rgba(0,0,0,.7)]" />
           </div>
         </div>
         <DropTower />

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import type { Item } from "@/lib/types";
 import { RARITY, coins } from "@/lib/format";
-import { CarArt } from "./CarArt";
+import { CarImage } from "./CarImage";
 
 type Drop = { id: number; username: string; source: string; created_at: string; item: Item };
 
@@ -67,7 +67,7 @@ export function LiveDrops() {
         const c = RARITY[d.item.rarity].color;
         return (
           <div key={d.id} className="drop-in w-40 shrink-0 rounded-lg border border-line bg-panel p-2" style={{ boxShadow: `inset 0 -3px 0 ${c}` }}>
-            <CarArt id={d.item.id} body={d.item.body} rarity={d.item.rarity} className="mx-auto h-10 w-24" />
+            <CarImage item={d.item} className="mx-auto h-10 w-24" />
             <div className="truncate text-sm font-semibold">{d.item.model}</div>
             <div className="flex items-center justify-between text-xs text-muted">
               <span className="truncate">{d.username}</span>

@@ -10,6 +10,7 @@ export type Item = {
   body: Body;
   rarity: Rarity;
   value: number;
+  photo?: boolean;
   inventory_id?: number;
 };
 

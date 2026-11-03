@@ -1,6 +1,6 @@
 import type { Item } from "@/lib/types";
 import { RARITY, coins } from "@/lib/format";
-import { CarArt } from "./CarArt";
+import { CarImage } from "./CarImage";
 
 export function ItemCard({
   item,
@@ -33,7 +33,7 @@ export function ItemCard({
         <span className="font-semibold" style={{ color: r.color }}>{r.label}</span>
         {chance !== undefined && <span className="tabular-nums text-muted">{(chance * 100).toFixed(chance < 0.001 ? 4 : 2)}%</span>}
       </div>
-      <CarArt id={item.id} body={item.body} rarity={item.rarity} className={`mx-auto transition-transform duration-300 group-hover:-translate-y-0.5 ${size === "sm" ? "h-12 w-28" : "h-16 w-36"}`} />
+      <CarImage item={item} className={`mx-auto transition-transform duration-300 group-hover:-translate-y-0.5 ${size === "sm" ? "h-12 w-28" : "h-16 w-36"}`} />
       <div className="px-2.5 pb-2.5">
         <div className="truncate text-xs text-muted">{item.brand}, {item.year}</div>
         <div className="truncate font-semibold leading-tight">{item.model}</div>

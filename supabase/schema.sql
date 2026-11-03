@@ -33,6 +33,9 @@ create table if not exists public.items (
   value numeric(14,2) not null check (value > 0)
 );
 
+-- v4: prave fotografije (CarImages API) — admin može isključiti pogrešnu sliku po autu
+alter table public.items add column if not exists photo boolean not null default true;
+
 create table if not exists public.cases (
   id serial primary key,
   slug text unique not null,
@@ -1128,6 +1131,16 @@ grant execute on function public.admin_set_affiliate(uuid, text, numeric) to aut
 grant execute on function public.admin_give_item(uuid, int) to authenticated;
 grant execute on function public.admin_reset_cooldowns(uuid) to authenticated;
 grant execute on function public.admin_recent_log(int) to authenticated;
+
+
+create or replace function public.admin_set_item_photo(p_item int, p_photo boolean)
+returns void language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin();
+begin
+  update public.items set photo = p_photo where id = p_item;
+  perform public._admin_log(a, null, 'item_photo', jsonb_build_object('item', p_item, 'photo', p_photo));
+end $$;
+grant execute on function public.admin_set_item_photo(int, boolean) to authenticated;
 
 -- ---------- REALTIME (battle lobby uživo) ----------
 do $$

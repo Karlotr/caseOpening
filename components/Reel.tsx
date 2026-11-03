@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Item } from "@/lib/types";
 import { RARITY, coins } from "@/lib/format";
 import { sfx } from "@/lib/sound";
-import { CarArt } from "./CarArt";
+import { CarImage } from "./CarImage";
 
 // Spinner: lista predmeta, pobjednik na `winnerIndex`. Promjena `spinKey` pokreće animaciju.
 export function Reel({
@@ -119,7 +119,7 @@ export function Reel({
               }}
             >
               <span className="absolute inset-x-0 bottom-0 h-[3px]" style={{ background: c }} />
-              <CarArt id={it.id} body={it.body} rarity={it.rarity} className={vertical ? "h-11 w-24" : lg ? "h-20 w-40" : "h-16 w-32"} />
+              <CarImage item={it} className={vertical ? "h-11 w-24" : lg ? "h-20 w-40" : "h-16 w-32"} />
               <div className="mt-0.5 w-full truncate px-2 text-center text-[11px] text-muted">{it.brand}</div>
               <div className="w-full truncate px-2 text-center text-[13px] font-semibold leading-tight">{it.model}</div>
               <span className={`plate mt-1 ${lg ? "text-base" : "text-[13px]"} ${isWin ? "scale-125 transition-transform" : ""}`}>{coins(it.value)}</span>

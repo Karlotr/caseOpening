@@ -14,6 +14,11 @@ const num = <T extends Record<string, unknown>>(r: T, keys: string[]) => {
   return o as T;
 };
 
+export function resetDataCache() {
+  itemsPromise = null;
+  casesPromise = null;
+}
+
 export function getItems(): Promise<Item[]> {
   if (!itemsPromise) {
     itemsPromise = (async () => {

@@ -9,7 +9,7 @@ import { useRpc } from "@/lib/useGame";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { ItemCard } from "@/components/ItemCard";
-import { CarArt } from "@/components/CarArt";
+import { CarImage } from "@/components/CarImage";
 import { RequireAuth } from "@/components/RequireAuth";
 import { useCelebrate } from "@/components/WinOverlay";
 import { sfx } from "@/lib/sound";
@@ -146,7 +146,7 @@ function Upgrader() {
           <div className="label">Ciljani automobil</div>
           {target ? (
             <div className="flex items-center gap-3">
-              <CarArt id={target.id} body={target.body} rarity={target.rarity} className="h-14 w-28" />
+              <CarImage item={target} className="h-14 w-28" />
               <div className="min-w-0">
                 <div className="text-xs" style={{ color: RARITY[target.rarity].color }}>{target.brand} · {target.year}</div>
                 <div className="truncate font-semibold">{target.model}</div>

@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { getItems } from "@/lib/data";
+import { getItems, resetDataCache } from "@/lib/data";
+import { photoQuery, photosEnabled } from "@/lib/carPhoto";
+import { CarImage } from "@/components/CarImage";
 import type { Item } from "@/lib/types";
 import { carName, coins, errMsg } from "@/lib/format";
 import { useAuth } from "@/components/AuthProvider";
@@ -29,7 +31,7 @@ const dt = (s: string | null) => (s ? new Date(s).toLocaleString("hr-HR", { date
 
 export default function AdminPage() {
   const { isAdmin, loading } = useAuth();
-  const [tab, setTab] = useState<"stats" | "users" | "log">("users");
+  const [tab, setTab] = useState<"stats" | "users" | "photos" | "log">("users");
   if (loading) return <div className="card h-40 animate-pulse" />;
   if (!isAdmin)
     return (
@@ -43,7 +45,7 @@ export default function AdminPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="h1">Admin</h1>
         <div className="flex gap-1" role="tablist">
-          {([["stats", "Pregled"], ["users", "Korisnici"], ["log", "Admin log"]] as const).map(([k, l]) => (
+          {([["stats", "Pregled"], ["users", "Korisnici"], ["photos", "Slike"], ["log", "Admin log"]] as const).map(([k, l]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`rounded-md border px-4 py-2 font-display text-lg font-bold ${tab === k ? "border-accent bg-accent text-ink" : "border-line hover:border-white/30"}`}>
               {l}
             </button>
@@ -52,6 +54,7 @@ export default function AdminPage() {
       </div>
       {tab === "stats" && <StatsTab />}
       {tab === "users" && <UsersTab />}
+      {tab === "photos" && <PhotosTab />}
       {tab === "log" && <LogTab />}
     </div>
   );
@@ -346,6 +349,60 @@ function LogTab() {
           {rows.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted">Još nema admin promjena.</td></tr>}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function PhotosTab() {
+  const toast = useToast();
+  const [items, setItems] = useState<Item[]>([]);
+  const [filter, setFilter] = useState<"all" | "on" | "off">("all");
+  useEffect(() => {
+    resetDataCache();
+    getItems().then(setItems);
+  }, []);
+  const toggle = async (it: Item) => {
+    const next = it.photo === false;
+    const { error } = await sb().rpc("admin_set_item_photo", { p_item: it.id, p_photo: next });
+    if (error) return toast(errMsg(error), "error");
+    setItems((l) => l.map((x) => (x.id === it.id ? { ...x, photo: next } : x)));
+    resetDataCache();
+  };
+  const list = items.filter((i) => (filter === "all" ? true : filter === "on" ? i.photo !== false : i.photo === false));
+  return (
+    <div className="space-y-4">
+      {!photosEnabled && (
+        <div className="card border-accent/50 p-4 text-sm">
+          Fotografije nisu uključene. Dodaj <code className="rounded bg-ink px-1">NEXT_PUBLIC_CARIMAGES_KEY</code> u .env.local i na Vercel, pa ponovno deployaj. Do tada se prikazuju crteži.
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="max-w-2xl text-sm text-muted">
+          Ako API ne prepozna auto, vraća generičku sliku umjesto greške. Isključi fotografiju za takve aute i prikazat će se crtež.
+        </p>
+        <select className="input ml-auto w-auto" value={filter} onChange={(e) => setFilter(e.target.value as "all" | "on" | "off")} aria-label="Filtar">
+          <option value="all">Svi ({items.length})</option>
+          <option value="on">S fotografijom</option>
+          <option value="off">Isključeni</option>
+        </select>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        {list.map((it) => {
+          const q = photoQuery(it);
+          return (
+            <div key={it.id} className={`card p-2 ${it.photo === false ? "opacity-60" : ""}`}>
+              <div className="grid h-24 place-items-center rounded-md bg-ink/60">
+                <CarImage item={it} className="h-20 w-full" />
+              </div>
+              <div className="mt-1 truncate text-sm font-semibold">{it.brand} {it.model}</div>
+              <div className="truncate text-xs text-muted">API: {q.make} {q.model} {q.year}</div>
+              <button className={`mt-2 w-full rounded-md border px-2 py-1 text-xs font-semibold ${it.photo === false ? "border-line" : "border-emerald-400/60 text-emerald-300"}`} onClick={() => toggle(it)}>
+                {it.photo === false ? "Uključi fotografiju" : "Fotografija uključena"}
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

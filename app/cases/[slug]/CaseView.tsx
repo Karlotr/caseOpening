@@ -18,7 +18,6 @@ import { tierFor, useCelebrate } from "@/components/WinOverlay";
 
 const WIN = 50;
 type OpenResult = { items: Item[]; instant_drop: number | null };
-type Session = { opened: number; spent: number; won: number; drops: Item[] };
 
 export function CaseView() {
   const { slug } = useParams<{ slug: string }>();
@@ -39,7 +38,6 @@ export function CaseView() {
   const [doorUp, setDoorUp] = useState(false);
   const [flash, setFlash] = useState<{ key: number; color: string } | null>(null);
   const [lastCost, setLastCost] = useState(0);
-  const [session, setSession] = useState<Session>({ opened: 0, spent: 0, won: 0, drops: [] });
   const [selling, setSelling] = useState(false);
   const busyRef = useRef(false);
 
@@ -111,7 +109,6 @@ export function CaseView() {
     if (!real) return;
     await refresh();
     const total = won.reduce((s, w) => s + w.value, 0);
-    setSession((s) => ({ opened: s.opened + won.length, spent: s.spent + lastCost, won: s.won + total, drops: [...won, ...s.drops].slice(0, 14) }));
     const ratio = lastCost ? total / lastCost : 1;
     const bestRank = Math.max(...won.map((w) => rarityRank(w.rarity)));
     // veliki dobici → overlay preko cijelog ekrana (nakon što se kartice okrenu)
@@ -171,7 +168,6 @@ export function CaseView() {
     );
   const levelLocked = c.case_type === "level" && (profile?.level ?? 0) < c.min_level;
   const canOpen = !!user && c.case_type !== "daily" && !levelLocked;
-  const net = session.won - session.spent;
 
   return (
     <div className="space-y-6">
@@ -190,19 +186,6 @@ export function CaseView() {
             <div className="rounded-md bg-ink/60 p-2">Najskuplji<div className="font-semibold text-fg">{c.items[0]?.model}</div></div>
             <div className="rounded-md bg-ink/60 p-2">Automobila<div className="font-semibold text-fg">{c.items.length}</div></div>
           </div>
-          {session.opened > 0 && (
-            <div className="mt-4 border-t border-line pt-3">
-              <div className="text-sm text-muted">Ova sesija · {session.opened} otvoreno</div>
-              <div className={`font-display text-3xl font-black ${net >= 0 ? "text-emerald-300" : "text-red-300"}`}>
-                {net >= 0 ? "+" : ""}{coins(net)}
-              </div>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {session.drops.map((d, i) => (
-                  <span key={i} title={`${d.brand} ${d.model} · ${coins(d.value)}`} className="h-2.5 w-5 rounded-sm" style={{ background: RARITY[d.rarity].color }} />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="card min-w-0 space-y-4 p-4">

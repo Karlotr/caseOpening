@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { Item } from "@/lib/types";
 import { RARITY, coins } from "@/lib/format";
 import { rarityRank, sfx } from "@/lib/sound";
-import { CarArt } from "./CarArt";
+import { CarImage } from "./CarImage";
 import { CountUp } from "./CountUp";
 
 // Scena otkrivanja nakon otvaranja kutije: kartice se okreću jedna po jedna, vrijednost se broji, profit je jasan.
@@ -87,7 +87,7 @@ export function RevealStage({
               }}
             >
               <div className="text-sm font-bold" style={{ color: r.color }}>{r.label}</div>
-              <CarArt id={it.id} body={it.body} rarity={it.rarity} className={`mx-auto ${items.length === 1 ? "h-28 w-60" : "h-16 w-36"}`} />
+              <CarImage item={it} className={`mx-auto ${items.length === 1 ? "h-28 w-60" : "h-16 w-36"}`} />
               <div className="text-xs text-muted">{it.brand}, {it.year}</div>
               <div className={`font-display font-black leading-tight ${items.length === 1 ? "text-3xl" : "text-xl"}`}>{it.model}</div>
               <div className="mt-1 font-display text-2xl font-black text-accent">{on ? <CountUp value={it.value} from={0} duration={600} /> : "0,00"}</div>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { CaseWithItems } from "@/lib/types";
 import { coins } from "@/lib/format";
-import { CarArt } from "./CarArt";
+import { CarImage } from "./CarImage";
 
 // Kutija kao garažni boks: roll-up vrata u boji kutije, najskuplji auto ispred
 export function CaseArt({ c, className = "" }: { c: CaseWithItems; className?: string }) {
@@ -14,7 +14,7 @@ export function CaseArt({ c, className = "" }: { c: CaseWithItems; className?: s
       <div className="absolute inset-x-0 bottom-0 h-[18%] bg-[repeating-linear-gradient(90deg,#ffffff10_0_18px,transparent_18px_36px)]" />
       {top && (
         <div className="absolute inset-x-0 bottom-[6%] flex justify-center">
-          <CarArt id={top.id} body={top.body} rarity={top.rarity} className="h-[52%] max-h-24 w-[70%] drop-shadow-[0_10px_14px_rgba(0,0,0,.7)]" />
+          <CarImage item={top} className="h-[52%] max-h-24 w-[70%] drop-shadow-[0_10px_14px_rgba(0,0,0,.7)]" />
         </div>
       )}
     </div>
