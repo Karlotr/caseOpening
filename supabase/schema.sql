@@ -1204,6 +1204,39 @@ begin
 end $$;
 grant execute on function public.admin_set_chat_style(uuid, text, text, text) to authenticated;
 
+-- garaža korisnika (admin pregled)
+create or replace function public.admin_user_garage(p_user uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare a uuid := public._admin();
+begin
+  return coalesce((select jsonb_agg(x order by x.value desc, x.inventory_id desc) from (
+    select inv.id as inventory_id, inv.source, inv.created_at, i.*
+      from public.inventory inv join public.items i on i.id = inv.item_id
+     where inv.user_id = p_user and inv.status = 'owned') x), '[]'::jsonb);
+end $$;
+grant execute on function public.admin_user_garage(uuid) to authenticated;
+
+-- moderacija chata
+create or replace function public.admin_delete_chat(p_id bigint)
+returns void language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin(); m public.chat_messages;
+begin
+  delete from public.chat_messages where id = p_id returning * into m;
+  if found then perform public._admin_log(a, m.user_id, 'chat_delete', jsonb_build_object('body', m.body, 'username', m.username)); end if;
+end $$;
+grant execute on function public.admin_delete_chat(bigint) to authenticated;
+
+create or replace function public.admin_clear_chat()
+returns int language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin(); n int;
+begin
+  delete from public.chat_messages where true;
+  get diagnostics n = row_count;
+  perform public._admin_log(a, null, 'chat_clear', jsonb_build_object('deleted', n));
+  return n;
+end $$;
+grant execute on function public.admin_clear_chat() to authenticated;
+
 create or replace function public.admin_set_level(p_user uuid, p_level int)
 returns void language plpgsql security definer set search_path = public as $$
 declare a uuid := public._admin();
@@ -1747,31 +1780,31 @@ delete from public.case_items where case_id = (select id from public.cases where
 insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (1, 90037), (6, 84502), (5, 79984), (2, 76199), (8, 72966), (7, 70159), (3, 67691), (4, 65498), (9, 63530), (12, 60133), (10, 57288), (11, 50044), (13, 43572), (14, 41242), (15, 31007), (55, 23939), (83, 22208)) as v(item_id, w) where c.slug='yugo-nostalgija';
 insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('rally-grupa-b', 'Rally Grupa B', 'Šljunak, skokovi i legende Grupe B.', 'normal', 30.0, null, 0, null, '#f59e0b', 2) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
 delete from public.case_items where case_id = (select id from public.cases where slug='rally-grupa-b');
-insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (11, 427462), (14, 294724), (92, 63219), (93, 47676), (29, 43435), (94, 37059), (71, 32471), (95, 28995), (36, 10844), (61, 5596), (74, 4457), (96, 4060)) as v(item_id, w) where c.slug='rally-grupa-b';
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (11, 256888), (14, 256888), (92, 256888), (93, 57387), (29, 50711), (94, 41076), (71, 34468), (95, 29659), (36, 8040), (61, 3341), (74, 2470), (96, 2183)) as v(item_id, w) where c.slug='rally-grupa-b';
 insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('jdm-legende', 'JDM legende', 'Turbo, rotacijski motori i noćne vožnje po Tokiju.', 'normal', 40.0, null, 0, null, '#e11d48', 3) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
 delete from public.case_items where case_id = (select id from public.cases where slug='jdm-legende');
-insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (25, 339810), (26, 264260), (27, 83231), (28, 72740), (29, 58394), (30, 49000), (31, 39687), (32, 24777), (33, 19268), (34, 17383), (35, 14587), (36, 12605), (37, 4258)) as v(item_id, w) where c.slug='jdm-legende';
-insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('britanski-gentleman', 'Britanski gentleman', 'Čaj u pet, DB5 u garaži.', 'normal', 50.0, null, 0, null, '#22c55e', 4) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (25, 261391), (26, 232978), (27, 137310), (28, 129100), (29, 63037), (30, 51576), (31, 40524), (32, 23639), (33, 17729), (34, 15759), (35, 12894), (36, 10910), (37, 3152)) as v(item_id, w) where c.slug='jdm-legende';
+insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('britanski-gentleman', 'Britanski gentleman', 'Čaj u pet, DB5 u garaži.', 'normal', 25.0, null, 0, null, '#22c55e', 4) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
 delete from public.case_items where case_id = (select id from public.cases where slug='britanski-gentleman');
-insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (83, 376142), (84, 335161), (85, 262514), (86, 12613), (87, 8091), (88, 3200), (89, 1389), (90, 715), (91, 174)) as v(item_id, w) where c.slug='britanski-gentleman';
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (83, 383899), (84, 375894), (85, 235427), (86, 2788), (87, 1457), (88, 376), (89, 111), (90, 42), (91, 5)) as v(item_id, w) where c.slug='britanski-gentleman';
 insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('muscle-amerika', 'Muscle Amerika', 'V8, dim iz guma i četvrt milje.', 'normal', 60.0, null, 0, null, '#3b82f6', 5) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
 delete from public.case_items where case_id = (select id from public.cases where slug='muscle-amerika');
-insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (49, 301991), (48, 267187), (50, 105308), (51, 46912), (52, 43344), (53, 40383), (54, 33859), (38, 32215), (39, 27212), (40, 23781), (41, 22431), (42, 19309), (43, 15916), (44, 12122), (45, 4113), (46, 2582), (47, 1336)) as v(item_id, w) where c.slug='muscle-amerika';
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (49, 174049), (48, 166294), (50, 117587), (51, 87024), (52, 84499), (53, 82303), (54, 59659), (38, 55398), (39, 43087), (40, 35253), (41, 32315), (42, 25852), (43, 19389), (44, 12926), (45, 2585), (46, 1293), (47, 485)) as v(item_id, w) where c.slug='muscle-amerika';
 insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('njemacka-preciznost', 'Njemačka preciznost', 'Autobahn bez ograničenja.', 'normal', 80.0, null, 0, null, '#a3a3a3', 6) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
 delete from public.case_items where case_id = (select id from public.cases where slug='njemacka-preciznost');
-insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (55, 636548), (56, 151161), (57, 80214), (58, 44205), (59, 37689), (60, 19319), (61, 7776), (62, 6468), (63, 5957), (64, 3770), (65, 3398), (66, 1846), (67, 947), (68, 701)) as v(item_id, w) where c.slug='njemacka-preciznost';
-insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('talijanska-strast', 'Talijanska strast', 'Rosso corsa i zvuk V12 motora.', 'normal', 150.0, null, 0, null, '#dc2626', 7) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (55, 499462), (56, 273566), (57, 91713), (58, 47941), (59, 40301), (60, 19470), (61, 7229), (62, 5916), (63, 5409), (64, 3288), (65, 2936), (66, 1511), (67, 730), (68, 527)) as v(item_id, w) where c.slug='njemacka-preciznost';
+insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('talijanska-strast', 'Talijanska strast', 'Rosso corsa i zvuk V12 motora.', 'normal', 120.0, null, 0, null, '#dc2626', 7) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
 delete from public.case_items where case_id = (select id from public.cases where slug='talijanska-strast');
-insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (69, 645743), (70, 140490), (71, 130227), (72, 27926), (73, 20814), (74, 12065), (75, 5315), (76, 4626), (77, 3681), (78, 3243), (79, 2625), (80, 1788), (81, 1217), (82, 240)) as v(item_id, w) where c.slug='talijanska-strast';
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (69, 507981), (70, 140175), (71, 131481), (72, 147083), (73, 59832), (74, 11280), (75, 918), (76, 600), (77, 298), (78, 202), (79, 106), (80, 33), (81, 10), (82, 1)) as v(item_id, w) where c.slug='talijanska-strast';
 insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('zlatno-doba', 'Zlatno doba oldtajmera', 'Muzejski primjerci za prave kolekcionare.', 'normal', 250.0, null, 0, null, '#d4a017', 8) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
 delete from public.case_items where case_id = (select id from public.cases where slug='zlatno-doba');
-insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (23, 283193), (13, 258907), (24, 232857), (83, 99882), (30, 52161), (43, 24617), (87, 12994), (65, 8683), (88, 7938), (77, 5304), (46, 5096), (68, 4025), (81, 2690), (82, 992), (101, 663)) as v(item_id, w) where c.slug='zlatno-doba';
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (83, 129913), (30, 129913), (39, 129913), (41, 129913), (42, 129913), (43, 129913), (44, 83966), (73, 47597), (87, 31817), (62, 25641), (65, 12056), (88, 9716), (77, 3682), (46, 3343), (68, 1895), (81, 718), (82, 65), (101, 25)) as v(item_id, w) where c.slug='zlatno-doba';
 insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('sve-ili-nista', 'Sve ili ništa', 'Najvjerojatnije Panda. Možda 250 GTO.', 'normal', 100.0, null, 0, null, '#7c3aed', 9) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
 delete from public.case_items where case_id = (select id from public.cases where slug='sve-ili-nista');
 insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (16, 218020), (1, 200494), (6, 186780), (20, 186780), (5, 175660), (32, 17557), (45, 5499), (76, 4611), (79, 3503), (82, 1097)) as v(item_id, w) where c.slug='sve-ili-nista';
 insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('hypercar-klub', 'Hypercar klub', 'Samo za one koji ne gledaju cijenu goriva.', 'normal', 800.0, null, 0, null, '#f97316', 10) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
 delete from public.case_items where case_id = (select id from public.cases where slug='hypercar-klub');
-insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (33, 450139), (60, 228790), (73, 128899), (37, 55745), (75, 22583), (66, 21224), (76, 18914), (89, 12998), (67, 10788), (97, 9766), (79, 9179), (98, 8653), (90, 6245), (80, 5621), (99, 4665), (100, 4292), (91, 1311), (101, 187)) as v(item_id, w) where c.slug='hypercar-klub';
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (33, 259123), (60, 259123), (73, 259123), (37, 84645), (75, 26583), (66, 24552), (76, 21180), (89, 13096), (67, 10313), (97, 9078), (79, 8385), (98, 7774), (90, 5118), (80, 4472), (99, 3522), (100, 3165), (91, 692), (101, 57)) as v(item_id, w) where c.slug='hypercar-klub';
 insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('dnevna-bronca', 'Dnevna — bronca', 'Besplatno svaki dan (streak 1–2 dana).', 'daily', 0, null, 0, 1, '#b45309', 11) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
 delete from public.case_items where case_id = (select id from public.cases where slug='dnevna-bronca');
 insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (16, 191431), (1, 146615), (20, 117016), (6, 117016), (18, 96252), (5, 96252), (17, 81018), (19, 69445), (8, 69445), (14, 9139), (25, 5050), (55, 1322)) as v(item_id, w) where c.slug='dnevna-bronca';

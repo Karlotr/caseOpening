@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { getItems, resetDataCache } from "@/lib/data";
 import { photoQuery, photoSource, photosEnabled } from "@/lib/carPhoto";
 import { CarImage } from "@/components/CarImage";
+import { ItemCard } from "@/components/ItemCard";
 import type { Item } from "@/lib/types";
 import { carName, coins, errMsg } from "@/lib/format";
 import { useAuth } from "@/components/AuthProvider";
@@ -346,6 +347,10 @@ function UserEditor({ u, onChanged }: { u: U; onChanged: () => void }) {
         <p className="text-xs text-muted">Zaradio ukupno {coins(u.aff_earned ?? 0)} · {u.referrals} pozvanih</p>
       </Section>
 
+      <Section title={`Garaža (${d?.inventory_count ?? 0})`}>
+        <UserGarage key={d?.inventory_count ?? 0} userId={u.id} />
+      </Section>
+
       <Section title="Daj auto">
         <input className="input" placeholder="Traži auto" value={itemQ} onChange={(e) => setItemQ(e.target.value)} aria-label="Traži auto" />
         <select className="input" size={5} value={itemId ?? ""} onChange={(e) => setItemId(Number(e.target.value))} aria-label="Odaberi auto">
@@ -376,6 +381,31 @@ function UserEditor({ u, onChanged }: { u: U; onChanged: () => void }) {
             ))}
           </ul>
         </Section>
+      )}
+    </div>
+  );
+}
+
+function UserGarage({ userId }: { userId: string }) {
+  const [list, setList] = useState<(Item & { inventory_id: number; source: string; created_at: string })[] | null>(null);
+  const [all, setAll] = useState(false);
+  useEffect(() => {
+    sb().rpc("admin_user_garage", { p_user: userId }).then(({ data }) => setList(((data as Item[]) ?? []).map((i) => ({ ...i, value: Number(i.value) })) as never));
+  }, [userId]);
+  if (!list) return <div className="h-24 animate-pulse rounded-lg bg-panel2" />;
+  if (!list.length) return <p className="text-sm text-muted">Garaža je prazna.</p>;
+  const shown = all ? list : list.slice(0, 12);
+  return (
+    <div>
+      <div className="grid max-h-[420px] grid-cols-2 gap-1.5 overflow-y-auto sm:grid-cols-3">
+        {shown.map((i) => (
+          <div key={i.inventory_id} title={`${i.source} · ${dt(i.created_at)}`}>
+            <ItemCard item={i} size="sm" />
+          </div>
+        ))}
+      </div>
+      {list.length > 12 && (
+        <button className="mt-2 text-sm text-accent2" onClick={() => setAll(!all)}>{all ? "Prikaži manje" : `Prikaži sve (${list.length})`}</button>
       )}
     </div>
   );

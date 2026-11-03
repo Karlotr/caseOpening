@@ -54,7 +54,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
 function ChatPanel() {
   const { open, setOpen } = useChat();
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const toast = useToast();
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [battles, setBattles] = useState<Map<string, Battle>>(new Map());
@@ -102,7 +102,7 @@ function ChatPanel() {
     const sb = createClient();
     const ch = sb
       .channel("chat")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "chat_messages" }, () => load())
       .subscribe();
     const t = setInterval(load, 10000);
     return () => {
@@ -114,6 +114,20 @@ function ChatPanel() {
   useEffect(() => {
     list.current?.scrollTo({ top: list.current.scrollHeight, behavior: "smooth" });
   }, [msgs, open]);
+
+  // admin moderacija
+  const delMsg = async (id: number) => {
+    const { error } = await createClient().rpc("admin_delete_chat", { p_id: id });
+    if (error) return toast(errMsg(error), "error");
+    setMsgs((m) => m.filter((x) => x.id !== id));
+  };
+  const clearChat = async () => {
+    if (!window.confirm("Obrisati sve poruke u chatu?")) return;
+    const { error } = await createClient().rpc("admin_clear_chat");
+    if (error) return toast(errMsg(error), "error");
+    setMsgs([]);
+    toast("Chat je očišćen.", "success");
+  };
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,7 +158,12 @@ function ChatPanel() {
             <div className="font-display text-2xl font-black leading-none">Chat</div>
             <div className="text-xs text-muted">Poruke nestaju nakon 6 sati</div>
           </div>
-          <button onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-panel hover:text-fg" aria-label="Zatvori chat">✕</button>
+          <div className="flex items-center gap-1">
+            {isAdmin && (
+              <button onClick={clearChat} className="rounded-md border border-red-400/30 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/10">Očisti chat</button>
+            )}
+            <button onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-panel hover:text-fg" aria-label="Zatvori chat">✕</button>
+          </div>
         </div>
         <RainBar />
         <div ref={list} className="flex-1 space-y-2.5 overflow-y-auto px-3 py-3">
@@ -154,21 +173,24 @@ function ChatPanel() {
             const mine = m.user_id === user?.id;
             if (m.kind === "rain" || m.kind === "rain_paid")
               return (
-                <div key={m.id} className="drop-in rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
+                <div key={m.id} className="drop-in group relative rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
+                  {isAdmin && <DelBtn onClick={() => delMsg(m.id)} />}
                   <span className="font-display text-base font-bold text-amber-300">{m.username} · </span>
                   {m.body}
                 </div>
               );
             if (m.kind === "tip")
               return (
-                <div key={m.id} className="drop-in flex items-center gap-1.5 text-sm">
+                <div key={m.id} className="drop-in group relative flex items-center gap-1.5 text-sm">
+                  {isAdmin && <DelBtn onClick={() => delMsg(m.id)} />}
                   <span className="coin" />
                   <span className="font-semibold text-amber-300">{m.username}</span>
                   <span className="text-amber-100/90">{m.body}</span>
                 </div>
               );
             return (
-              <div key={m.id} className="drop-in">
+              <div key={m.id} className="drop-in group relative">
+                {isAdmin && <DelBtn onClick={() => delMsg(m.id)} />}
                 <div className="flex items-center gap-1.5 text-sm">
                   <span className="grid h-5 min-w-5 place-items-center rounded px-1 font-display text-xs font-black text-ink" style={{ background: levelColor(m.level) }} title={`Level ${m.level}`}>
                     {m.level}
@@ -211,6 +233,19 @@ function ChatPanel() {
         )}
       </aside>
     </>
+  );
+}
+
+function DelBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      title="Obriši poruku"
+      aria-label="Obriši poruku"
+      className="absolute -top-1 right-0 z-10 grid h-6 w-6 place-items-center rounded-md border border-red-400/40 bg-ink text-xs text-red-300 opacity-0 transition hover:bg-red-500/20 focus:opacity-100 group-hover:opacity-100"
+    >
+      ✕
+    </button>
   );
 }
 
