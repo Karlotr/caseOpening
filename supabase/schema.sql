@@ -727,7 +727,7 @@ begin
     when '3v3' then seats := 6; tsize := 3;
     else raise exception 'Nepoznat mod.';
   end case;
-  if n < 1 or n > 25 then raise exception 'Battle mora imati 1–25 kutija.'; end if;
+  if n < 1 or n > 50 then raise exception 'Battle mora imati 1–50 kutija.'; end if;
   select sum(c.price) into cost from unnest(p_case_ids) as x(cid) join public.cases c on c.id = x.cid and c.case_type = 'normal';
   if cost is null or (select count(*) from unnest(p_case_ids) x(cid) join public.cases c on c.id = x.cid and c.case_type = 'normal') <> n then
     raise exception 'Neispravne kutije.';

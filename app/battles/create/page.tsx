@@ -31,7 +31,7 @@ export default function CreateBattle() {
   const cost = picked.reduce((s, id) => s + (byId.get(id)?.price ?? 0), 0);
   const m = MODES.find((x) => x.k === mode)!;
 
-  const add = (id: number) => setPicked((p) => (p.length >= 25 ? p : [...p, id]));
+  const add = (id: number) => setPicked((p) => (p.length >= 50 ? p : [...p, id]));
   const remove = (id: number) =>
     setPicked((p) => {
       const i = p.lastIndexOf(id);
@@ -73,7 +73,7 @@ export default function CreateBattle() {
             </p>
           </div>
           <div>
-            <span className="label">Odabrane kutije ({picked.length}/25)</span>
+            <span className="label">Odabrane kutije ({picked.length}/50)</span>
             <div className="flex min-h-16 flex-wrap gap-1.5 rounded-md border border-dashed border-line p-2">
               {picked.length === 0 && <span className="self-center text-sm text-muted">Dodaj kutije ispod.</span>}
               {picked.map((id, i) => {
