@@ -9,7 +9,7 @@ import { TEAM_COLORS, jackpotWeight, loadBattle, modeDesc, modeLabel, type Battl
 import type { CaseWithItems, Item } from "@/lib/types";
 import { coins } from "@/lib/format";
 import { useRpc } from "@/lib/useGame";
-import { sfx } from "@/lib/sound";
+import { rarityRank, sfx } from "@/lib/sound";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { CaseArt } from "@/components/CaseCard";
@@ -22,6 +22,8 @@ import { StakePicker } from "@/components/StakePicker";
 
 const WIN = 32;
 const ROUND_PAUSE = 2300; // koliko izvučeni auti ostaju u traci prije sljedeće runde
+const FAST_SPIN = 700; // brzi mod: kratka vrtnja; zlatni (rijetki) dropovi i dalje imaju punu animaciju
+const FAST_PAUSE = 450;
 type Phase = "idle" | "rounds" | "roulette" | "done";
 
 export function BattleView() {
@@ -80,6 +82,24 @@ export function BattleView() {
   const isCrazy = !!battle?.crazy;
 
   const reelsDone = useRef(0);
+  // brzi mod (pamti se po pregledniku)
+  const [fast, setFast] = useState(false);
+  const fastRef = useRef(false);
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("battle-fast") === "1";
+      fastRef.current = v;
+      setFast(v);
+    } catch {}
+  }, []);
+  const toggleFast = () => {
+    const v = !fastRef.current;
+    fastRef.current = v;
+    setFast(v);
+    try {
+      localStorage.setItem("battle-fast", v ? "1" : "0");
+    } catch {}
+  };
   const heldRef = useRef(false);
   const spinRound = useCallback(
     (r: number) => {
@@ -144,6 +164,9 @@ export function BattleView() {
     setSpinning(false);
     setRevealed((r) => {
       const next = r + 1;
+      // u brzom modu kratka pauza, osim ako je u rundi pao zlatni (rijetki) auto
+      const gold = drops.some((d) => d.round === next && rarityRank(items.get(d.item_id)?.rarity ?? "common") >= 4);
+      const pause = fastRef.current && !gold ? FAST_PAUSE : ROUND_PAUSE;
       setTimeout(() => {
         if (next < rounds) spinRound(next);
         else if (battle?.jackpot) {
@@ -153,10 +176,10 @@ export function BattleView() {
           setPhase("done");
           setAnnounce(true);
         }
-      }, ROUND_PAUSE);
+      }, pause);
       return next;
     });
-  }, [rounds, spinRound, battle]);
+  }, [rounds, spinRound, battle, drops, items]);
 
   // sljedeća runda tek kad su SVE trake stale (i one sa zlatnom drugom vrtnjom)
   const onReelDone = useCallback(() => {
@@ -322,7 +345,16 @@ export function BattleView() {
             </div>
           ) : null;
         })}
-        <div className="ml-auto self-center whitespace-nowrap px-3 font-display text-xl font-bold">
+        <button
+          type="button"
+          onClick={toggleFast}
+          aria-pressed={fast}
+          title="Brzo: vrtnje se skoro preskaču, zlatni dropovi i dalje imaju punu animaciju"
+          className={`ml-auto self-center whitespace-nowrap rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${fast ? "border-accent2 bg-accent2/15 text-accent2" : "border-line text-muted hover:text-fg"}`}
+        >
+          Brzo {fast ? "uklj." : "isklj."}
+        </button>
+        <div className="self-center whitespace-nowrap px-3 font-display text-xl font-bold">
           Runda {Math.min(revealed + (spinning ? 1 : 0), rounds)}<span className="text-muted">/{rounds}</span>
         </div>
       </div>
@@ -432,7 +464,7 @@ export function BattleView() {
                             </div>
                           ) : phase === "rounds" && strips[seat] ? (
                             <div className="relative">
-                              <Reel vertical items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} winnerIndex={WIN} spinKey={spinKey} duration={3600} sound={seat === 0} onDone={onReelDone} />
+                              <Reel vertical items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} winnerIndex={WIN} spinKey={spinKey} duration={fast ? FAST_SPIN : 3600} sound={seat === 0} onDone={onReelDone} />
                             </div>
                           ) : phase === "rounds" ? (
                             <div className="h-[336px] rounded-2xl border border-line bg-[linear-gradient(180deg,#0c0c1c,#07070f)]" />
