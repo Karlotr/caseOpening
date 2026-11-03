@@ -31,13 +31,19 @@ export type Battle = {
 export type BattlePlayer = { battle_id: string; seat: number; team: number; user_id: string | null; is_bot: boolean; name: string; total: number };
 export type BattleDrop = { battle_id: string; round: number; seat: number; item_id: number };
 
-export const WIN_MODES = [
-  { k: "normal", l: "Klasično", d: "Najveća ukupna vrijednost pobjeđuje." },
-  { k: "crazy", l: "Crazy", d: "Najmanja ukupna vrijednost pobjeđuje." },
-  { k: "jackpot", l: "Jackpot", d: "Vrijednost određuje šansu. Na kraju se vrti rulet." },
-] as const;
-export type WinMode = (typeof WIN_MODES)[number]["k"];
-export const winModeOf = (b: { crazy: boolean; jackpot?: boolean }): WinMode => (b.jackpot ? "jackpot" : b.crazy ? "crazy" : "normal");
+// Crazy i Jackpot su neovisni prekidači i mogu se kombinirati
+export const modeLabel = (b: { crazy: boolean; jackpot?: boolean }) =>
+  b.crazy && b.jackpot ? "Crazy Jackpot" : b.jackpot ? "Jackpot" : b.crazy ? "Crazy" : "Klasično";
+export const modeDesc = (b: { crazy: boolean; jackpot?: boolean }) =>
+  b.crazy && b.jackpot
+    ? "Manja vrijednost daje veću šansu. Na kraju se vrti rulet."
+    : b.jackpot
+      ? "Veća vrijednost daje veću šansu. Na kraju se vrti rulet."
+      : b.crazy
+        ? "Najmanja ukupna vrijednost pobjeđuje."
+        : "Najveća ukupna vrijednost pobjeđuje.";
+// težina za Jackpot rulet: vrijednost, ili 1/vrijednost u Crazy modu
+export const jackpotWeight = (total: number, crazy: boolean) => (crazy ? 1 / Math.max(total, 0.01) : total);
 
 export const TEAM_COLORS = ["#f5821f", "#8fcbeb", "#a78bfa", "#34d399", "#f472b6", "#facc15"];
 

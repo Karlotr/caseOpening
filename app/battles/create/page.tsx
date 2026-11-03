@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getCases } from "@/lib/data";
-import { MODES, WIN_MODES, type WinMode } from "@/lib/battles";
+import { MODES, modeDesc, modeLabel } from "@/lib/battles";
 import type { CaseWithItems } from "@/lib/types";
 import { coins } from "@/lib/format";
 import { useRpc } from "@/lib/useGame";
@@ -15,7 +15,8 @@ export default function CreateBattle() {
   const rpc = useRpc();
   const [cases, setCases] = useState<CaseWithItems[]>([]);
   const [mode, setMode] = useState<string>("1v1");
-  const [win, setWin] = useState<WinMode>("normal");
+  const [crazy, setCrazy] = useState(false);
+  const [jackpot, setJackpot] = useState(false);
   const [picked, setPicked] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -35,7 +36,7 @@ export default function CreateBattle() {
 
   const create = async () => {
     setBusy(true);
-    const id = await rpc<string>("create_battle", { p_mode: mode, p_case_ids: picked, p_crazy: win === "crazy", p_jackpot: win === "jackpot" });
+    const id = await rpc<string>("create_battle", { p_mode: mode, p_case_ids: picked, p_crazy: crazy, p_jackpot: jackpot });
     setBusy(false);
     if (id) router.push(`/battles/${id}`);
   };
@@ -58,20 +59,14 @@ export default function CreateBattle() {
           </div>
           <div>
             <span className="label">Tko pobjeđuje</span>
-            <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Način pobjede">
-              {WIN_MODES.map((w) => (
-                <button
-                  key={w.k}
-                  role="radio"
-                  aria-checked={win === w.k}
-                  onClick={() => setWin(w.k)}
-                  className={`rounded-lg border p-3 text-left transition ${win === w.k ? (w.k === "jackpot" ? "border-emerald-400 bg-emerald-400/10" : w.k === "crazy" ? "border-fuchsia-400 bg-fuchsia-400/10" : "border-accent2 bg-accent2/10") : "border-line hover:border-white/30"}`}
-                >
-                  <div className="font-display text-xl font-bold">{w.l}</div>
-                  <div className="text-sm text-muted">{w.d}</div>
-                </button>
-              ))}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Toggle on={crazy} set={setCrazy} title="Crazy" desc="Pobjeđuje manja vrijednost umjesto veće." tone="fuchsia" />
+              <Toggle on={jackpot} set={setJackpot} title="Jackpot" desc="Vrijednost ne odlučuje izravno nego daje šansu. Na kraju se vrti rulet." tone="emerald" />
             </div>
+            <p className="mt-2 text-sm">
+              <b className="font-display text-lg">{modeLabel({ crazy, jackpot })}</b>
+              <span className="text-muted"> · {modeDesc({ crazy, jackpot })}</span>
+            </p>
           </div>
           <div>
             <span className="label">Odabrane kutije ({picked.length}/25)</span>
@@ -116,5 +111,21 @@ export default function CreateBattle() {
         </div>
       </div>
     </RequireAuth>
+  );
+}
+
+function Toggle({ on, set, title, desc, tone }: { on: boolean; set: (v: boolean) => void; title: string; desc: string; tone: "fuchsia" | "emerald" }) {
+  const c = tone === "fuchsia" ? "border-fuchsia-400 bg-fuchsia-400/10" : "border-emerald-400 bg-emerald-400/10";
+  const dot = tone === "fuchsia" ? "bg-fuchsia-400" : "bg-emerald-400";
+  return (
+    <button role="switch" aria-checked={on} onClick={() => set(!on)} className={`flex items-start gap-3 rounded-lg border p-3 text-left transition ${on ? c : "border-line hover:border-white/30"}`}>
+      <span className={`mt-1 flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition ${on ? dot : "bg-line"}`}>
+        <span className={`h-4 w-4 rounded-full bg-white transition ${on ? "translate-x-4" : ""}`} />
+      </span>
+      <span>
+        <span className="block font-display text-xl font-bold">{title}</span>
+        <span className="block text-sm text-muted">{desc}</span>
+      </span>
+    </button>
   );
 }

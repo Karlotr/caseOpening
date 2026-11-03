@@ -656,7 +656,6 @@ begin
     else raise exception 'Nepoznat mod.';
   end case;
   if n < 1 or n > 25 then raise exception 'Battle mora imati 1–25 kutija.'; end if;
-  if coalesce(p_crazy, false) and coalesce(p_jackpot, false) then raise exception 'Odaberi Crazy ili Jackpot, ne oboje.'; end if;
   select sum(c.price) into cost from unnest(p_case_ids) as x(cid) join public.cases c on c.id = x.cid and c.case_type = 'normal';
   if cost is null or (select count(*) from unnest(p_case_ids) x(cid) join public.cases c on c.id = x.cid and c.case_type = 'normal') <> n then
     raise exception 'Neispravne kutije.';
@@ -703,11 +702,13 @@ begin
 
   if b.jackpot then
     -- Jackpot: šansa tima = njegova vrijednost / ukupna vrijednost
-    select coalesce(sum(bp2.total), 0) into pot_total from public.battle_players bp2 where bp2.battle_id = p_id;
+    -- Crazy Jackpot: šansa je obrnuto proporcionalna vrijednosti (1 / vrijednost)
+    select coalesce(sum(case when b.crazy then 1 / greatest(t.tt, 0.01) else t.tt end), 0) into pot_total
+      from (select sum(bp2.total) as tt from public.battle_players bp2 where bp2.battle_id = p_id group by bp2.team) t;
     ticket := random()::numeric;
     acc := 0;
     for tr in select bp2.team, sum(bp2.total) as tt from public.battle_players bp2 where bp2.battle_id = p_id group by bp2.team order by bp2.team loop
-      acc := acc + tr.tt / greatest(pot_total, 0.01);
+      acc := acc + (case when b.crazy then 1 / greatest(tr.tt, 0.01) else tr.tt end) / greatest(pot_total, 0.000001);
       win_team := tr.team;
       exit when ticket < acc;
     end loop;
@@ -1321,3 +1322,6 @@ insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id,
 insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('level-50', 'Level 50 kutija', 'Besplatno svaka 24h od levela 50.', 'level', 0, null, 50, null, '#f43f5e', 21) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
 delete from public.case_items where case_id = (select id from public.cases where slug='level-50');
 insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (29, 700855), (32, 143499), (34, 74493), (60, 36462), (86, 20482), (87, 10632), (62, 8287), (64, 3990), (76, 1301)) as v(item_id, w) where c.slug='level-50';
+
+-- Osvježi PostgREST cache da nove/promijenjene funkcije budu odmah vidljive API-ju
+notify pgrst, 'reload schema';

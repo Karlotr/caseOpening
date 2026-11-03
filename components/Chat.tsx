@@ -4,7 +4,7 @@ import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { coins, errMsg } from "@/lib/format";
-import { normBattle, winModeOf, type Battle } from "@/lib/battles";
+import { modeLabel, normBattle, type Battle } from "@/lib/battles";
 import { useAuth } from "./AuthProvider";
 import { useToast } from "./Toast";
 
@@ -154,7 +154,7 @@ function ChatPanel() {
                       <div className="flex items-center gap-3">
                         <span className="font-display text-2xl font-black leading-none">{b.mode}</span>
                         <div className="min-w-0 flex-1 text-xs text-muted">
-                          {winModeOf(b) === "jackpot" ? "Jackpot" : winModeOf(b) === "crazy" ? "Crazy" : "Klasično"} · {b.case_ids.length} kutija
+                          {modeLabel(b)} · {b.case_ids.length} kutija
                           <div className="font-display text-base font-bold text-accent">{coins(b.cost)}</div>
                         </div>
                         <span className={`rounded px-2 py-1 font-display text-sm font-bold ${b.status === "waiting" ? "bg-accent text-ink" : "bg-panel2 text-muted"}`}>

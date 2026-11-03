@@ -40,7 +40,7 @@ Next.js 16 + Supabase. Kutije s automobilima (od Fiće do Ferrarija 250 GTO), ca
 | Značajka | Kako radi |
 |---|---|
 | Kutije | 1–5 odjednom, brzo otvaranje, demo vrtnja, prodaja dobitaka |
-| Battles | 1v1, 1v1v1, 1v1v1v1, 6-way, 2v2, 3v3; Klasično / Crazy (najmanje pobjeđuje) / Jackpot (vrijednost = šansa, rulet na kraju); botovi, realtime lobby |
+| Battles | 1v1, 1v1v1, 1v1v1v1, 6-way, 2v2, 3v3; prekidači Crazy (manje pobjeđuje) i Jackpot (vrijednost = šansa, rulet na kraju) koji se mogu kombinirati; botovi, realtime lobby |
 | Upgrader | više auta + coini → skuplji auto, šansa = ulog/cilj × 95%, max 80% |
 | Slide | ciljani multiplikator, šansa 96%/cilj |
 | Trinity | 30 polja: crvena 2×, crna 2×, zlatna 14× |

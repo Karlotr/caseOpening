@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { getCases } from "@/lib/data";
-import { normBattle, winModeOf, type Battle, type BattlePlayer } from "@/lib/battles";
+import { normBattle, type Battle, type BattlePlayer } from "@/lib/battles";
 import type { CaseWithItems } from "@/lib/types";
 import { coins } from "@/lib/format";
 import { CaseArt } from "@/components/CaseCard";
@@ -50,7 +50,7 @@ export default function BattlesPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="h1">Case Battles</h1>
-          <p className="mt-2 max-w-2xl text-muted">Svi otvaraju iste kutije. Klasično pobjeđuje najvrjednija garaža, u Crazy modu najmanja, a u Jackpot modu vrijednost određuje šansu na završnom ruletu.</p>
+          <p className="mt-2 max-w-2xl text-muted">Svi otvaraju iste kutije. Klasično pobjeđuje najvrjednija garaža, u Crazy modu najmanja. Jackpot pretvara vrijednost u šansu na završnom ruletu i može se uključiti uz Crazy.</p>
         </div>
         <Link href="/battles/create" className="btn-primary px-6 py-3 text-lg">Novi battle</Link>
       </div>
@@ -66,8 +66,10 @@ export default function BattlesPage() {
             <Link key={b.id} href={`/battles/${b.id}`} className="card flex flex-col gap-3 p-3 transition hover:border-white/25 md:flex-row md:items-center">
               <div className="flex w-28 shrink-0 flex-col">
                 <span className="font-display text-3xl font-black leading-none">{b.mode}</span>
-                {winModeOf(b) === "crazy" && <span className="w-fit rounded bg-fuchsia-500/20 px-1.5 text-xs font-bold text-fuchsia-300">Crazy</span>}
-                {winModeOf(b) === "jackpot" && <span className="w-fit rounded bg-emerald-400/20 px-1.5 text-xs font-bold text-emerald-300">Jackpot</span>}
+                <span className="flex gap-1">
+                  {b.crazy && <span className="w-fit rounded bg-fuchsia-500/20 px-1.5 text-xs font-bold text-fuchsia-300">Crazy</span>}
+                  {b.jackpot && <span className="w-fit rounded bg-emerald-400/20 px-1.5 text-xs font-bold text-emerald-300">Jackpot</span>}
+                </span>
               </div>
               <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
                 {b.case_ids.map((cid, i) => {

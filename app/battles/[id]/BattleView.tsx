@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { getCases, getItems, randomFromCase } from "@/lib/data";
-import { TEAM_COLORS, WIN_MODES, loadBattle, winModeOf, type Battle, type BattleDrop, type BattlePlayer } from "@/lib/battles";
+import { TEAM_COLORS, jackpotWeight, loadBattle, modeDesc, modeLabel, type Battle, type BattleDrop, type BattlePlayer } from "@/lib/battles";
 import type { CaseWithItems, Item } from "@/lib/types";
 import { coins } from "@/lib/format";
 import { useRpc } from "@/lib/useGame";
@@ -76,7 +76,8 @@ export function BattleView() {
   }, [id, reload]);
 
   const rounds = battle?.case_ids.length ?? 0;
-  const mode = battle ? winModeOf(battle) : "normal";
+  const isJackpot = !!battle?.jackpot;
+  const isCrazy = !!battle?.crazy;
 
   const spinRound = useCallback(
     (r: number) => {
@@ -160,9 +161,20 @@ export function BattleView() {
     [teams, players]
   );
 
+  // šansa u Jackpot modu (u Crazy Jackpotu obrnuto proporcionalna vrijednosti)
+  const weights = teams.map((_, ti) => jackpotWeight(teamTotal(ti), isCrazy));
+  const wSum = weights.reduce((a, b) => a + b, 0);
+  const chanceOf = (ti: number) => (wSum && grand > 0 ? (weights[ti] / wSum) * 100 : 0);
+  const chanceKey = weights.map((w) => w.toFixed(4)).join("|");
   const entries: Entry[] = useMemo(
-    () => teams.map((_, ti) => ({ label: teamName(ti), sub: grand ? `${((teamTotal(ti) / grand) * 100).toFixed(1)}% šanse` : "", color: TEAM_COLORS[ti % TEAM_COLORS.length], weight: teamTotal(ti) })),
-    [teams, teamName, teamTotal, grand]
+    () =>
+      teams.map((_, ti) => {
+        const w = jackpotWeight(teamTotal(ti), isCrazy);
+        const sum = teams.reduce((a, __, k) => a + jackpotWeight(teamTotal(k), isCrazy), 0);
+        return { label: teamName(ti), sub: grand ? `${((w / sum) * 100).toFixed(1)}% šanse` : "", color: TEAM_COLORS[ti % TEAM_COLORS.length], weight: w };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [teams, teamName, chanceKey, grand, isCrazy]
   );
 
   // pobjeda / poraz obavijest
@@ -184,7 +196,7 @@ export function BattleView() {
       const val = myItems.reduce((s, i) => s + i.value, 0);
       celebrate({
         title: "Pobjeda!",
-        subtitle: mode === "jackpot" ? "Rulet je izvukao tebe" : mode === "crazy" ? "Crazy battle je tvoj" : "Tvoja garaža je bila najjača",
+        subtitle: isJackpot ? "Rulet je izvukao tebe" : isCrazy ? "Crazy battle je tvoj" : "Tvoja garaža je bila najjača",
         items: myItems,
         amount: val,
         tier: val >= battle.cost * 3 ? 3 : val >= battle.cost * 1.5 ? 2 : 1,
@@ -193,7 +205,7 @@ export function BattleView() {
       sfx.lose();
       toast(`Battle je dobio ${teamName(battle.winner_team ?? 0)}. Probaj ponovno.`, "error");
     }
-  }, [announce, battle, players, user, drops, items, celebrate, toast, teamName, mode, refresh]);
+  }, [announce, battle, players, user, drops, items, celebrate, toast, teamName, isJackpot, isCrazy, refresh]);
 
   if (notFound) return <div className="card p-8 text-center">Ovaj battle ne postoji. <Link href="/battles" className="text-accent2">Natrag na battles</Link></div>;
   if (!battle) return <div className="card h-96 animate-pulse" />;
@@ -202,7 +214,6 @@ export function BattleView() {
   const meIn = players.some((p) => p.user_id === user?.id);
   const isCreator = user?.id === battle.creator_id;
   const myWin = done && players.find((p) => p.user_id === user?.id)?.team === battle.winner_team;
-  const modeInfo = WIN_MODES.find((m) => m.k === mode)!;
 
   const act = async (fn: string, args: Record<string, unknown>, msg?: string) => {
     setBusy(true);
@@ -223,11 +234,11 @@ export function BattleView() {
           <Link href="/battles" className="text-sm text-muted hover:text-fg">Battles</Link>
           <h1 className="h1 flex items-center gap-3">
             {battle.mode}
-            <span className={`rounded px-2 py-0.5 font-display text-base font-bold ${mode === "jackpot" ? "bg-emerald-400/20 text-emerald-300" : mode === "crazy" ? "bg-fuchsia-500/20 text-fuchsia-300" : "bg-accent2/15 text-accent2"}`}>
-              {modeInfo.l}
+            <span className={`rounded px-2 py-0.5 font-display text-base font-bold ${isJackpot ? "bg-emerald-400/20 text-emerald-300" : isCrazy ? "bg-fuchsia-500/20 text-fuchsia-300" : "bg-accent2/15 text-accent2"}`}>
+              {modeLabel(battle)}
             </span>
           </h1>
-          <p className="mt-1 text-sm text-muted">{modeInfo.d}</p>
+          <p className="mt-1 text-sm text-muted">{modeDesc(battle)}</p>
         </div>
         <div className="ml-auto flex gap-5 text-right">
           <div>
@@ -276,10 +287,10 @@ export function BattleView() {
         <div className="pop space-y-2">
           <div className="flex items-baseline justify-between">
             <h2 className="font-display text-3xl font-extrabold tracking-tight">Jackpot rulet</h2>
-            <span className="text-sm text-muted">Šansa svakog tima = njegova vrijednost / {coins(grand)}</span>
+            <span className="text-sm text-muted">{isCrazy ? "Crazy: manja vrijednost znači veću šansu" : `Šansa = vrijednost / ${coins(grand)}`}</span>
           </div>
           <div className="flex h-3 overflow-hidden rounded-full">
-            {entries.map((e, i) => <div key={i} style={{ width: `${grand ? (e.weight / grand) * 100 : 0}%`, background: e.color }} title={`${e.label}: ${e.sub}`} />)}
+            {entries.map((e, i) => <div key={i} style={{ width: `${chanceOf(i)}%`, background: e.color }} title={`${e.label}: ${e.sub}`} />)}
           </div>
           <NameReel entries={entries} winner={battle.winner_team ?? 0} spinKey={rouletteKey} onDone={onRouletteDone} />
         </div>
@@ -313,7 +324,7 @@ export function BattleView() {
                     <div className="flex items-center justify-between px-1 font-display text-lg font-bold">
                       <span style={{ color: tc }}>Tim {ti + 1}</span>
                       <span className="flex items-center gap-2">
-                        {mode === "jackpot" && grand > 0 && <span className="text-sm text-emerald-300">{((teamTotal(ti) / grand) * 100).toFixed(1)}%</span>}
+                        {isJackpot && grand > 0 && <span className="text-sm text-emerald-300">{chanceOf(ti).toFixed(1)}%</span>}
                         <CountUp value={teamTotal(ti)} />
                       </span>
                     </div>
@@ -333,8 +344,8 @@ export function BattleView() {
                               <div className="truncate font-semibold">{p?.name ?? "Slobodno mjesto"}{isMe && <span className="text-accent2"> (ti)</span>}</div>
                               <div className="flex items-center gap-2 font-display text-lg font-bold leading-none text-accent">
                                 <CountUp value={totals.get(seat) ?? 0} />
-                                {mode === "jackpot" && battle.team_size === 1 && grand > 0 && (
-                                  <span className="text-sm text-emerald-300">{(((totals.get(seat) ?? 0) / grand) * 100).toFixed(1)}%</span>
+                                {isJackpot && battle.team_size === 1 && grand > 0 && (
+                                  <span className="text-sm text-emerald-300">{chanceOf(ti).toFixed(1)}%</span>
                                 )}
                               </div>
                             </div>
