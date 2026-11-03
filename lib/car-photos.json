@@ -1,6 +1,7 @@
 {
   "1": {
-    "file": "1.jpg",
+    "file": "1.webp",
+    "cutout": true,
     "title": "File:Zastava 750, Zagreb, 2025.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Zastava_750,_Zagreb,_2025.jpg",
     "author": "Runolist",
@@ -8,7 +9,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "2": {
-    "file": "2.jpg",
+    "file": "2.webp",
+    "cutout": true,
     "title": "File:1987 Yugo GV in Burgundy, front right.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1987_Yugo_GV_in_Burgundy,_front_right.jpg",
     "author": "Mr.choppers",
@@ -16,7 +18,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
   },
   "3": {
-    "file": "3.jpg",
+    "file": "3.webp",
+    "cutout": true,
     "title": "File:Zastava Yugo 311 1116cc.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Zastava_Yugo_311_1116cc.jpg",
     "author": "User Asterion",
@@ -24,7 +27,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/2.5"
   },
   "4": {
-    "file": "4.jpg",
+    "file": "4.webp",
+    "cutout": true,
     "title": "File:Zastava Koral 1.3 r.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Zastava_Koral_1.3_r.jpg",
     "author": "KGC626",
@@ -32,7 +36,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "5": {
-    "file": "5.jpg",
+    "file": "5.webp",
+    "cutout": true,
     "title": "File:1988 VEB Sachenring Trabant P601S Beige (1 bearb Sp) (cropped).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1988_VEB_Sachenring_Trabant_P601S_Beige_(1_bearb_Sp)_(cropped).jpg",
     "author": "Damian B Oh",
@@ -40,7 +45,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "6": {
-    "file": "6.jpg",
+    "file": "6.webp",
+    "cutout": true,
     "title": "File:1973 Fiat 126 IMG 7855.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1973_Fiat_126_IMG_7855.jpg",
     "author": "Tony Harrison",
@@ -48,7 +54,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
   },
   "7": {
-    "file": "7.jpg",
+    "file": "7.webp",
+    "cutout": true,
     "title": "File:Wartburg 353 declared first registered January 1988 encine capacity 993 cc.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Wartburg_353_declared_first_registered_January_1988_encine_capacity_993_cc.jpg",
     "author": "MumblesToad01",
@@ -56,7 +63,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "8": {
-    "file": "8.jpg",
+    "file": "8.webp",
+    "cutout": true,
     "title": "File:Dacia 1300 (cropped).JPG",
     "page": "https://commons.wikimedia.org/wiki/File:Dacia_1300_(cropped).JPG",
     "author": "dacia24.de",
@@ -64,7 +72,8 @@
     "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
   },
   "9": {
-    "file": "9.jpg",
+    "file": "9.webp",
+    "cutout": true,
     "title": "File:Москвич 412.JPG",
     "page": "https://commons.wikimedia.org/wiki/File:%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B8%D1%87_412.JPG",
     "author": "Sergey Korovkin 84",
@@ -72,7 +81,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "10": {
-    "file": "10.jpg",
+    "file": "10.webp",
+    "cutout": true,
     "title": "File:Lada 2107 aka Lada Riva October 1995 1452cc.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Lada_2107_aka_Lada_Riva_October_1995_1452cc.jpg",
     "author": "Charles01",
@@ -80,7 +90,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
   },
   "11": {
-    "file": "11.jpg",
+    "file": "11.webp",
+    "cutout": true,
     "title": "File:1987 Lada Niva 1600.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1987_Lada_Niva_1600.jpg",
     "author": "TTTNIS",
@@ -88,7 +99,8 @@
     "licenseUrl": null
   },
   "12": {
-    "file": "12.jpg",
+    "file": "12.webp",
+    "cutout": true,
     "title": "File:1984 Renault 4 GTL, front left (Germany).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1984_Renault_4_GTL,_front_left_(Germany).jpg",
     "author": "Mr.choppers",
@@ -96,7 +108,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
   },
   "13": {
-    "file": "13.jpg",
+    "file": "13.webp",
+    "cutout": true,
     "title": "File:Citroen 2CV 1X7A7979.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Citroen_2CV_1X7A7979.jpg",
     "author": "Alexander Migl",
@@ -104,7 +117,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "14": {
-    "file": "14.jpg",
+    "file": "14.webp",
+    "cutout": true,
     "title": "File:VW Golf II front 20080206.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:VW_Golf_II_front_20080206.jpg",
     "author": "Rudolf Stricker",
@@ -112,7 +126,8 @@
     "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
   },
   "15": {
-    "file": "15.jpg",
+    "file": "15.webp",
+    "cutout": true,
     "title": "File:1984 Mercedes-Benz 280E Sedan (cropped).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1984_Mercedes-Benz_280E_Sedan_(cropped).jpg",
     "author": "Verdict09",
@@ -120,7 +135,8 @@
     "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
   },
   "16": {
-    "file": "16.jpg",
+    "file": "16.webp",
+    "cutout": true,
     "title": "File:Fiat Panda front 20090318.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Fiat_Panda_front_20090318.jpg",
     "author": "Rudolf Stricker",
@@ -128,7 +144,8 @@
     "licenseUrl": null
   },
   "17": {
-    "file": "17.jpg",
+    "file": "17.webp",
+    "cutout": true,
     "title": "File:2010 Volkswagen polo blue rear front.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:2010_Volkswagen_polo_blue_rear_front.jpg",
     "author": "Ap320",
@@ -136,7 +153,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "18": {
-    "file": "18.jpg",
+    "file": "18.webp",
+    "cutout": true,
     "title": "File:Opel Corsa C 1.2 Elegance front 20100912.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Opel_Corsa_C_1.2_Elegance_front_20100912.jpg",
     "author": "M 93",
@@ -144,7 +162,8 @@
     "licenseUrl": null
   },
   "19": {
-    "file": "19.jpg",
+    "file": "19.webp",
+    "cutout": true,
     "title": "File:RENAULT CLIO II PHASE II 5 DOOR China (2).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:RENAULT_CLIO_II_PHASE_II_5_DOOR_China_(2).jpg",
     "author": "Dinkun Chen",
@@ -152,7 +171,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "20": {
-    "file": "20.jpg",
+    "file": "20.webp",
+    "cutout": true,
     "title": "File:2002 Peugeot 206 LX 1.4 Front.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:2002_Peugeot_206_LX_1.4_Front.jpg",
     "author": "Vauxford",
@@ -160,7 +180,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "21": {
-    "file": "21.jpg",
+    "file": "21.webp",
+    "cutout": true,
     "title": "File:Škoda Octavia IV Combi Facelift IMG 9434.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:%C5%A0koda_Octavia_IV_Combi_Facelift_IMG_9434.jpg",
     "author": "Alexander-93",
@@ -168,7 +189,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "22": {
-    "file": "22.jpg",
+    "file": "22.webp",
+    "cutout": true,
     "title": "File:Moscow, Toyota Corolla (E120) sedan, Sept 2025 01.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Moscow,_Toyota_Corolla_(E120)_sedan,_Sept_2025_01.jpg",
     "author": "Retired electrician",
@@ -176,7 +198,8 @@
     "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
   },
   "23": {
-    "file": "23.jpg",
+    "file": "23.webp",
+    "cutout": true,
     "title": "File:Fiat 500 yellow.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Fiat_500_yellow.jpg",
     "author": "DILIN",
@@ -184,7 +207,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "24": {
-    "file": "24.jpg",
+    "file": "24.webp",
+    "cutout": true,
     "title": "File:63 Volkswagen Beetle (7457798068).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:63_Volkswagen_Beetle_(7457798068).jpg",
     "author": "Greg Gjerdingen from Willmar, USA",
@@ -192,7 +216,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
   },
   "25": {
-    "file": "25.jpg",
+    "file": "25.webp",
+    "cutout": true,
     "title": "File:Civic R EK9 1.JPG",
     "page": "https://commons.wikimedia.org/wiki/File:Civic_R_EK9_1.JPG",
     "author": "Kenneth Britishracer",
@@ -200,7 +225,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
   },
   "26": {
-    "file": "26.jpg",
+    "file": "26.webp",
+    "cutout": true,
     "title": "File:Eunos.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Eunos.jpg",
     "author": "Francigf at en.wikipedia",
@@ -208,7 +234,8 @@
     "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
   },
   "27": {
-    "file": "27.jpg",
+    "file": "27.webp",
+    "cutout": true,
     "title": "File:2001 Nissan Silvia S15.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:2001_Nissan_Silvia_S15.jpg",
     "author": "Calreyn88",
@@ -216,7 +243,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "28": {
-    "file": "28.jpg",
+    "file": "28.webp",
+    "cutout": true,
     "title": "File:1983 Toyota Corolla Levin.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1983_Toyota_Corolla_Levin.jpg",
     "author": "TTTNIS",
@@ -224,7 +252,8 @@
     "licenseUrl": null
   },
   "29": {
-    "file": "29.jpg",
+    "file": "29.webp",
+    "cutout": true,
     "title": "File:2000 Mitsubishi Lancer RS Evolution VI Tommi Makinen Edition.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:2000_Mitsubishi_Lancer_RS_Evolution_VI_Tommi_Makinen_Edition.jpg",
     "author": "TTTNIS",
@@ -232,7 +261,8 @@
     "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
   },
   "30": {
-    "file": "30.jpg",
+    "file": "30.webp",
+    "cutout": true,
     "title": "File:1970-1973 Nissan Fairlady Z.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1970-1973_Nissan_Fairlady_Z.jpg",
     "author": "TTTNIS",
@@ -240,7 +270,8 @@
     "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
   },
   "31": {
-    "file": "31.jpg",
+    "file": "31.webp",
+    "cutout": true,
     "title": "File:Mazda RX-7 Spirit R (FD3S) (front three-quarter view) at Mazda Museum.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Mazda_RX-7_Spirit_R_(FD3S)_(front_three-quarter_view)_at_Mazda_Museum.jpg",
     "author": "Aos.1905",
@@ -248,7 +279,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
   },
   "32": {
-    "file": "32.jpg",
+    "file": "32.webp",
+    "cutout": true,
     "title": "File:1996-2002 Toyota Supra rear.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1996-2002_Toyota_Supra_rear.jpg",
     "author": "TTTNIS",
@@ -256,7 +288,8 @@
     "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
   },
   "33": {
-    "file": "33.jpg",
+    "file": "33.webp",
+    "cutout": true,
     "title": "File:Honda NSX red.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Honda_NSX_red.jpg",
     "author": "ed g2s • talk",
@@ -264,7 +297,8 @@
     "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
   },
   "34": {
-    "file": "34.jpg",
+    "file": "34.webp",
+    "cutout": true,
     "title": "File:Nissan Skyline GT-R V-spec, BAS 24, Brussels (P1170369-RR).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Nissan_Skyline_GT-R_V-spec,_BAS_24,_Brussels_(P1170369-RR).jpg",
     "author": "Matti Blume",
@@ -272,7 +306,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en"
   },
   "35": {
-    "file": "35.jpg",
+    "file": "35.webp",
+    "cutout": true,
     "title": "File:Nissan GT-R Nismo 2.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Nissan_GT-R_Nismo_2.jpg",
     "author": "Calreyn88",
@@ -280,7 +315,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "36": {
-    "file": "36.jpg",
+    "file": "36.webp",
+    "cutout": true,
     "title": "File:Subaru Impreza 22B STi.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Subaru_Impreza_22B_STi.jpg",
     "author": "Original uploader was A15ff11300g at ja.wikipedia",
@@ -288,7 +324,8 @@
     "licenseUrl": null
   },
   "37": {
-    "file": "37.jpg",
+    "file": "37.webp",
+    "cutout": true,
     "title": "File:Lexus LFA 001.JPG",
     "page": "https://commons.wikimedia.org/wiki/File:Lexus_LFA_001.JPG",
     "author": "Tennen-Gas",
@@ -296,7 +333,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
   },
   "38": {
-    "file": "38.jpg",
+    "file": "38.webp",
+    "cutout": true,
     "title": "File:1970 Chevrolet Chevelle SS 454, black convertible, Golden Super Cruise 2026-05-02.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1970_Chevrolet_Chevelle_SS_454,_black_convertible,_Golden_Super_Cruise_2026-05-02.jpg",
     "author": "Xnatedawgx",
@@ -304,7 +342,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "39": {
-    "file": "39.jpg",
+    "file": "39.webp",
+    "cutout": true,
     "title": "File:1969 Chevrolet Camaro Z28 Rally Sport, front right, 09-09-2023.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1969_Chevrolet_Camaro_Z28_Rally_Sport,_front_right,_09-09-2023.jpg",
     "author": "MercurySable99",
@@ -312,7 +351,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "40": {
-    "file": "40.jpg",
+    "file": "40.webp",
+    "cutout": true,
     "title": "File:23 Dodge Challenger SRT Demon 170.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:23_Dodge_Challenger_SRT_Demon_170.jpg",
     "author": "HJUdall",
@@ -320,7 +360,8 @@
     "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
   },
   "41": {
-    "file": "41.jpg",
+    "file": "41.webp",
+    "cutout": true,
     "title": "File:1969 Pontiac GTO The Judge, Car No.77, rear right side, 15th Annual All Pontiac Car Show 2026-09-20.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1969_Pontiac_GTO_The_Judge,_Car_No.77,_rear_right_side,_15th_Annual_All_Pontiac_Car_Show_2026-09-20.jpg",
     "author": "Xnatedawgx",
@@ -328,7 +369,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "42": {
-    "file": "42.jpg",
+    "file": "42.webp",
+    "cutout": true,
     "title": "File:1970 Dodge Charger R-T Hirschaid 22-20220709-RM-120204.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1970_Dodge_Charger_R-T_Hirschaid_22-20220709-RM-120204.jpg",
     "author": "Ermell",
@@ -336,7 +378,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "43": {
-    "file": "43.jpg",
+    "file": "43.webp",
+    "cutout": true,
     "title": "File:1963 Chevrolet Corvette Sting Ray Sport Coupe, front left, 08-25-2024.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1963_Chevrolet_Corvette_Sting_Ray_Sport_Coupe,_front_left,_08-25-2024.jpg",
     "author": "MercurySable99",
@@ -344,7 +387,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "44": {
-    "file": "44.jpg",
+    "file": "44.webp",
+    "cutout": true,
     "title": "File:BOSS429.JPG",
     "page": "https://commons.wikimedia.org/wiki/File:BOSS429.JPG",
     "author": "CJ DUB",
@@ -352,7 +396,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/ca/deed.en"
   },
   "45": {
-    "file": "45.jpg",
+    "file": "45.webp",
+    "cutout": true,
     "title": "File:1971 Plymouth Hemi 'Cuda.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1971_Plymouth_Hemi_%27Cuda.jpg",
     "author": "No machine-readable author provided. Sfoskett~commonswiki assumed (based on copyright claims).",
@@ -360,7 +405,8 @@
     "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
   },
   "46": {
-    "file": "46.jpg",
+    "file": "46.webp",
+    "cutout": true,
     "title": "File:AC Cobra 427.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:AC_Cobra_427.jpg",
     "author": "JoachimKohler-HB",
@@ -368,7 +414,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "47": {
-    "file": "47.jpg",
+    "file": "47.webp",
+    "cutout": true,
     "title": "File:1966 Ford GT40 Mk II Goodwood, 2019 (01).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1966_Ford_GT40_Mk_II_Goodwood,_2019_(01).jpg",
     "author": "Bahnfrend",
@@ -376,7 +423,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "48": {
-    "file": "48.jpg",
+    "file": "48.webp",
+    "cutout": true,
     "title": "File:1925 Ford Model T touring.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1925_Ford_Model_T_touring.jpg",
     "author": "ModelTMitch",
@@ -384,7 +432,8 @@
     "licenseUrl": null
   },
   "49": {
-    "file": "49.jpg",
+    "file": "49.webp",
+    "cutout": true,
     "title": "File:Ford Crown Victoria LX.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Ford_Crown_Victoria_LX.jpg",
     "author": "IFCAR",
@@ -392,7 +441,8 @@
     "licenseUrl": null
   },
   "50": {
-    "file": "50.jpg",
+    "file": "50.webp",
+    "cutout": true,
     "title": "File:94 JEEP Wrangler (8235592322).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:94_JEEP_Wrangler_(8235592322).jpg",
     "author": "Greg Gjerdingen from Willmar, USA",
@@ -400,7 +450,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
   },
   "51": {
-    "file": "51.jpg",
+    "file": "51.webp",
+    "cutout": true,
     "title": "File:2017 Ford F-150 Raptor Crew Cab.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:2017_Ford_F-150_Raptor_Crew_Cab.jpg",
     "author": "Bull-Doser",
@@ -408,7 +459,8 @@
     "licenseUrl": null
   },
   "52": {
-    "file": "52.jpg",
+    "file": "52.webp",
+    "cutout": true,
     "title": "File:Chevy Bel Air in the Presidio of San Francisco.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Chevy_Bel_Air_in_the_Presidio_of_San_Francisco.jpg",
     "author": "Frank Schulenburg",
@@ -416,7 +468,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "53": {
-    "file": "53.jpg",
+    "file": "53.webp",
+    "cutout": true,
     "title": "File:1964 Chevrolet Impala SS (34962494690).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1964_Chevrolet_Impala_SS_(34962494690).jpg",
     "author": "More Cars from Berlin, Germany",
@@ -424,7 +477,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
   },
   "54": {
-    "file": "54.jpg",
+    "file": "54.webp",
+    "cutout": true,
     "title": "File:1959 Cadillac Eldorado Biarritz.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1959_Cadillac_Eldorado_Biarritz.jpg",
     "author": "MrWalkr",
@@ -432,7 +486,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "55": {
-    "file": "55.jpg",
+    "file": "55.webp",
+    "cutout": true,
     "title": "File:1982 Volkswagen Golf GTi (Mk1) (14072934454).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1982_Volkswagen_Golf_GTi_(Mk1)_(14072934454).jpg",
     "author": "Riley from Christchurch, New Zealand",
@@ -440,7 +495,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
   },
   "56": {
-    "file": "56.jpg",
+    "file": "56.webp",
+    "cutout": true,
     "title": "File:1995 Audi RS2 Avant LC25.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1995_Audi_RS2_Avant_LC25.jpg",
     "author": "MrWalkr",
@@ -448,7 +504,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "57": {
-    "file": "57.jpg",
+    "file": "57.webp",
+    "cutout": true,
     "title": "File:BMW M3 CSL Silver.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:BMW_M3_CSL_Silver.jpg",
     "author": "MrWalkr",
@@ -456,7 +513,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "58": {
-    "file": "58.jpg",
+    "file": "58.webp",
+    "cutout": true,
     "title": "File:Black BMW M3 E30 fr.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Black_BMW_M3_E30_fr.jpg",
     "author": "Darren",
@@ -464,7 +522,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
   },
   "59": {
-    "file": "59.jpg",
+    "file": "59.webp",
+    "cutout": true,
     "title": "File:Mercedes-Benz 190E 2.5-16 EVO II (53277845349).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Mercedes-Benz_190E_2.5-16_EVO_II_(53277845349).jpg",
     "author": "Thomas Vogt from Paderborn, Deutschland",
@@ -472,7 +531,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
   },
   "60": {
-    "file": "60.jpg",
+    "file": "60.webp",
+    "cutout": true,
     "title": "File:Porsche 911 GT3 RS (2022) 1X7A7164.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Porsche_911_GT3_RS_(2022)_1X7A7164.jpg",
     "author": "Alexander-93",
@@ -480,7 +540,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "61": {
-    "file": "61.jpg",
+    "file": "61.webp",
+    "cutout": true,
     "title": "File:Audi Sport Quattro S1-E2 Sachs Franken Classic 2018 P5190483.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Audi_Sport_Quattro_S1-E2_Sachs_Franken_Classic_2018_P5190483.jpg",
     "author": "Ermell",
@@ -488,7 +549,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "62": {
-    "file": "62.jpg",
+    "file": "62.webp",
+    "cutout": true,
     "title": "File:BMW M1, front right (Brooklyn).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:BMW_M1,_front_right_(Brooklyn).jpg",
     "author": "Mr.choppers",
@@ -496,7 +558,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
   },
   "63": {
-    "file": "63.jpg",
+    "file": "63.webp",
+    "cutout": true,
     "title": "File:Mercedes-Benz G63 AMG 6x6, Monaco diplomatic plates, front right.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Mercedes-Benz_G63_AMG_6x6,_Monaco_diplomatic_plates,_front_right.jpg",
     "author": "Mr.choppers",
@@ -504,7 +567,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
   },
   "64": {
-    "file": "64.jpg",
+    "file": "64.webp",
+    "cutout": true,
     "title": "File:Porsche 959 – Frontansicht (2), 21. März 2013, Düsseldorf.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Porsche_959_%E2%80%93_Frontansicht_(2),_21._M%C3%A4rz_2013,_D%C3%BCsseldorf.jpg",
     "author": "M 93",
@@ -512,7 +576,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/de/deed.en"
   },
   "65": {
-    "file": "65.jpg",
+    "file": "65.webp",
+    "cutout": true,
     "title": "File:Porsche 911 Carrera RS, Bj. 1972-73 (2016-07-02 01 Sp).JPG",
     "page": "https://commons.wikimedia.org/wiki/File:Porsche_911_Carrera_RS,_Bj._1972-73_(2016-07-02_01_Sp).JPG",
     "author": "Lothar Spurzem",
@@ -520,7 +585,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/de/deed.en"
   },
   "66": {
-    "file": "66.jpg",
+    "file": "66.webp",
+    "cutout": true,
     "title": "File:Porsche Carrera GT - Goodwood Breakfast Club (July 2008).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Porsche_Carrera_GT_-_Goodwood_Breakfast_Club_(July_2008).jpg",
     "author": "Brian Snelson from Hockley, Essex, England",
@@ -528,7 +594,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
   },
   "67": {
-    "file": "67.jpg",
+    "file": "67.webp",
+    "cutout": true,
     "title": "File:Mercedes-AMG One at the 2022 Goodwood Festival of Speed.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Mercedes-AMG_One_at_the_2022_Goodwood_Festival_of_Speed.jpg",
     "author": "Andrew Basterfield",
@@ -536,7 +603,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
   },
   "68": {
-    "file": "68.jpg",
+    "file": "68.webp",
+    "cutout": true,
     "title": "File:Fox Classic Car Collection, 2008 (02).JPG",
     "page": "https://commons.wikimedia.org/wiki/File:Fox_Classic_Car_Collection,_2008_(02).JPG",
     "author": "Bahnfrend",
@@ -544,7 +612,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "69": {
-    "file": "69.jpg",
+    "file": "69.webp",
+    "cutout": true,
     "title": "File:Fiat 124 Spider turquoise.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Fiat_124_Spider_turquoise.jpg",
     "author": "Pujanak",
@@ -552,7 +621,8 @@
     "licenseUrl": null
   },
   "70": {
-    "file": "70.jpg",
+    "file": "70.webp",
+    "cutout": true,
     "title": "File:Alfa Romeo Giulia (2023) IMG 8312.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Alfa_Romeo_Giulia_(2023)_IMG_8312.jpg",
     "author": "Alexander-93",
@@ -560,7 +630,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "71": {
-    "file": "71.jpg",
+    "file": "71.webp",
+    "cutout": true,
     "title": "File:Lancia Delta HF Integrale Evoluzione (Group A) 1X7A7246.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Lancia_Delta_HF_Integrale_Evoluzione_(Group_A)_1X7A7246.jpg",
     "author": "Alexander-93",
@@ -568,7 +639,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "72": {
-    "file": "72.jpg",
+    "file": "72.webp",
+    "cutout": true,
     "title": "File:Lamborghini Huracan STO 1X7A0297.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Lamborghini_Huracan_STO_1X7A0297.jpg",
     "author": "Alexander Migl",
@@ -576,7 +648,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "73": {
-    "file": "73.jpg",
+    "file": "73.webp",
+    "cutout": true,
     "title": "File:Ferrari Testarossa IMG 3043.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Ferrari_Testarossa_IMG_3043.jpg",
     "author": "Alexander Migl",
@@ -584,7 +657,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "74": {
-    "file": "74.jpg",
+    "file": "74.webp",
+    "cutout": true,
     "title": "File:1974 Lancia Stratos Stradale at Greenwich 2021, front left.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1974_Lancia_Stratos_Stradale_at_Greenwich_2021,_front_left.jpg",
     "author": "Mr.choppers",
@@ -592,7 +666,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
   },
   "75": {
-    "file": "75.jpg",
+    "file": "75.webp",
+    "cutout": true,
     "title": "File:Lamborghini Countach LP400 Periscopio (1976) Auto Zuerich 2021 IMG 0460.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Lamborghini_Countach_LP400_Periscopio_(1976)_Auto_Zuerich_2021_IMG_0460.jpg",
     "author": "Alexander Migl",
@@ -600,7 +675,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "76": {
-    "file": "76.jpg",
+    "file": "76.webp",
+    "cutout": true,
     "title": "File:F40 Ferrari 20090509.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:F40_Ferrari_20090509.jpg",
     "author": "Will ainsworth",
@@ -608,7 +684,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
   },
   "77": {
-    "file": "77.jpg",
+    "file": "77.webp",
+    "cutout": true,
     "title": "File:1971 Lamborghini Miura P400 SV.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1971_Lamborghini_Miura_P400_SV.jpg",
     "author": "Chelsea Jay",
@@ -616,7 +693,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "78": {
-    "file": "78.jpg",
+    "file": "78.webp",
+    "cutout": true,
     "title": "File:MC12. (5234528513).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:MC12._(5234528513).jpg",
     "author": "Damian Morys from New York City, United States",
@@ -624,7 +702,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
   },
   "79": {
-    "file": "79.jpg",
+    "file": "79.webp",
+    "cutout": true,
     "title": "File:LaFerrari in Beverly Hills (14563979888).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:LaFerrari_in_Beverly_Hills_(14563979888).jpg",
     "author": "Axion23",
@@ -632,7 +711,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
   },
   "80": {
-    "file": "80.jpg",
+    "file": "80.webp",
+    "cutout": true,
     "title": "File:Pagani Zonda 1.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Pagani_Zonda_1.jpg",
     "author": "LarryStevens",
@@ -640,7 +720,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
   },
   "81": {
-    "file": "81.jpg",
+    "file": "81.webp",
+    "cutout": true,
     "title": "File:1968 Alfa Romeo 33 Stradale, front right (Miller).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1968_Alfa_Romeo_33_Stradale,_front_right_(Miller).jpg",
     "author": "Mr.choppers",
@@ -648,7 +729,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
   },
   "82": {
-    "file": "82.jpg",
+    "file": "82.webp",
+    "cutout": true,
     "title": "File:1962 Ferrari 250 GTO SP25.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1962_Ferrari_250_GTO_SP25.jpg",
     "author": "MrWalkr",
@@ -656,7 +738,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "83": {
-    "file": "83.jpg",
+    "file": "83.webp",
+    "cutout": true,
     "title": "File:Mini Cooper S 1964 3.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Mini_Cooper_S_1964_3.jpg",
     "author": "DeFacto",
@@ -664,7 +747,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5"
   },
   "84": {
-    "file": "84.jpg",
+    "file": "84.webp",
+    "cutout": true,
     "title": "File:1973 Land Rover Range Rover 3.5.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1973_Land_Rover_Range_Rover_3.5.jpg",
     "author": "Vauxford",
@@ -672,7 +756,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "85": {
-    "file": "85.jpg",
+    "file": "85.webp",
+    "cutout": true,
     "title": "File:Land Rover Defender 110 Station Wagon 2016 - rear.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Land_Rover_Defender_110_Station_Wagon_2016_-_rear.jpg",
     "author": "DeFacto",
@@ -680,7 +765,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "86": {
-    "file": "86.jpg",
+    "file": "86.webp",
+    "cutout": true,
     "title": "File:2019 Rolls-Royce Phantom V12 Automatic 6.75.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:2019_Rolls-Royce_Phantom_V12_Automatic_6.75.jpg",
     "author": "Vauxford",
@@ -688,7 +774,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "87": {
-    "file": "87.jpg",
+    "file": "87.webp",
+    "cutout": true,
     "title": "File:Jaguar E-Type Series 1 3.8 Litre 1961.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Jaguar_E-Type_Series_1_3.8_Litre_1961.jpg",
     "author": "DeFacto",
@@ -696,7 +783,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "88": {
-    "file": "88.jpg",
+    "file": "88.webp",
+    "cutout": true,
     "title": "File:Aston Martin DB5 (Skyfall).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Aston_Martin_DB5_(Skyfall).jpg",
     "author": "DeFacto",
@@ -704,7 +792,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "89": {
-    "file": "89.jpg",
+    "file": "89.webp",
+    "cutout": true,
     "title": "File:McLaren P1.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:McLaren_P1.jpg",
     "author": "Axion23 (original) Tony Patt (cropped)",
@@ -712,7 +801,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
   },
   "90": {
-    "file": "90.jpg",
+    "file": "90.webp",
+    "cutout": true,
     "title": "File:Aston Martin Valkyrie Verification Prototype 001 Genf 2019 1Y7A5569.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Aston_Martin_Valkyrie_Verification_Prototype_001_Genf_2019_1Y7A5569.jpg",
     "author": "Alexander Migl",
@@ -720,7 +810,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "91": {
-    "file": "91.jpg",
+    "file": "91.webp",
+    "cutout": true,
     "title": "File:1996 McLaren F1 Chassis No 63 6.1 Front.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1996_McLaren_F1_Chassis_No_63_6.1_Front.jpg",
     "author": "Chelsea Jay",
@@ -728,7 +819,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "92": {
-    "file": "92.jpg",
+    "file": "92.webp",
+    "cutout": true,
     "title": "File:2004 Subaru Impreza WRX STi V-Limited.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:2004_Subaru_Impreza_WRX_STi_V-Limited.jpg",
     "author": "Calreyn88",
@@ -736,7 +828,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "93": {
-    "file": "93.jpg",
+    "file": "93.webp",
+    "cutout": true,
     "title": "File:Ford Escort MK1 RS1600 (53256822737).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Ford_Escort_MK1_RS1600_(53256822737).jpg",
     "author": "Neil",
@@ -744,7 +837,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
   },
   "94": {
-    "file": "94.jpg",
+    "file": "94.webp",
+    "cutout": true,
     "title": "File:1992 Toyota Celica GT-Four ST185 LC26.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:1992_Toyota_Celica_GT-Four_ST185_LC26.jpg",
     "author": "MrWalkr",
@@ -752,7 +846,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "95": {
-    "file": "95.jpg",
+    "file": "95.webp",
+    "cutout": true,
     "title": "File:2016 Rally GB - Kris Meeke.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:2016_Rally_GB_-_Kris_Meeke.jpg",
     "author": "Phil Thompson",
@@ -760,7 +855,8 @@
     "licenseUrl": null
   },
   "96": {
-    "file": "96.jpg",
+    "file": "96.webp",
+    "cutout": true,
     "title": "File:Peugeot 205 front 20080121.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Peugeot_205_front_20080121.jpg",
     "author": "Rudolf Stricker",
@@ -768,7 +864,8 @@
     "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
   },
   "97": {
-    "file": "97.jpg",
+    "file": "97.webp",
+    "cutout": true,
     "title": "File:Bugatti Veyron 16.4 – Frontansicht (1), 5. April 2012, Düsseldorf.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Bugatti_Veyron_16.4_%E2%80%93_Frontansicht_(1),_5._April_2012,_D%C3%BCsseldorf.jpg",
     "author": "M 93",
@@ -776,7 +873,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/de/deed.en"
   },
   "98": {
-    "file": "98.jpg",
+    "file": "98.webp",
+    "cutout": true,
     "title": "File:Rimac Nevera.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Rimac_Nevera.jpg",
     "author": "MrWalkr",
@@ -784,7 +882,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "99": {
-    "file": "99.jpg",
+    "file": "99.webp",
+    "cutout": true,
     "title": "File:Bugatti Chiron, GIMS 2018, Le Grand-Saconnex (1X7A1765).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Bugatti_Chiron,_GIMS_2018,_Le_Grand-Saconnex_(1X7A1765).jpg",
     "author": "Matti Blume",
@@ -792,7 +891,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "100": {
-    "file": "100.jpg",
+    "file": "100.webp",
+    "cutout": true,
     "title": "File:GIMS 2019, Le Grand-Saconnex (GIMS0833).jpg",
     "page": "https://commons.wikimedia.org/wiki/File:GIMS_2019,_Le_Grand-Saconnex_(GIMS0833).jpg",
     "author": "Matti Blume",
@@ -800,7 +900,8 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
   },
   "101": {
-    "file": "101.jpg",
+    "file": "101.webp",
+    "cutout": true,
     "title": "File:Mercedes-Benz 300 SLR Uhlenhaut Coupe - Petersen Automotive Museum - Los Angeles.jpg",
     "page": "https://commons.wikimedia.org/wiki/File:Mercedes-Benz_300_SLR_Uhlenhaut_Coupe_-_Petersen_Automotive_Museum_-_Los_Angeles.jpg",
     "author": "Guywelch2000",
