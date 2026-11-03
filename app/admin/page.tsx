@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { getItems, resetDataCache } from "@/lib/data";
 import { photoQuery, photoSource, photosEnabled } from "@/lib/carPhoto";
 import { CarImage } from "@/components/CarImage";
 import { ItemCard } from "@/components/ItemCard";
 import type { Item } from "@/lib/types";
-import { carName, coins, errMsg } from "@/lib/format";
+import { coins, errMsg } from "@/lib/format";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { CHAT_COLORS, CHAT_EFFECTS, ChatName, type ChatStyle } from "@/components/ChatName";
@@ -248,9 +248,6 @@ function UserEditor({ u, onChanged }: { u: U; onChanged: () => void }) {
   const [level, setLevel] = useState(String(u.level));
   const [affCode, setAffCode] = useState(u.aff_code ?? "");
   const [affRate, setAffRate] = useState(String(((u.aff_rate ?? 0.05) * 100).toFixed(1)));
-  const [items, setItems] = useState<Item[]>([]);
-  const [itemQ, setItemQ] = useState("");
-  const [itemId, setItemId] = useState<number | null>(null);
 
   const loadDetail = useCallback(async () => {
     const { data } = await sb().rpc("admin_user_detail", { p_user: u.id });
@@ -258,7 +255,6 @@ function UserEditor({ u, onChanged }: { u: U; onChanged: () => void }) {
   }, [u.id]);
   useEffect(() => {
     loadDetail();
-    getItems().then(setItems);
   }, [loadDetail]);
 
   const call = async (fn: string, args: Record<string, unknown>, ok: string) => {
@@ -270,7 +266,6 @@ function UserEditor({ u, onChanged }: { u: U; onChanged: () => void }) {
     if (u.id === user?.id) refresh();
   };
 
-  const filtered = useMemo(() => items.filter((i) => !itemQ || carName(i).toLowerCase().includes(itemQ.toLowerCase())).slice(0, 40), [items, itemQ]);
   const luckLabel = luck === 1 ? "normalno" : luck > 1 ? "više sreće" : "manje sreće";
 
   return (
@@ -281,7 +276,6 @@ function UserEditor({ u, onChanged }: { u: U; onChanged: () => void }) {
         {d && (
           <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
             <Mini l="Stanje" v={coins(u.balance)} />
-            <Mini l="Garaža" v={`${d.inventory_count} auta · ${coins(d.inventory_value)}`} />
             <Mini l="Odigrao" v={coins(d.wagered)} />
             <Mini l="Dobio" v={coins(d.payout)} />
           </div>
@@ -347,16 +341,8 @@ function UserEditor({ u, onChanged }: { u: U; onChanged: () => void }) {
         <p className="text-xs text-muted">Zaradio ukupno {coins(u.aff_earned ?? 0)} · {u.referrals} pozvanih</p>
       </Section>
 
-      <Section title={`Garaža (${d?.inventory_count ?? 0})`}>
-        <UserGarage key={d?.inventory_count ?? 0} userId={u.id} />
-      </Section>
-
-      <Section title="Daj auto">
-        <input className="input" placeholder="Traži auto" value={itemQ} onChange={(e) => setItemQ(e.target.value)} aria-label="Traži auto" />
-        <select className="input" size={5} value={itemId ?? ""} onChange={(e) => setItemId(Number(e.target.value))} aria-label="Odaberi auto">
-          {filtered.map((i) => <option key={i.id} value={i.id}>{carName(i)} ({i.year}) · {coins(i.value)}</option>)}
-        </select>
-        <button className="btn-ghost" disabled={!itemId} onClick={() => call("admin_give_item", { p_user: u.id, p_item: itemId }, "Auto je dodan u garažu.")}>Dodaj u garažu</button>
+      <Section title="Zadnji dropovi">
+        <UserGarage userId={u.id} />
       </Section>
 
       {d && (
@@ -393,7 +379,7 @@ function UserGarage({ userId }: { userId: string }) {
     sb().rpc("admin_user_garage", { p_user: userId }).then(({ data }) => setList(((data as Item[]) ?? []).map((i) => ({ ...i, value: Number(i.value) })) as never));
   }, [userId]);
   if (!list) return <div className="h-24 animate-pulse rounded-lg bg-panel2" />;
-  if (!list.length) return <p className="text-sm text-muted">Garaža je prazna.</p>;
+  if (!list.length) return <p className="text-sm text-muted">Još nema dropova.</p>;
   const shown = all ? list : list.slice(0, 12);
   return (
     <div>

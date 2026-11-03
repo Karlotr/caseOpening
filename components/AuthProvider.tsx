@@ -9,7 +9,6 @@ type Ctx = {
   user: User | null;
   profile: Profile | null;
   isAdmin: boolean;
-  garage: { count: number; value: number };
   loading: boolean;
   refresh: () => Promise<void>;
   // privremeno "zamrzni" prikaz stanja i garaže (npr. dok se vrti battle, da se rezultat ne vidi unaprijed)
@@ -17,7 +16,7 @@ type Ctx = {
   signOut: () => Promise<void>;
 };
 
-type Wallet = { balance: number; garage: { count: number; value: number } };
+type Wallet = { balance: number };
 
 const AuthCtx = createContext<Ctx | null>(null);
 
@@ -34,7 +33,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [garage, setGarage] = useState({ count: 0, value: 0 });
   const [hold, setHold] = useState<Wallet | null>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -45,14 +43,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAdmin(false);
         return;
       }
-      const [{ data }, { data: adm }, { data: gar }] = await Promise.all([
+      const [{ data }, { data: adm }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", u.id).maybeSingle(),
         supabase.rpc("am_i_admin"),
-        supabase.rpc("garage_summary"),
       ]);
       setProfile(data ? toProfile(data) : null);
       setIsAdmin(adm === true);
-      if (gar) setGarage({ count: Number((gar as { count: number }).count), value: Number((gar as { value: number }).value) });
     },
     [supabase]
   );
@@ -115,10 +111,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const shownProfile = useMemo(() => (hold && profile ? { ...profile, balance: hold.balance } : profile), [hold, profile]);
-  const shownGarage = hold ? hold.garage : garage;
 
   return (
-    <AuthCtx value={{ user, profile: shownProfile, isAdmin, garage: shownGarage, loading, refresh, holdWallet, signOut }}>{children}</AuthCtx>
+    <AuthCtx value={{ user, profile: shownProfile, isAdmin, loading, refresh, holdWallet, signOut }}>{children}</AuthCtx>
   );
 }
 

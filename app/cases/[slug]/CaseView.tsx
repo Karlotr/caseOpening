@@ -21,7 +21,7 @@ type OpenResult = { items: Item[]; instant_drop: number | null };
 
 export function CaseView() {
   const { slug } = useParams<{ slug: string }>();
-  const { user, profile, refresh } = useAuth();
+  const { user, profile, holdWallet } = useAuth();
   const rpc = useRpc();
   const toast = useToast();
   const celebrate = useCelebrate();
@@ -38,7 +38,6 @@ export function CaseView() {
   const [doorUp, setDoorUp] = useState(false);
   const [flash, setFlash] = useState<{ key: number; color: string } | null>(null);
   const [lastCost, setLastCost] = useState(0);
-  const [selling, setSelling] = useState(false);
   const busyRef = useRef(false);
   const reelsDone = useRef(0);
 
@@ -88,10 +87,12 @@ export function CaseView() {
       busyRef.current = false;
       return;
     }
+    // dobitak je već na računu — prikaži stanje "minus cijena" dok se ne odvrti
+    if (profile && c.case_type === "normal") holdWallet({ balance: Math.max(0, profile.balance - c.price * n) });
     setInstant(res.instant_drop ? Number(res.instant_drop) : null);
     setLastCost(c.case_type === "normal" ? c.price * n : 0);
     start(res.items.map((i) => ({ ...i, value: Number(i.value) })));
-  }, [c, count, rpc, start]);
+  }, [c, count, rpc, start, profile, holdWallet]);
 
   const demo = () => {
     if (!c || busyRef.current) return;
@@ -109,7 +110,7 @@ export function CaseView() {
     setShowWon(true);
     const real = !!won[0]?.inventory_id;
     if (!real) return;
-    await refresh();
+    holdWallet(null);
     const total = won.reduce((s, w) => s + w.value, 0);
     const ratio = lastCost ? total / lastCost : 1;
     const bestRank = Math.max(...won.map((w) => rarityRank(w.rarity)));
@@ -138,18 +139,10 @@ export function CaseView() {
     if (reelsDone.current === won.length) finished();
   };
 
-  const sellAll = async () => {
-    const ids = won.map((w) => w.inventory_id).filter(Boolean);
-    if (!ids.length) return;
-    setSelling(true);
-    const total = await rpc<number>("sell_items", { p_ids: ids });
-    setSelling(false);
-    if (total !== null) {
-      toast(`Prodano za ${coins(total)} coina`, "success");
-      setShowWon(false);
-      setWon([]);
-    }
-  };
+
+
+  // ako napustiš stranicu usred vrtnje, pokaži pravo stanje
+  useEffect(() => () => holdWallet(null), [holdWallet]);
 
   // razmaknica = otvori ponovno (samo kad je već otvorena kutija i prikazan rezultat pravog otvaranja)
   useEffect(() => {
@@ -246,10 +239,9 @@ export function CaseView() {
               items={won}
               cost={lastCost}
               demo={!won[0].inventory_id}
-              busy={spinning || selling}
+              busy={spinning}
               onAgain={won[0].inventory_id ? (canOpen ? open : undefined) : demo}
               againLabel={won[0].inventory_id ? <>Otvori ponovno za {costLabel}</> : "Vrti demo ponovno"}
-              onSell={won[0].inventory_id ? sellAll : undefined}
             />
           )}
         </div>

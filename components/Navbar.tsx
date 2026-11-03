@@ -57,7 +57,7 @@ function StaticLinks() {
 }
 
 function UserBox() {
-  const { user, profile, isAdmin, garage, loading, signOut } = useAuth();
+  const { user, profile, isAdmin, loading, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   if (loading) return <div className="h-9 w-40 animate-pulse rounded-md bg-white/5" />;
   if (!user)
@@ -76,18 +76,6 @@ function UserBox() {
       <div className="flex items-center gap-1.5 rounded-xl border border-accent/40 bg-accent/10 px-3 py-1.5 font-display text-base font-bold text-accent shadow-[0_0_24px_-8px_#ffb547]" title="Stanje (virtualni coini)">
         <span className="coin" /> <CountUp value={profile?.balance ?? 0} />
       </div>
-      <Link
-        href="/profile"
-        title="Tvoja garaža"
-        className="group flex items-center gap-2 rounded-xl border border-tail/40 bg-[linear-gradient(135deg,#ff2b4e26,#ffb5471a)] px-2.5 py-1.5 shadow-[0_0_24px_-10px_#ff2b4e] transition hover:border-tail/70 hover:shadow-[0_0_28px_-6px_#ff2b4e]"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-tail">
-          <path d="M3 21V9l9-6 9 6v12" /><path d="M7 21v-6h10v6" /><path d="M7 18h10" />
-        </svg>
-        <span className="hidden font-display text-[15px] font-bold leading-none sm:inline">Garaža</span>
-        <span className="grid h-6 min-w-6 place-items-center rounded-md bg-tail px-1 font-display text-sm font-extrabold text-white">{garage.count}</span>
-        <span className="hidden font-display text-sm font-bold text-accent xl:inline"><CountUp value={garage.value} /></span>
-      </Link>
       <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-white/5">
         <span className="grid h-9 w-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#5ce1ff,#8b5cf6)] font-display text-lg font-black text-ink shadow-[0_0_18px_-4px_#5ce1ff]" title="Level">
           {profile?.level ?? 1}
@@ -101,7 +89,7 @@ function UserBox() {
       </button>
       {open && (
         <div className="card absolute right-0 top-12 z-40 w-56 p-1.5 shadow-2xl" onMouseLeave={() => setOpen(false)}>
-          <Link href="/profile" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Garaža (inventar)</Link>
+          <Link href="/profile" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Profil i povijest</Link>
           <Link href="/rewards" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Nagrade i level</Link>
           <Link href="/affiliate" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Pozovi prijatelje</Link>
           <Link href="/nova-lozinka" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Promijeni lozinku</Link>

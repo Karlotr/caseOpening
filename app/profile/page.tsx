@@ -1,12 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { loadInventory, type InvRow } from "@/lib/inventory";
 import { coins, levelProgress } from "@/lib/format";
-import { useRpc } from "@/lib/useGame";
 import { useAuth } from "@/components/AuthProvider";
-import { useToast } from "@/components/Toast";
 import { RequireAuth } from "@/components/RequireAuth";
 import { ItemCard } from "@/components/ItemCard";
 
@@ -15,7 +13,7 @@ const GAME: Record<string, string> = { case: "Kutija", battle: "Battle", upgrade
 
 export default function ProfilePage() {
   return (
-    <RequireAuth what="vidjeti garažu">
+    <RequireAuth what="vidjeti profil">
       <Profile />
     </RequireAuth>
   );
@@ -23,35 +21,18 @@ export default function ProfilePage() {
 
 function Profile() {
   const { profile } = useAuth();
-  const rpc = useRpc();
-  const toast = useToast();
-  const [inv, setInv] = useState<InvRow[]>([]);
-  const [sel, setSel] = useState<number[]>([]);
+  const [drops, setDrops] = useState<InvRow[]>([]);
   const [logs, setLogs] = useState<Log[]>([]);
   const [sort, setSort] = useState<"new" | "value">("new");
 
-  const reload = useCallback(async () => {
-    setInv(await loadInventory());
-    const { data } = await createClient().from("game_log").select("id, game, wager, payout, created_at").order("created_at", { ascending: false }).limit(30);
-    setLogs((data ?? []) as Log[]);
-  }, []);
   useEffect(() => {
-    reload();
-  }, [reload]);
+    loadInventory("all", 48).then(setDrops);
+    createClient().from("game_log").select("id, game, wager, payout, created_at").order("created_at", { ascending: false }).limit(30)
+      .then(({ data }) => setLogs((data ?? []) as Log[]));
+  }, []);
 
-  const list = useMemo(() => (sort === "value" ? [...inv].sort((a, b) => b.item.value - a.item.value) : inv), [inv, sort]);
-  const total = inv.reduce((s, r) => s + r.item.value, 0);
-  const selTotal = inv.filter((r) => sel.includes(r.id)).reduce((s, r) => s + r.item.value, 0);
-
-  const sell = async (ids: number[]) => {
-    if (!ids.length) return;
-    const t = await rpc<number>("sell_items", { p_ids: ids });
-    if (t !== null) {
-      toast(`Prodano ${ids.length} automobila za ${coins(t)} coina`, "success");
-      setSel([]);
-      reload();
-    }
-  };
+  const list = useMemo(() => (sort === "value" ? [...drops].sort((a, b) => b.item.value - a.item.value) : drops), [drops, sort]);
+  const best = drops.reduce<InvRow | null>((a, r) => (!a || r.item.value > a.item.value ? r : a), null);
 
   if (!profile) return null;
   const lp = levelProgress(profile.xp, profile.level);
@@ -62,28 +43,23 @@ function Profile() {
         <Stat label="Vozač" value={profile.username} />
         <Stat label="Level" value={`${profile.level} · ${lp.pct.toFixed(0)}%`} />
         <Stat label="Stanje" value={coins(profile.balance)} accent />
-        <Stat label="Vrijednost garaže" value={coins(total)} accent />
+        <Stat label="Najbolji nedavni drop" value={best ? `${best.item.model} · ${coins(best.item.value)}` : "—"} accent />
       </section>
 
       <section>
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <h1 className="h1 mr-auto">Moja garaža <span className="text-base font-normal text-muted">({inv.length})</span></h1>
-          <select className="input w-auto" value={sort} onChange={(e) => setSort(e.target.value as "new" | "value")}>
+          <h1 className="h1 mr-auto">Zadnji dropovi</h1>
+          <select className="input w-auto" value={sort} onChange={(e) => setSort(e.target.value as "new" | "value")} aria-label="Poredak">
             <option value="new">Najnovije</option>
             <option value="value">Najvrjednije</option>
           </select>
-          <button className="btn-ghost" disabled={!sel.length} onClick={() => sell(sel)}>Prodaj odabrano ({coins(selTotal)})</button>
-          <button className="btn-ghost" disabled={!inv.length} onClick={() => sel.length === inv.length ? setSel([]) : setSel(inv.map((r) => r.id))}>
-            {sel.length === inv.length && inv.length ? "Poništi odabir" : "Odaberi sve"}
-          </button>
         </div>
-        {inv.length === 0 ? (
-          <div className="card p-8 text-center text-sm text-muted">Garaža je prazna. Otvori kutiju ili preuzmi dnevnu nagradu!</div>
+        <p className="mb-3 text-sm text-muted">Vrijednost svakog auta ide odmah na tvoj račun.</p>
+        {drops.length === 0 ? (
+          <div className="card p-8 text-center text-sm text-muted">Još nemaš dropova. Otvori kutiju ili preuzmi dnevnu nagradu!</div>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            {list.map((r) => (
-              <ItemCard key={r.id} item={r.item} size="sm" selected={sel.includes(r.id)} onClick={() => setSel((s) => (s.includes(r.id) ? s.filter((x) => x !== r.id) : [...s, r.id]))} />
-            ))}
+            {list.map((r) => <ItemCard key={r.id} item={r.item} size="sm" />)}
           </div>
         )}
       </section>

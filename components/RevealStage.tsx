@@ -14,7 +14,6 @@ export function RevealStage({
   demo,
   againLabel,
   onAgain,
-  onSell,
   busy,
 }: {
   items: Item[];
@@ -22,7 +21,6 @@ export function RevealStage({
   demo?: boolean;
   againLabel: React.ReactNode;
   onAgain?: () => void;
-  onSell?: () => void;
   busy?: boolean;
 }) {
   const [shown, setShown] = useState(0);
@@ -102,12 +100,8 @@ export function RevealStage({
             {againLabel}
           </button>
         )}
-        {onSell && !demo && (
-          <button className="btn-ghost py-3" onClick={onSell} disabled={busy}>
-            Prodaj za {coins(total)}
-          </button>
-        )}
-        <span className="self-center text-xs text-muted">Razmaknica = otvori ponovno</span>
+        {!demo && allShown && <span className="self-center rounded-lg bg-accent/10 px-3 py-2 text-sm font-semibold text-accent">+{coins(total)} dodano na račun</span>}
+        {!demo && <span className="self-center text-xs text-muted">Razmaknica = otvori ponovno</span>}
       </div>
     </div>
   );

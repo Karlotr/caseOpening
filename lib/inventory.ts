@@ -5,8 +5,9 @@ import type { Item } from "./types";
 
 export type InvRow = { id: number; created_at: string; source: string; status: string; item: Item };
 
-export async function loadInventory(status: "owned" | "all" = "owned"): Promise<InvRow[]> {
-  let q = createClient().from("inventory").select("id, created_at, source, status, items(*)").order("created_at", { ascending: false }).limit(500);
+// zapis svih dropova (vrijednost ide odmah na račun)
+export async function loadInventory(status: "owned" | "all" = "all", limit = 500): Promise<InvRow[]> {
+  let q = createClient().from("inventory").select("id, created_at, source, status, items(*)").order("created_at", { ascending: false }).limit(limit);
   if (status === "owned") q = q.eq("status", "owned");
   const { data } = await q;
   return (data ?? []).map((r) => {

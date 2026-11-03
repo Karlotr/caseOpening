@@ -419,11 +419,14 @@ begin
 
   for i in 1..p_count loop
     item_id := public._roll_case(c.id, public._luck(uid));
-    insert into public.inventory (user_id, item_id, source) values (uid, item_id, 'case:' || c.slug)
+    -- bez garaže: vrijednost auta ide odmah na račun (zapis ostaje radi feeda dropova)
+    insert into public.inventory (user_id, item_id, source, status) values (uid, item_id, 'case:' || c.slug, 'sold')
       returning id into inv_id;
     total_value := total_value + (select value from public.items where id = item_id);
     results := results || jsonb_build_array(public._item_json(item_id) || jsonb_build_object('inventory_id', inv_id));
   end loop;
+
+  update public.profiles set balance = balance + total_value where id = uid;
 
   if cost > 0 then
     lvl := public._apply_wager(uid, cost);
@@ -439,6 +442,17 @@ begin
 
   return jsonb_build_object('items', results, 'instant_drop', instant) || lvl;
 end $$;
+
+-- ---------- GARAŽA UKINUTA: auti koji su još u garažama prodaju se po vrijednosti (jednokratno) ----------
+with owned as (
+  update public.inventory inv set status = 'sold'
+    from public.items i
+   where i.id = inv.item_id and inv.status = 'owned'
+  returning inv.user_id, i.value
+)
+update public.profiles p set balance = p.balance + t.v
+  from (select user_id, sum(value) v from owned group by user_id) t
+ where p.id = t.user_id;
 
 -- ---------- GARAŽA (sažetak za navigaciju) ----------
 create or replace function public.garage_summary()
@@ -504,7 +518,8 @@ begin
 
   update public.inventory set status = 'upgraded' where id = any(p_ids);
   if won then
-    insert into public.inventory (user_id, item_id, source) values (uid, p_target_item, 'upgrader') returning id into inv_id;
+    insert into public.inventory (user_id, item_id, source, status) values (uid, p_target_item, 'upgrader', 'sold') returning id into inv_id;
+    update public.profiles set balance = balance + target where id = uid;
   end if;
   lvl := public._apply_wager(uid, input_value);
   insert into public.game_log (user_id, game, wager, payout, details)
@@ -639,8 +654,9 @@ begin
   select * into c from public.cases where case_type = 'daily' and streak_min <= streak
    order by streak_min desc limit 1;
   item_id := public._roll_case(c.id, public._luck(uid));
-  insert into public.inventory (user_id, item_id, source) values (uid, item_id, 'daily:' || c.slug) returning id into inv_id;
-  update public.profiles set daily_streak = streak, last_daily_at = now() where id = uid;
+  insert into public.inventory (user_id, item_id, source, status) values (uid, item_id, 'daily:' || c.slug, 'sold') returning id into inv_id;
+  update public.profiles set daily_streak = streak, last_daily_at = now(),
+         balance = balance + (select value from public.items where id = item_id) where id = uid;
   insert into public.game_log (user_id, game, wager, payout, details)
   values (uid, 'daily', 0, (select value from public.items where id = item_id), jsonb_build_object('streak', streak, 'case', c.slug));
   return jsonb_build_object('streak', streak, 'case', c.slug,
@@ -789,9 +805,9 @@ begin
 
   select coalesce(sum(i.value), 0) into pot_total from public.battle_drops d join public.items i on i.id = d.item_id where d.battle_id = p_id;
 
-  -- svi dropovi idu pobjedničkom timu (redom po igračima, botovi "uzmu" svoj dio).
-  -- Igrač koji je posudio dio ulaza dobiva samo svoj udio (stake) vrijednosti:
-  -- najprije auti (od najvrjednijeg koji stane u udio), ostatak u coinima.
+  -- PRAVEDNA RASPODJELA: ukupna vrijednost svih dropova dijeli se jednako na sva mjesta pobjedničkog tima.
+  -- Svaki pobjednik dobiva (ukupno / broj mjesta u timu) × svoj udio ulaza (posudba), sve u coinima.
+  -- Dio bota u pobjedničkom timu ostaje kući (inače bi popunjavanje botovima bilo isplativo).
   select array_agg(coalesce(user_id, '00000000-0000-0000-0000-000000000000'::uuid) order by seat),
          array_agg(stake order by seat)
     into winners, stakes
@@ -806,32 +822,14 @@ begin
     perform public._apply_wager(pl.user_id, paid);
     payout := 0;
     if pl.team = win_team then
-      wi := array_position(winners, pl.user_id);
-      select coalesce(sum(x.value), 0) into share from (
-        select i.value, row_number() over (order by d.round, d.seat) - 1 as k
-          from public.battle_drops d join public.items i on i.id = d.item_id where d.battle_id = p_id
-      ) x where x.k % nw = wi - 1;
-      budget := round(share * pl.stake, 2);
+      budget := round(pot_total / nw * pl.stake, 2);
       given := 0;
-      for drp in
-        select x.item_id, x.value from (
-          select d.item_id, i.value, row_number() over (order by d.round, d.seat) - 1 as k
-            from public.battle_drops d join public.items i on i.id = d.item_id where d.battle_id = p_id
-        ) x where x.k % nw = wi - 1 order by x.value desc
-      loop
-        if given + drp.value <= budget + 0.001 then
-          insert into public.inventory (user_id, item_id, source) values (pl.user_id, drp.item_id, 'battle');
-          given := given + drp.value;
-        end if;
-      end loop;
-      if budget - given > 0 then
-        update public.profiles set balance = balance + round(budget - given, 2) where id = pl.user_id;
-      end if;
+      update public.profiles set balance = balance + budget where id = pl.user_id;
       payout := budget;
     end if;
     insert into public.game_log (user_id, game, wager, payout, details)
     values (pl.user_id, 'battle', paid, payout,
-            jsonb_build_object('battle', p_id, 'mode', b.mode, 'won', pl.team = win_team, 'stake', pl.stake, 'coins', case when pl.team = win_team then round(budget - given, 2) else 0 end));
+            jsonb_build_object('battle', p_id, 'mode', b.mode, 'won', pl.team = win_team, 'stake', pl.stake, 'coins', case when pl.team = win_team then budget else 0 end));
   end loop;
 end $$;
 
@@ -1209,10 +1207,10 @@ create or replace function public.admin_user_garage(p_user uuid)
 returns jsonb language plpgsql stable security definer set search_path = public as $$
 declare a uuid := public._admin();
 begin
-  return coalesce((select jsonb_agg(x order by x.value desc, x.inventory_id desc) from (
+  return coalesce((select jsonb_agg(x order by x.created_at desc) from (
     select inv.id as inventory_id, inv.source, inv.created_at, i.*
       from public.inventory inv join public.items i on i.id = inv.item_id
-     where inv.user_id = p_user and inv.status = 'owned') x), '[]'::jsonb);
+     where inv.user_id = p_user order by inv.created_at desc limit 60) x), '[]'::jsonb);
 end $$;
 grant execute on function public.admin_user_garage(uuid) to authenticated;
 
@@ -1263,7 +1261,8 @@ returns void language plpgsql security definer set search_path = public as $$
 declare a uuid := public._admin();
 begin
   if not exists (select 1 from public.items where id = p_item) then raise exception 'Auto ne postoji.'; end if;
-  insert into public.inventory (user_id, item_id, source) values (p_user, p_item, 'admin');
+  insert into public.inventory (user_id, item_id, source, status) values (p_user, p_item, 'admin', 'sold');
+  update public.profiles set balance = balance + (select value from public.items where id = p_item) where id = p_user;
   perform public._admin_log(a, p_user, 'give_item', jsonb_build_object('item', p_item));
 end $$;
 

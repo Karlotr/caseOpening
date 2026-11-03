@@ -135,7 +135,7 @@ function Rewards() {
           {dailyWon && !spinning && (
             <div className="pop flex items-center gap-3">
               <div className="w-40"><ItemCard item={dailyWon} size="sm" /></div>
-              <div className="text-sm">Osvojio si <b>{dailyWon.brand} {dailyWon.model}</b>! <Link href="/profile" className="text-accent2 underline">Otvori garažu</Link></div>
+              <div className="text-sm">Osvojio si <b>{dailyWon.brand} {dailyWon.model}</b>! <span className="text-accent">+{coins(dailyWon.value)}</span> na račun.</div>
             </div>
           )}
           <div className="flex flex-wrap items-center gap-3">

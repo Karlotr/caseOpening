@@ -69,7 +69,7 @@ export default function Home() {
                 Ferrarija 250 GTO
               </h1>
               <p className="mt-5 max-w-md text-lg leading-relaxed text-muted">
-                Otvaraj kutije s pravim modelima i oldtajmerima, bori se u battleovima i slaži svoju garažu.
+                Otvaraj kutije s pravim modelima i oldtajmerima, bori se u battleovima i skupljaj coine.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link href="/cases" className="btn-primary px-7 py-3.5 text-lg">Otvori kutiju</Link>

@@ -26,7 +26,7 @@ type Phase = "idle" | "rounds" | "roulette" | "done";
 
 export function BattleView() {
   const { id } = useParams<{ id: string }>();
-  const { user, profile, garage, refresh, holdWallet } = useAuth();
+  const { user, profile, refresh, holdWallet } = useAuth();
   const rpc = useRpc();
   const toast = useToast();
   const { shareBattle } = useChat();
@@ -120,14 +120,14 @@ export function BattleView() {
       sfx.lightsOut();
       if (user && players.some((p) => p.user_id === user.id) && profile && !heldRef.current) {
         heldRef.current = true;
-        holdWallet({ balance: profile.balance, garage });
+        holdWallet({ balance: profile.balance });
       }
       startPlayback();
     } else {
       setRevealed(rounds);
       setPhase("done");
     }
-  }, [battle, drops, cases, items, rounds, startPlayback, user, players, profile, garage, holdWallet]);
+  }, [battle, drops, cases, items, rounds, startPlayback, user, players, profile, holdWallet]);
 
   // kad animacija završi (ili napustiš stranicu) pokaži pravo stanje
   useEffect(() => {
@@ -220,18 +220,13 @@ export function BattleView() {
     if (!me) return;
     const winners = players.filter((p) => p.team === battle.winner_team);
     if (me.team === battle.winner_team) {
-      const myItems: Item[] = [];
-      drops
-        .slice()
-        .sort((a, b) => a.round - b.round || a.seat - b.seat)
-        .forEach((d, k) => {
-          if (winners[k % winners.length]?.user_id === user?.id && items.get(d.item_id)) myItems.push(items.get(d.item_id)!);
-        });
-      const full = myItems.reduce((s, i) => s + i.value, 0);
+      // pravedno: ukupna vrijednost / broj mjesta u pobjedničkom timu × vlastiti udio ulaza
+      const pot = drops.reduce((sum, d) => sum + (items.get(d.item_id)?.value ?? 0), 0);
+      const full = pot / Math.max(1, winners.length);
       const val = Math.round(full * me.stake * 100) / 100;
       // bez velikog popupa u battleu — samo zvuk i kratka obavijest
       sfx.win(val >= battle.cost * 3 ? 3 : val >= battle.cost * 1.5 ? 2 : 1);
-      toast(`Pobjeda! +${coins(val)} u garaži`, "gold");
+      toast(`Pobjeda! +${coins(val)} na račun`, "gold");
     } else {
       sfx.lose();
       toast(`Battle je dobio ${teamName(battle.winner_team ?? 0)}. Probaj ponovno.`, "error");
@@ -259,7 +254,7 @@ export function BattleView() {
   const join = async (seat: number) => {
     if (!battle || !profile) return;
     const paid = battle.sponsored ? 0 : Math.round(battle.cost * stake * 100) / 100;
-    const before = { balance: Math.max(0, profile.balance - paid), garage };
+    const before = { balance: Math.max(0, profile.balance - paid) };
     setBusy(true);
     const r = await rpc<{ ok: boolean; started: boolean }>("join_battle", { p_id: battle.id, p_seat: seat, p_stake: battle.sponsored ? 1 : stake }, { silentRefresh: true });
     setBusy(false);
@@ -365,12 +360,15 @@ export function BattleView() {
           <span className="checker h-10 w-10 rounded" />
           <div>
             <div className="text-sm text-muted">Pobjednik</div>
-            <div className="break-words font-display text-3xl font-black leading-none">{myWin ? "Ti! Auti su u tvojoj garaži." : teamName(battle.winner_team ?? 0)}</div>
+            <div className="break-words font-display text-3xl font-black leading-none">{myWin ? "Ti!" : teamName(battle.winner_team ?? 0)}</div>
+            <div className="mt-1 text-sm text-muted">
+              Ukupno {coins(battle.total_value ?? 0)}
+              {battle.team_size > 1 && <> · svaki pobjednik dobiva {coins((battle.total_value ?? 0) / battle.team_size)}</>}
+            </div>
           </div>
           <div className="ml-auto flex gap-2">
             <button className="btn-ghost" onClick={startPlayback}>Pogledaj ponovno</button>
             {user && <button className="btn-ghost" onClick={() => shareBattle(battle.id)}>Podijeli u chat</button>}
-            {myWin && <Link className="btn-primary" href="/profile">Otvori garažu</Link>}
           </div>
         </div>
       )}
