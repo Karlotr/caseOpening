@@ -21,6 +21,7 @@ export default function CreateBattle() {
   const [stake, setStake] = useState(1);
   const [sponsored, setSponsored] = useState(false);
   const [priv, setPriv] = useState(false);
+  const [fast, setFast] = useState(false);
   const [picked, setPicked] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -40,7 +41,7 @@ export default function CreateBattle() {
 
   const create = async () => {
     setBusy(true);
-    const id = await rpc<string>("create_battle", { p_mode: mode, p_case_ids: picked, p_crazy: crazy, p_jackpot: jackpot, p_stake: stake, p_sponsored: sponsored, p_private: priv });
+    const id = await rpc<string>("create_battle", { p_mode: mode, p_case_ids: picked, p_crazy: crazy, p_jackpot: jackpot, p_stake: stake, p_sponsored: sponsored, p_private: priv, p_fast: fast });
     setBusy(false);
     if (id) router.push(`/battles/${id}`);
   };
@@ -58,7 +59,7 @@ export default function CreateBattle() {
               ))}
             </div>
             <p className="mt-2 text-xs text-muted">
-              {m.seats} igrača{m.team > 1 ? `, timovi po ${m.team}` : ", svatko za sebe"}. Pobjednički tim dijeli sve osvojene automobile.
+              {m.seats} igrača{m.team > 1 ? `, timovi po ${m.team}` : ", svatko za sebe"}. Pobjednički tim dijeli ukupnu vrijednost na jednake dijelove.
             </p>
           </div>
           <div>
@@ -88,10 +89,11 @@ export default function CreateBattle() {
             </div>
           </div>
           <div>
-            <span className="label">Pristup</span>
+            <span className="label">Opcije</span>
             <div className="grid gap-2 sm:grid-cols-2">
               <Toggle on={sponsored} set={setSponsored} title="Sponzoriraj" desc={`Plaćaš i ${m.seats - 1} ${m.seats - 1 === 1 ? "mjesto" : "mjesta"} za druge, oni ulaze besplatno. Mjesta koja popune botovi vraćaju ti se.`} tone="emerald" />
               <Toggle on={priv} set={setPriv} title="Privatni" desc="Ne prikazuje se na popisu battleova. Ulazi se samo preko linka koji podijeliš." tone="fuchsia" />
+              <Toggle on={fast} set={setFast} title="Brzo" desc="Vrtnje traju oko sekunde. Zlatni (rijetki) dropovi i dalje imaju punu animaciju." tone="emerald" />
             </div>
           </div>
           <div className="space-y-3 border-t border-line pt-4">

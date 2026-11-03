@@ -70,6 +70,7 @@ export default function BattlesPage() {
                   {b.crazy && <span className="w-fit rounded bg-fuchsia-500/20 px-1.5 text-xs font-bold text-fuchsia-300">Crazy</span>}
                   {b.jackpot && <span className="w-fit rounded bg-emerald-400/20 px-1.5 text-xs font-bold text-emerald-300">Jackpot</span>}
                   {b.sponsored && <span className="w-fit rounded bg-amber-400/20 px-1.5 text-xs font-bold text-amber-300">Besplatan ulaz</span>}
+                  {b.fast && <span className="w-fit rounded bg-emerald-400/15 px-1.5 text-xs font-bold text-emerald-300">Brzo</span>}
                 </span>
               </div>
               <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">

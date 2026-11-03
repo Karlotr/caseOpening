@@ -82,24 +82,7 @@ export function BattleView() {
   const isCrazy = !!battle?.crazy;
 
   const reelsDone = useRef(0);
-  // brzi mod (pamti se po pregledniku)
-  const [fast, setFast] = useState(false);
-  const fastRef = useRef(false);
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem("battle-fast") === "1";
-      fastRef.current = v;
-      setFast(v);
-    } catch {}
-  }, []);
-  const toggleFast = () => {
-    const v = !fastRef.current;
-    fastRef.current = v;
-    setFast(v);
-    try {
-      localStorage.setItem("battle-fast", v ? "1" : "0");
-    } catch {}
-  };
+
   const heldRef = useRef(false);
   const spinRound = useCallback(
     (r: number) => {
@@ -166,7 +149,7 @@ export function BattleView() {
       const next = r + 1;
       // u brzom modu kratka pauza, osim ako je u rundi pao zlatni (rijetki) auto
       const gold = drops.some((d) => d.round === next && rarityRank(items.get(d.item_id)?.rarity ?? "common") >= 4);
-      const pause = fastRef.current && !gold ? FAST_PAUSE : ROUND_PAUSE;
+      const pause = battle?.fast && !gold ? FAST_PAUSE : ROUND_PAUSE;
       setTimeout(() => {
         if (next < rounds) spinRound(next);
         else if (battle?.jackpot) {
@@ -313,6 +296,7 @@ export function BattleView() {
             </span>
             {battle.sponsored && <span className="rounded bg-amber-400/20 px-2 py-0.5 font-display text-base font-bold text-amber-300">Sponzorirano</span>}
             {battle.private && <span className="rounded bg-panel2 px-2 py-0.5 font-display text-base font-bold text-muted">Privatni</span>}
+            {battle.fast && <span className="rounded bg-emerald-400/15 px-2 py-0.5 font-display text-base font-bold text-emerald-300">Brzo</span>}
           </h1>
           <p className="mt-1 text-sm text-muted">
             {modeDesc(battle)}
@@ -345,16 +329,7 @@ export function BattleView() {
             </div>
           ) : null;
         })}
-        <button
-          type="button"
-          onClick={toggleFast}
-          aria-pressed={fast}
-          title="Brzo: vrtnje se skoro preskaču, zlatni dropovi i dalje imaju punu animaciju"
-          className={`ml-auto self-center whitespace-nowrap rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${fast ? "border-accent2 bg-accent2/15 text-accent2" : "border-line text-muted hover:text-fg"}`}
-        >
-          Brzo {fast ? "uklj." : "isklj."}
-        </button>
-        <div className="self-center whitespace-nowrap px-3 font-display text-xl font-bold">
+        <div className="ml-auto self-center whitespace-nowrap px-3 font-display text-xl font-bold">
           Runda {Math.min(revealed + (spinning ? 1 : 0), rounds)}<span className="text-muted">/{rounds}</span>
         </div>
       </div>
@@ -464,7 +439,7 @@ export function BattleView() {
                             </div>
                           ) : phase === "rounds" && strips[seat] ? (
                             <div className="relative">
-                              <Reel vertical items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} winnerIndex={WIN} spinKey={spinKey} duration={fast ? FAST_SPIN : 3600} sound={seat === 0} onDone={onReelDone} />
+                              <Reel vertical items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} winnerIndex={WIN} spinKey={spinKey} duration={battle.fast ? FAST_SPIN : 3600} sound={seat === 0} onDone={onReelDone} />
                             </div>
                           ) : phase === "rounds" ? (
                             <div className="h-[336px] rounded-2xl border border-line bg-[linear-gradient(180deg,#0c0c1c,#07070f)]" />

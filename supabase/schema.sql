@@ -104,6 +104,7 @@ create table if not exists public.battles (
 alter table public.battles add column if not exists sponsored boolean not null default false;
 -- v8: privatni battle — ne prikazuje se na popisu, ulazi se preko linka
 alter table public.battles add column if not exists private boolean not null default false;
+alter table public.battles add column if not exists fast boolean not null default false;
 
 -- v2: Jackpot mod (pobjednik se izvlači proporcionalno vrijednosti)
 alter table public.battles add column if not exists jackpot boolean not null default false;
@@ -706,7 +707,8 @@ drop function if exists public.create_battle(text, int[], boolean);
 drop function if exists public.create_battle(text, int[], boolean, boolean);
 drop function if exists public.create_battle(text, int[], boolean, boolean, numeric);
 drop function if exists public.create_battle(text, int[], boolean, boolean, numeric, boolean);
-create or replace function public.create_battle(p_mode text, p_case_ids int[], p_crazy boolean default false, p_jackpot boolean default false, p_stake numeric default 1, p_sponsored boolean default false, p_private boolean default false)
+drop function if exists public.create_battle(text, int[], boolean, boolean, numeric, boolean, boolean);
+create or replace function public.create_battle(p_mode text, p_case_ids int[], p_crazy boolean default false, p_jackpot boolean default false, p_stake numeric default 1, p_sponsored boolean default false, p_private boolean default false, p_fast boolean default false)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare
   uid uuid := public._uid();
@@ -737,8 +739,8 @@ begin
   -- sponzor plaća i mjesta za ostale igrače
   perform public._charge(uid, round(cost * stake, 2) + case when coalesce(p_sponsored, false) then cost * (seats - 1) else 0 end);
   select username into uname from public.profiles where id = uid;
-  insert into public.battles (creator_id, mode, seats, team_size, case_ids, cost, crazy, jackpot, sponsored, private)
-  values (uid, p_mode, seats, tsize, p_case_ids, cost, coalesce(p_crazy, false), coalesce(p_jackpot, false), coalesce(p_sponsored, false), coalesce(p_private, false)) returning id into bid;
+  insert into public.battles (creator_id, mode, seats, team_size, case_ids, cost, crazy, jackpot, sponsored, private, fast)
+  values (uid, p_mode, seats, tsize, p_case_ids, cost, coalesce(p_crazy, false), coalesce(p_jackpot, false), coalesce(p_sponsored, false), coalesce(p_private, false), coalesce(p_fast, false)) returning id into bid;
   insert into public.battle_players (battle_id, seat, team, user_id, name, stake, paid)
   values (bid, 0, 0, uid, uname, stake, round(cost * stake, 2) + case when coalesce(p_sponsored, false) then cost * (seats - 1) else 0 end);
   return bid;
@@ -951,7 +953,7 @@ grant execute on function public.play_trinity(numeric, text) to authenticated;
 grant execute on function public.play_jackpot(numeric) to authenticated;
 grant execute on function public.claim_daily() to authenticated;
 grant execute on function public.claim_reward(text) to authenticated;
-grant execute on function public.create_battle(text, int[], boolean, boolean, numeric, boolean, boolean) to authenticated;
+grant execute on function public.create_battle(text, int[], boolean, boolean, numeric, boolean, boolean, boolean) to authenticated;
 grant execute on function public.join_battle(uuid, int, numeric) to authenticated;
 grant execute on function public.fill_battle_bots(uuid) to authenticated;
 grant execute on function public.cancel_battle(uuid) to authenticated;
