@@ -17,7 +17,6 @@ import { ItemCard } from "@/components/ItemCard";
 import { Reel } from "@/components/Reel";
 import { NameReel, type Entry } from "@/components/NameReel";
 import { CountUp } from "@/components/CountUp";
-import { useCelebrate } from "@/components/WinOverlay";
 import { useChat } from "@/components/Chat";
 import { StakePicker } from "@/components/StakePicker";
 
@@ -30,7 +29,6 @@ export function BattleView() {
   const { user, profile, garage, refresh, holdWallet } = useAuth();
   const rpc = useRpc();
   const toast = useToast();
-  const celebrate = useCelebrate();
   const { shareBattle } = useChat();
   const [battle, setBattle] = useState<Battle | null>(null);
   const [players, setPlayers] = useState<BattlePlayer[]>([]);
@@ -231,18 +229,14 @@ export function BattleView() {
         });
       const full = myItems.reduce((s, i) => s + i.value, 0);
       const val = Math.round(full * me.stake * 100) / 100;
-      celebrate({
-        title: me.stake < 1 ? `Pobjeda! (${Math.round(me.stake * 100)}%)` : "Pobjeda!",
-        subtitle: isJackpot ? "Rulet je izvukao tebe" : isCrazy ? "Crazy battle je tvoj" : "Tvoja garaža je bila najjača",
-        items: me.stake < 1 ? undefined : myItems,
-        amount: val,
-        tier: val >= battle.cost * 3 ? 3 : val >= battle.cost * 1.5 ? 2 : 1,
-      });
+      // bez velikog popupa u battleu — samo zvuk i kratka obavijest
+      sfx.win(val >= battle.cost * 3 ? 3 : val >= battle.cost * 1.5 ? 2 : 1);
+      toast(`Pobjeda! +${coins(val)} u garaži`, "gold");
     } else {
       sfx.lose();
       toast(`Battle je dobio ${teamName(battle.winner_team ?? 0)}. Probaj ponovno.`, "error");
     }
-  }, [announce, battle, players, user, drops, items, celebrate, toast, teamName, isJackpot, isCrazy, refresh]);
+  }, [announce, battle, players, user, drops, items, toast, teamName, isJackpot, isCrazy, refresh]);
 
   if (notFound) return <div className="card p-8 text-center">Ovaj battle ne postoji. <Link href="/battles" className="text-accent2">Natrag na battles</Link></div>;
   if (!battle) return <div className="card h-96 animate-pulse" />;
