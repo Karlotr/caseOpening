@@ -1,26 +1,95 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-bg: #0c0d10;
+  --color-panel: #15171c;
+  --color-panel2: #1c1f26;
+  --color-line: #2a2e37;
+  --color-fg: #eceef2;
+  --color-muted: #8b92a1;
+  --color-accent: #facc15;
+  --color-accent2: #f97316;
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-display: var(--font-chakra), var(--font-geist-sans), sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html { color-scheme: dark; }
+
+body {
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(250, 204, 21, 0.06), transparent 60%),
+    radial-gradient(900px 400px at 100% 0%, rgba(249, 115, 22, 0.05), transparent 60%),
+    var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-bold text-black transition hover:brightness-110 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-line bg-panel px-4 py-2 text-sm font-semibold transition hover:border-white/25 hover:bg-panel2 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .card {
+    @apply rounded-xl border border-line bg-panel;
+  }
+  .input {
+    @apply w-full rounded-md border border-line bg-black/30 px-3 py-2 text-sm outline-none transition focus:border-accent;
+  }
+  .h1 {
+    @apply font-display text-2xl font-bold tracking-wide sm:text-3xl;
+  }
+  .label {
+    @apply mb-1 block text-xs font-semibold uppercase tracking-wider text-muted;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.coin {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 35%, #fff3a3, #facc15 45%, #b45309);
+  box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.25);
+  vertical-align: -0.08em;
 }
+.gem {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  background: linear-gradient(135deg, #6ee7b7, #10b981 50%, #047857);
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+.checker {
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%),
+    linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 5px 5px;
+}
+.checker-strip {
+  height: 6px;
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%),
+    linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%);
+  background-size: 6px 6px;
+  background-position: 0 0, 3px 3px;
+  opacity: 0.8;
+}
+.reel::before,
+.reel::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+.toast-in { animation: toastIn 0.25s ease-out; }
+@keyframes toastIn { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+.pop { animation: pop 0.4s cubic-bezier(.2,1.4,.4,1); }
+@keyframes pop { from { transform: scale(0.85); opacity: 0; } to { transform: none; opacity: 1; } }
+.drop-in { animation: dropIn 0.35s ease-out; }
+@keyframes dropIn { from { transform: translateX(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
