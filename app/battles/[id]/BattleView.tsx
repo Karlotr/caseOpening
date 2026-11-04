@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { getCases, getItems, randomFromCase } from "@/lib/data";
@@ -29,6 +29,7 @@ type Phase = "idle" | "rounds" | "roulette" | "done";
 
 export function BattleView() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { user, profile, refresh, holdWallet, deferCredit } = useAuth();
   const rpc = useRpc();
   const toast = useToast();
@@ -331,6 +332,25 @@ export function BattleView() {
     await reload();
   };
 
+  // isti battle ponovno: isti mod, kutije, prekidači i tvoj udio ulaza
+  const myStake = players.find((p) => p.user_id === user?.id)?.stake ?? 1;
+  const recreatePrice = battle.cost * myStake + (battle.sponsored ? battle.cost * (battle.seats - 1) : 0);
+  const recreate = async () => {
+    setBusy(true);
+    const newId = await rpc<string>("create_battle", {
+      p_mode: battle.mode,
+      p_case_ids: battle.case_ids,
+      p_crazy: battle.crazy,
+      p_jackpot: battle.jackpot,
+      p_stake: myStake,
+      p_sponsored: battle.sponsored,
+      p_private: battle.private,
+      p_fast: battle.fast,
+    });
+    setBusy(false);
+    if (newId) router.push(`/battles/${newId}`);
+  };
+
   const act = async (fn: string, args: Record<string, unknown>, msg?: string, silentRefresh = false) => {
     setBusy(true);
     const r = await rpc(fn, args, { silentRefresh });
@@ -436,7 +456,12 @@ export function BattleView() {
               {battle.team_size > 1 && <> · svaki pobjednik dobiva {coins((battle.total_value ?? 0) / battle.team_size)}</>}
             </div>
           </div>
-          <div className="ml-auto flex gap-2">
+          <div className="ml-auto flex flex-wrap gap-2">
+            {user && (
+              <button className="btn-primary" disabled={busy} onClick={recreate} title="Kreira novi, identičan battle">
+                Kreiraj isti · <Price amount={recreatePrice} gems={battle.currency === "gems"} />
+              </button>
+            )}
             <button className="btn-ghost" onClick={() => { setReplay(true); startPlayback(); }}>Pogledaj ponovno</button>
             {user && <button className="btn-ghost" onClick={() => shareBattle(battle.id)}>Podijeli u chat</button>}
           </div>
