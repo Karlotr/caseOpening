@@ -16,7 +16,8 @@ export const NAV = [
   { href: "/trinity", label: "Trinity" },
   { href: "/jackpot", label: "Jackpot" },
   { href: "/rewards", label: "Nagrade" },
-  { href: "/gems", label: "Gem Stash" },
+  { href: "/gems", label: "Gemovi" },
+  { href: "/leaderboard", label: "Ljestvica" },
 ];
 
 function Links({ onClick }: { onClick?: () => void }) {

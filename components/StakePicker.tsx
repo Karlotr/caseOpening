@@ -6,9 +6,10 @@ import { useAuth } from "./AuthProvider";
 const OPTIONS = [1, 0.75, 0.5, 0.25];
 
 // Posudba: plati samo dio ulaza i dobij isti dio nagrade ako pobijediš
-export function StakePicker({ cost, value, onChange, extra = 0 }: { cost: number; value: number; onChange: (v: number) => void; extra?: number }) {
+export function StakePicker({ cost, value, onChange, extra = 0, gems = false }: { cost: number; value: number; onChange: (v: number) => void; extra?: number; gems?: boolean }) {
   const { profile } = useAuth();
-  const bal = profile?.balance ?? 0;
+  const bal = (gems ? profile?.gems : profile?.balance) ?? 0;
+  const unit = gems ? "gemova" : "coina";
   const affordable = cost > 0 ? Math.min(1, Math.floor(((bal - extra) / cost) * 100) / 100) : 1;
   const pct = Math.round(value * 100);
   return (
@@ -36,14 +37,14 @@ export function StakePicker({ cost, value, onChange, extra = 0 }: { cost: number
         )}
       </div>
       <p className="mt-2 text-sm text-muted">
-        Plaćaš <b className="text-accent">{coins(cost * value)}</b>
+        Plaćaš <b className={gems ? "text-emerald-300" : "text-accent"}>{coins(cost * value)} {unit}</b>
         {value < 1 ? (
-          <> umjesto {coins(cost)}. Ako pobijediš, dobivaš <b className="text-fg">{pct}%</b> svog dijela nagrade (auti, a ostatak u coinima).</>
+          <> umjesto {coins(cost)}. Ako pobijediš, dobivaš <b className="text-fg">{pct}%</b> svog dijela nagrade.</>
         ) : (
-          <>. Ako pobijediš, dobivaš punu nagradu.</>
+          <>. Ako pobijediš, dobivaš punu nagradu{gems ? " (u coinima)" : ""}.</>
         )}
       </p>
-      {affordable < 0.1 && <p className="mt-1 text-sm text-red-300">Nemaš dovoljno coina ni za 10% ulaza.</p>}
+      {affordable < 0.1 && <p className="mt-1 text-sm text-red-300">Nemaš dovoljno {unit} ni za 10% ulaza.</p>}
     </div>
   );
 }

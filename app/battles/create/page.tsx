@@ -10,6 +10,7 @@ import { coins } from "@/lib/format";
 import { useRpc } from "@/lib/useGame";
 import { CaseArt } from "@/components/CaseCard";
 import { StakePicker } from "@/components/StakePicker";
+import { Price } from "@/components/Price";
 import { RequireAuth } from "@/components/RequireAuth";
 
 export default function CreateBattle() {
@@ -25,13 +26,22 @@ export default function CreateBattle() {
   const [priv, setPriv] = useState(false);
   const [fast, setFast] = useState(false);
   const [picked, setPicked] = useState<number[]>([]);
+  const [cur, setCur] = useState<"coins" | "gems">("coins");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    getCases().then((c) => setCases(c.filter((x) => x.case_type === "normal")));
+    getCases().then((c) => setCases(c.filter((x) => x.case_type === "normal" || x.case_type === "gem")));
   }, []);
+  const gems = cur === "gems";
+  const shownCases = cases.filter((c) => c.case_type === (gems ? "gem" : "normal"));
+  const switchCur = (c: "coins" | "gems") => {
+    if (c === cur) return;
+    setCur(c);
+    setPicked([]);
+    setSponsored(false);
+  };
   const byId = useMemo(() => new Map(cases.map((c) => [c.id, c])), [cases]);
-  const cost = picked.reduce((s, id) => s + (byId.get(id)?.price ?? 0), 0);
+  const cost = picked.reduce((s, id) => s + ((gems ? byId.get(id)?.gem_price : byId.get(id)?.price) ?? 0), 0);
   const m = MODES.find((x) => x.k === mode)!;
 
   const add = (id: number) => setPicked((p) => (p.length >= limits.battle_max_cases ? p : [...p, id]));
@@ -76,6 +86,17 @@ export default function CreateBattle() {
             </p>
           </div>
           <div>
+            <span className="label">Valuta</span>
+            <div className="flex w-fit overflow-hidden rounded-md border border-line" role="radiogroup" aria-label="Valuta ulaza">
+              {(["coins", "gems"] as const).map((c) => (
+                <button key={c} role="radio" aria-checked={cur === c} onClick={() => switchCur(c)} className={`flex items-center gap-1.5 px-4 py-2 font-display text-base font-bold ${cur === c ? (c === "gems" ? "bg-emerald-400 text-ink" : "bg-accent text-ink") : "bg-panel hover:bg-panel2"}`}>
+                  <span className={c === "gems" ? "gem" : "coin"} /> {c === "gems" ? "Gem kutije" : "Coin kutije"}
+                </button>
+              ))}
+            </div>
+            {gems && <p className="mt-1.5 text-xs text-muted">Ulaz se plaća gemovima, a nagrada se isplaćuje u coinima.</p>}
+          </div>
+          <div>
             <span className="label">Odabrane kutije ({picked.length}/{limits.battle_max_cases})</span>
             <div className="flex min-h-16 flex-wrap gap-1.5 rounded-md border border-dashed border-line p-2">
               {picked.length === 0 && <span className="self-center text-sm text-muted">Dodaj kutije ispod.</span>}
@@ -99,20 +120,20 @@ export default function CreateBattle() {
             </div>
           </div>
           <div className="space-y-3 border-t border-line pt-4">
-            <StakePicker cost={cost} value={stake} onChange={setStake} extra={sponsored ? cost * (m.seats - 1) : 0} />
+            <StakePicker cost={cost} value={stake} onChange={setStake} extra={sponsored ? cost * (m.seats - 1) : 0} gems={gems} />
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm text-muted">
-                Ulaz po igraču: <span className="font-display text-lg text-fg">{coins(cost)}</span>
-                {sponsored && <> · sponzorstvo: <span className="font-display text-lg text-emerald-300">{coins(cost * (m.seats - 1))}</span></>}
+                Ulaz po igraču: <Price amount={cost} gems={gems} className="font-display text-lg text-fg" />
+                {sponsored && <> · sponzorstvo: <Price amount={cost * (m.seats - 1)} gems={gems} className="font-display text-lg text-emerald-300" /></>}
               </div>
               <button className="btn-primary px-6 py-3 text-lg" disabled={!picked.length || busy} onClick={create}>
-                {busy ? "Kreiram…" : `Kreiraj battle za ${coins(cost * stake + (sponsored ? cost * (m.seats - 1) : 0))}`}
+                {busy ? "Kreiram…" : `Kreiraj battle za ${coins(cost * stake + (sponsored ? cost * (m.seats - 1) : 0))}${gems ? " gemova" : ""}`}
               </button>
             </div>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {cases.map((c) => {
+          {shownCases.map((c) => {
             const n = picked.filter((x) => x === c.id).length;
             return (
               <div key={c.id} className="card p-3">
@@ -120,7 +141,7 @@ export default function CreateBattle() {
                 <div className="mt-2 flex items-center justify-between">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold">{c.name}</div>
-                    <div className="text-xs text-accent"><span className="coin" /> {coins(c.price)}</div>
+                    <div className="text-xs text-accent"><Price amount={gems ? c.gem_price ?? 0 : c.price} gems={gems} /></div>
                   </div>
                   <div className="flex items-center gap-1">
                     <button className="btn-ghost h-8 w-8 p-0" onClick={() => remove(c.id)} disabled={!n}>−</button>

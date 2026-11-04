@@ -25,6 +25,7 @@ export type Battle = {
   sponsored: boolean;
   private: boolean;
   fast: boolean;
+  currency: "coins" | "gems";
   status: "waiting" | "finished" | "cancelled";
   winner_team: number | null;
   total_value: number | null;
@@ -56,6 +57,7 @@ export const normBattle = (b: Record<string, unknown>): Battle => ({
   sponsored: !!b.sponsored,
   private: !!b.private,
   fast: !!b.fast,
+  currency: b.currency === "gems" ? "gems" : "coins",
   jackpot_ticket: b.jackpot_ticket == null ? null : Number(b.jackpot_ticket),
   cost: Number(b.cost),
   total_value: b.total_value === null ? null : Number(b.total_value),

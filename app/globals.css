@@ -181,6 +181,10 @@ body {
 .light { background: #2b0d0d; box-shadow: inset 0 0 0 3px #1a0606; transition: background .08s, box-shadow .08s; }
 .light.on { background: radial-gradient(circle at 40% 35%, #ff9b8a, #ff2a12 45%, #8b0a00); box-shadow: 0 0 22px #ff2a12, 0 0 60px rgba(255,42,18,.45); }
 .toast-in { animation: toastIn .45s cubic-bezier(.2,1.3,.4,1); }
+.toast-drop { animation: toastDrop .45s cubic-bezier(.2,1.25,.4,1); }
+@keyframes toastDrop { from { transform: translateY(-18px) scale(.96); opacity: 0; filter: blur(4px); } to { transform: none; opacity: 1; filter: none; } }
+.toast-timer { animation: toastTimer linear forwards; }
+@keyframes toastTimer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 @keyframes toastIn { from { transform: translateX(40px) scale(.94); opacity: 0; filter: blur(4px); } to { transform: none; opacity: 1; filter: none; } }
 .pop { animation: pop .5s cubic-bezier(.2,1.4,.4,1); }
 @keyframes pop { from { transform: scale(.88) translateY(8px); opacity: 0; filter: blur(6px); } to { transform: none; opacity: 1; filter: none; } }

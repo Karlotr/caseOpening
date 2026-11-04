@@ -6,6 +6,7 @@ import { useRpc } from "@/lib/useGame";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { BetInput } from "@/components/BetInput";
+import { useLimits } from "@/lib/useLimits";
 import { RequireAuth } from "@/components/RequireAuth";
 import { useCelebrate } from "@/components/WinOverlay";
 import { sfx } from "@/lib/sound";
@@ -36,6 +37,7 @@ function Trinity() {
   const rpc = useRpc();
   const toast = useToast();
   const { refresh } = useAuth();
+  const limits = useLimits();
   const celebrate = useCelebrate();
   const [bet, setBet] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -106,7 +108,7 @@ function Trinity() {
         <div className="pointer-events-none absolute inset-y-0 left-1/2 w-1 -translate-x-1/2 bg-white shadow-[0_0_12px_white]" />
       </div>
       <div className="card grid gap-4 p-4 md:grid-cols-[1fr_auto] md:items-end">
-        <BetInput value={bet} onChange={setBet} disabled={busy} />
+        <BetInput value={bet} onChange={setBet} disabled={busy} min={limits.trinity_min_bet ?? 0.1} max={limits.trinity_max_bet ?? 10000} />
         <div className="grid grid-cols-3 gap-2">
           {(["red", "gold", "black"] as Color[]).map((c) => (
             <button key={c} disabled={busy || bet <= 0} onClick={() => play(c)} className={`rounded-md px-5 py-2 text-sm font-bold transition disabled:opacity-40 ${STYLE[c].btn}`}>

@@ -127,6 +127,21 @@ export const sfx = {
     noise(0.6, { gain: 0.14, from: 200, to: 900 });
     tone(55, 0.6, { type: "sawtooth", gain: 0.05, slideTo: 90 });
   },
+  // tick u zlatnoj (drugoj) vrtnji — svjetliji, "zvončić"
+  goldTick: () => {
+    const now = performance.now();
+    if (now - lastTick < 28) return;
+    lastTick = now;
+    tone(2093 + Math.random() * 300, 0.06, { type: "sine", gain: 0.07 });
+    tone(3136, 0.04, { type: "triangle", gain: 0.025 });
+  },
+  // osvojen zlatni (legendarni / mitski) auto — fanfara
+  goldWin: () => {
+    [523, 659, 784, 1047, 1319, 1568, 2093].forEach((n, i) => tone(n, 0.5, { type: "triangle", gain: 0.2, delay: i * 0.06 }));
+    [1047, 1319, 1568].forEach((n) => tone(n, 1.4, { type: "sine", gain: 0.09, delay: 0.45 }));
+    noise(1.6, { gain: 0.12, from: 4000, to: 12000, delay: 0.35 });
+    tone(65, 1.2, { type: "sawtooth", gain: 0.06, slideTo: 130, delay: 0.4 });
+  },
   // zlatni dijamant pogođen — uzlazni "shimmer"
   gold: () => {
     [880, 1109, 1319, 1760, 2217].forEach((n, i) => tone(n, 0.5, { type: "triangle", gain: 0.16, delay: i * 0.07 }));

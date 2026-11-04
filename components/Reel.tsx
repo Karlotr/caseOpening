@@ -33,6 +33,7 @@ export function Reel({
   duration = 5000,
   vertical = false,
   sound = true,
+  goldSound,
   size = "md",
   pool,
   onDone,
@@ -43,6 +44,7 @@ export function Reel({
   duration?: number;
   vertical?: boolean;
   sound?: boolean;
+  goldSound?: boolean; // zvukovi zlatne vrtnje i kad je `sound` isključen (battle: sve trake)
   size?: "md" | "lg";
   pool?: Item[]; // svi auti iz kutije (za drugu, "zlatnu" vrtnju)
   onDone?: () => void;
@@ -73,19 +75,20 @@ export function Reel({
   }, [items, stage]);
 
   // vrtnju pokreće SAMO nova vrijednost spinKey (ne promjena brzine, veličine itd.)
-  const cfg = useRef({ winnerIndex, duration, vertical, tile, sound });
+  const gs = goldSound ?? sound;
+  const cfg = useRef({ winnerIndex, duration, vertical, tile, sound, gs });
   useLayoutEffect(() => {
-    cfg.current = { winnerIndex, duration, vertical, tile, sound };
-  }, [winnerIndex, duration, vertical, tile, sound]);
+    cfg.current = { winnerIndex, duration, vertical, tile, sound, gs };
+  }, [winnerIndex, duration, vertical, tile, sound, gs]);
 
   useLayoutEffect(() => {
     if (!spinKey || !box.current) return;
-    const { winnerIndex, duration, vertical, tile, sound } = cfg.current;
+    const { winnerIndex, duration, vertical, tile, sound, gs } = cfg.current;
     const size = vertical ? box.current.clientHeight : box.current.clientWidth;
     const timers: ReturnType<typeof setTimeout>[] = [];
     let raf = 0;
 
-    const run = (len: number, onLand: () => void) => {
+    const run = (len: number, onLand: () => void, goldSpin = false) => {
       let lastIdx = -1;
       const t0 = performance.now();
       const watch = () => {
@@ -94,7 +97,7 @@ export function Reel({
         const pos = -(vertical ? m.m42 : m.m41) + size / 2;
         const idx = Math.floor(pos / tile);
         if (idx !== lastIdx) {
-          if (lastIdx !== -1 && sound) sfx.tick();
+          if (lastIdx !== -1 && (goldSpin ? gs : sound)) (goldSpin ? sfx.goldTick : sfx.tick)();
           lastIdx = idx;
         }
         if (performance.now() - t0 < len + 100) raf = requestAnimationFrame(watch);
@@ -116,7 +119,8 @@ export function Reel({
     const finish = () => {
       setStage("done");
       const w = itemsRef.current[winnerIndex];
-      if (sound && w) sfx.reveal(w.rarity);
+      if (w && golden && gs) sfx.goldWin();
+      else if (w && sound) sfx.reveal(w.rarity);
       doneRef.current?.();
     };
 
@@ -134,7 +138,7 @@ export function Reel({
       if (!golden) return finish();
       // 1) zlatni dijamant "eksplodira"
       setStage("gold");
-      if (sound) sfx.gold();
+      if (gs) sfx.gold();
       timers.push(
         setTimeout(() => {
           // 2) druga vrtnja samo s rijetkim autima
@@ -142,7 +146,7 @@ export function Reel({
           s2[winnerIndex] = winner;
           setStrip(s2);
           setStage("spin2");
-          run(Math.max(2200, duration * 0.6), finish);
+          run(Math.max(2200, duration * 0.6), finish, true);
         }, 1300)
       );
     });

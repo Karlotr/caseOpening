@@ -105,6 +105,9 @@ alter table public.battles add column if not exists sponsored boolean not null d
 -- v8: privatni battle — ne prikazuje se na popisu, ulazi se preko linka
 alter table public.battles add column if not exists private boolean not null default false;
 alter table public.battles add column if not exists fast boolean not null default false;
+alter table public.battles add column if not exists currency text not null default 'coins';
+alter table public.battles drop constraint if exists battles_currency_check;
+alter table public.battles add constraint battles_currency_check check (currency in ('coins','gems'));
 
 -- v2: Jackpot mod (pobjednik se izvlači proporcionalno vrijednosti)
 alter table public.battles add column if not exists jackpot boolean not null default false;
@@ -201,7 +204,11 @@ insert into public.site_limits (key, value, min_value, max_value, label, sort) v
   ('jackpot_round_sec', 60, 15, 600, 'Trajanje jackpot runde (sekunde)', 3),
   ('jackpot_min_bet', 1, 0.1, 1000, 'Jackpot najmanji ulog', 4),
   ('jackpot_max_bet', 10000, 1, 1000000, 'Jackpot najveći ulog', 5),
-  ('jackpot_fee_pct', 5, 0, 20, 'Jackpot provizija kuće (%)', 6)
+  ('jackpot_fee_pct', 5, 0, 20, 'Jackpot provizija kuće (%)', 6),
+  ('trinity_min_bet', 0.1, 0.1, 1000, 'Trinity najmanji ulog', 7),
+  ('trinity_max_bet', 10000, 1, 1000000, 'Trinity najveći ulog', 8),
+  ('slide_min_bet', 0.1, 0.1, 1000, 'Slide najmanji ulog', 9),
+  ('slide_max_bet', 10000, 1, 1000000, 'Slide najveći ulog', 10)
 on conflict (key) do update set min_value = excluded.min_value, max_value = excluded.max_value, label = excluded.label, sort = excluded.sort;
 
 create or replace function public._limit(p_key text, p_default numeric)
@@ -376,10 +383,37 @@ begin
   update public.profiles set balance = balance - p_amount where id = p_uid;
 end $$;
 
+-- naplata / povrat u coinima ili gemovima (gem battle)
+create or replace function public._charge_cur(p_uid uuid, p_amount numeric, p_cur text)
+returns void language plpgsql security definer set search_path = public as $$
+declare g numeric;
+begin
+  if p_cur = 'gems' then
+    select gems into g from public.profiles where id = p_uid for update;
+    if g is null then raise exception 'Profil ne postoji.'; end if;
+    if p_amount < 0 then raise exception 'Neispravan iznos.'; end if;
+    if g < p_amount then raise exception 'Nemaš dovoljno gemova.'; end if;
+    update public.profiles set gems = gems - p_amount where id = p_uid;
+  else
+    perform public._charge(p_uid, p_amount);
+  end if;
+end $$;
+create or replace function public._credit_cur(p_uid uuid, p_amount numeric, p_cur text)
+returns void language sql security definer set search_path = public as $$
+  update public.profiles
+     set gems = gems + case when p_cur = 'gems' then p_amount else 0 end,
+         balance = balance + case when p_cur = 'gems' then 0 else p_amount end
+   where id = p_uid;
+$$;
+revoke all on function public._charge_cur(uuid, numeric, text) from public, anon, authenticated;
+revoke all on function public._credit_cur(uuid, numeric, text) from public, anon, authenticated;
+
 -- sreća (luck): 1 = normalno; >1 naginje težine prema skupljim autima, <1 prema jeftinijima
 drop function if exists public._roll_case(int);
-create or replace function public._roll_case(p_case_id int, p_luck numeric default 1)
-returns int language plpgsql volatile security definer set search_path = public as $$
+-- Izvlačenje s "ticketom": auti su poredani od najjeftinijeg do najskupljeg, ticket (0–1) pada u raspon jednog auta.
+-- Vraća auto, ticket, šansu tog auta i koliko je falilo do sljedećeg (skupljeg) auta.
+create or replace function public._roll_case_detail(p_case_id int, p_luck numeric default 1)
+returns jsonb language plpgsql volatile security definer set search_path = public as $$
 declare
   total numeric;
   r numeric;
@@ -393,12 +427,22 @@ begin
   r := random()::numeric * total;
   for rec in select ci.item_id, ci.weight * power(i.value, t) as w
                from public.case_items ci join public.items i on i.id = ci.item_id
-              where ci.case_id = p_case_id order by ci.item_id loop
+              where ci.case_id = p_case_id order by i.value, ci.item_id loop
     acc := acc + rec.w;
-    if r < acc then return rec.item_id; end if;
+    if r < acc then
+      return jsonb_build_object('item_id', rec.item_id, 'ticket', round(r / total, 6),
+                                'chance', round(rec.w / total, 8), 'gap', round((acc - r) / total, 6),
+                                'top', acc >= total);
+    end if;
   end loop;
-  return rec.item_id;
+  return jsonb_build_object('item_id', rec.item_id, 'ticket', round(r / total, 6), 'chance', round(rec.w / total, 8), 'gap', 0, 'top', true);
 end $$;
+revoke all on function public._roll_case_detail(int, numeric) from public, anon, authenticated;
+
+create or replace function public._roll_case(p_case_id int, p_luck numeric default 1)
+returns int language sql volatile security definer set search_path = public as $$
+  select (public._roll_case_detail(p_case_id, p_luck)->>'item_id')::int;
+$$;
 
 create or replace function public._item_json(p_item_id int)
 returns jsonb language sql stable security definer set search_path = public as $$
@@ -420,6 +464,7 @@ declare
   lvl jsonb := '{}'::jsonb;
   instant numeric := null;
   total_value numeric := 0;
+  roll jsonb;
 begin
   if p_count < 1 or p_count > public._limit('case_max_open', 5) then
     raise exception 'Možeš otvoriti 1–% kutija odjednom.', public._limit('case_max_open', 5);
@@ -448,12 +493,14 @@ begin
   end if;
 
   for i in 1..p_count loop
-    item_id := public._roll_case(c.id, public._luck(uid));
+    roll := public._roll_case_detail(c.id, public._luck(uid));
+    item_id := (roll->>'item_id')::int;
     -- bez garaže: vrijednost auta ide odmah na račun (zapis ostaje radi feeda dropova)
     insert into public.inventory (user_id, item_id, source, status) values (uid, item_id, 'case:' || c.slug, 'sold')
       returning id into inv_id;
     total_value := total_value + (select value from public.items where id = item_id);
-    results := results || jsonb_build_array(public._item_json(item_id) || jsonb_build_object('inventory_id', inv_id));
+    results := results || jsonb_build_array(public._item_json(item_id) || jsonb_build_object('inventory_id', inv_id,
+                 'roll', jsonb_build_object('ticket', roll->'ticket', 'chance', roll->'chance', 'gap', roll->'gap', 'top', roll->'top')));
   end loop;
 
   update public.profiles set balance = balance + total_value where id = uid;
@@ -570,7 +617,9 @@ declare
   payout numeric := 0;
   lvl jsonb;
 begin
-  if p_bet < 0.1 or p_bet > 10000 then raise exception 'Ulog mora biti 0.10–10000.'; end if;
+  if p_bet < public._limit('slide_min_bet', 0.1) or p_bet > public._limit('slide_max_bet', 10000) then
+    raise exception 'Ulog mora biti % – %.', public._limit('slide_min_bet', 0.1), public._limit('slide_max_bet', 10000);
+  end if;
   if p_target < 1.01 or p_target > 1000 then raise exception 'Cilj mora biti 1.01x–1000x.'; end if;
   perform public._charge(uid, p_bet);
   r := random()::numeric;
@@ -599,7 +648,9 @@ declare
   lvl jsonb;
 begin
   if p_color not in ('red','black','gold') then raise exception 'Neispravna boja.'; end if;
-  if p_bet < 0.1 or p_bet > 10000 then raise exception 'Ulog mora biti 0.10–10000.'; end if;
+  if p_bet < public._limit('trinity_min_bet', 0.1) or p_bet > public._limit('trinity_max_bet', 10000) then
+    raise exception 'Ulog mora biti % – %.', public._limit('trinity_min_bet', 0.1), public._limit('trinity_max_bet', 10000);
+  end if;
   perform public._charge(uid, p_bet);
   slot := floor(random()::numeric * 30)::int;
   color := case when slot in (0, 15) then 'gold' when slot % 2 = 1 then 'red' else 'black' end;
@@ -747,6 +798,7 @@ declare
   bid uuid;
   uname text;
   stake numeric;
+  cur text;
   n int := coalesce(array_length(p_case_ids, 1), 0);
 begin
   case p_mode
@@ -761,17 +813,23 @@ begin
   if n < 1 or n > public._limit('battle_max_cases', 50) then
     raise exception 'Battle može imati 1–% kutija.', public._limit('battle_max_cases', 50);
   end if;
-  select sum(c.price) into cost from unnest(p_case_ids) as x(cid) join public.cases c on c.id = x.cid and c.case_type = 'normal';
-  if cost is null or (select count(*) from unnest(p_case_ids) x(cid) join public.cases c on c.id = x.cid and c.case_type = 'normal') <> n then
-    raise exception 'Neispravne kutije.';
+  -- sve kutije moraju biti iste vrste: coin kutije (ulaz u coinima) ili gem kutije (ulaz u gemovima)
+  if (select count(*) from unnest(p_case_ids) x(cid) join public.cases c on c.id = x.cid and c.case_type = 'normal') = n then
+    cur := 'coins';
+    select sum(c.price) into cost from unnest(p_case_ids) as x(cid) join public.cases c on c.id = x.cid;
+  elsif (select count(*) from unnest(p_case_ids) x(cid) join public.cases c on c.id = x.cid and c.case_type = 'gem') = n then
+    cur := 'gems';
+    select sum(c.gem_price) into cost from unnest(p_case_ids) as x(cid) join public.cases c on c.id = x.cid;
+  else
+    raise exception 'Battle može imati samo coin kutije ili samo gem kutije.';
   end if;
   stake := round(coalesce(p_stake, 1), 4);
   if stake < 0.1 or stake > 1 then raise exception 'Posudba: plaćaš između 10%% i 100%% ulaza.'; end if;
   -- sponzor plaća i mjesta za ostale igrače
-  perform public._charge(uid, round(cost * stake, 2) + case when coalesce(p_sponsored, false) then cost * (seats - 1) else 0 end);
+  perform public._charge_cur(uid, round(cost * stake, 2) + case when coalesce(p_sponsored, false) then cost * (seats - 1) else 0 end, cur);
   select username into uname from public.profiles where id = uid;
-  insert into public.battles (creator_id, mode, seats, team_size, case_ids, cost, crazy, jackpot, sponsored, private, fast)
-  values (uid, p_mode, seats, tsize, p_case_ids, cost, coalesce(p_crazy, false), coalesce(p_jackpot, false), coalesce(p_sponsored, false), coalesce(p_private, false), coalesce(p_fast, false)) returning id into bid;
+  insert into public.battles (creator_id, mode, seats, team_size, case_ids, cost, crazy, jackpot, sponsored, private, fast, currency)
+  values (uid, p_mode, seats, tsize, p_case_ids, cost, coalesce(p_crazy, false), coalesce(p_jackpot, false), coalesce(p_sponsored, false), coalesce(p_private, false), coalesce(p_fast, false), cur) returning id into bid;
   insert into public.battle_players (battle_id, seat, team, user_id, name, stake, paid)
   values (bid, 0, 0, uid, uname, stake, round(cost * stake, 2) + case when coalesce(p_sponsored, false) then cost * (seats - 1) else 0 end);
   return bid;
@@ -852,6 +910,7 @@ begin
   for pl in select * from public.battle_players where battle_id = p_id and not is_bot and user_id is not null order by seat loop
     -- XP/ulog: vlastiti ulaz (sponzorirana mjesta drugih ne broje se u ulog; besplatni igrači 0)
     paid := case when b.sponsored and pl.user_id <> b.creator_id then 0 else round(b.cost * pl.stake, 2) end;
+    if b.currency = 'gems' then paid := 0; end if; -- gem ulaz se ne broji u coin ulog/XP
     perform public._apply_wager(pl.user_id, paid);
     payout := 0;
     if pl.team = win_team then
@@ -890,7 +949,7 @@ begin
     stake := 1; -- sponzorirano: ulaz je besplatan i igra se za punu nagradu
   else
     if stake < 0.1 or stake > 1 then raise exception 'Posudba: plaćaš između 10%% i 100%% ulaza.'; end if;
-    perform public._charge(uid, round(b.cost * stake, 2));
+    perform public._charge_cur(uid, round(b.cost * stake, 2), b.currency);
   end if;
   select username into uname from public.profiles where id = uid;
   insert into public.battle_players (battle_id, seat, team, user_id, name, stake, paid)
@@ -918,7 +977,7 @@ begin
       values (p_id, s, public._battle_team(s, b.team_size), true, bots[s + 1]);
       -- sponzorirano mjesto koje je uzeo bot vraća se sponzoru
       if b.sponsored then
-        update public.profiles set balance = balance + b.cost where id = b.creator_id;
+        perform public._credit_cur(b.creator_id, b.cost, b.currency);
       end if;
     end if;
   end loop;
@@ -939,10 +998,8 @@ begin
     raise exception 'Netko se već pridružio — ne možeš otkazati.';
   end if;
   update public.battles set status = 'cancelled' where id = p_id;
-  update public.profiles
-     set balance = balance + coalesce((select paid from public.battle_players where battle_id = p_id and user_id = uid),
-                                      round(b.cost * coalesce((select stake from public.battle_players where battle_id = p_id and user_id = uid), 1), 2))
-   where id = uid;
+  perform public._credit_cur(uid, coalesce((select paid from public.battle_players where battle_id = p_id and user_id = uid),
+                                      round(b.cost * coalesce((select stake from public.battle_players where battle_id = p_id and user_id = uid), 1), 2)), b.currency);
   return jsonb_build_object('ok', true);
 end $$;
 
@@ -957,6 +1014,41 @@ language sql stable security definer set search_path = public as $$
    order by inv.created_at desc
    limit least(p_limit, 50);
 $$;
+
+-- ---------- LJESTVICA (dnevna / tjedna / mjesečna), keširana 5 minuta ----------
+create index if not exists game_log_created_idx on public.game_log(created_at);
+create table if not exists public.leaderboard_cache (
+  period text primary key,
+  data jsonb not null,
+  updated_at timestamptz not null
+);
+alter table public.leaderboard_cache enable row level security;
+
+create or replace function public.leaderboard_period(p_period text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  c public.leaderboard_cache;
+  since timestamptz;
+  d jsonb;
+begin
+  if p_period not in ('day','week','month') then raise exception 'Nepoznato razdoblje.'; end if;
+  select * into c from public.leaderboard_cache where period = p_period;
+  if found and c.updated_at > now() - interval '5 minutes' then
+    return jsonb_build_object('rows', c.data, 'updated_at', c.updated_at);
+  end if;
+  since := (date_trunc(p_period, now() at time zone 'Europe/Zagreb')) at time zone 'Europe/Zagreb';
+  select coalesce(jsonb_agg(x order by x.wagered desc), '[]'::jsonb) into d from (
+    select p.username, p.level, sum(g.wager) as wagered, sum(g.payout) as won, max(g.payout) as best, count(*) as games
+      from public.game_log g join public.profiles p on p.id = g.user_id
+     where g.created_at >= since and g.wager > 0 and g.game not in ('admin','reward','affiliate')
+     group by p.id, p.username, p.level
+     order by sum(g.wager) desc
+     limit 25) x;
+  insert into public.leaderboard_cache (period, data, updated_at) values (p_period, d, now())
+  on conflict (period) do update set data = excluded.data, updated_at = excluded.updated_at;
+  return jsonb_build_object('rows', d, 'updated_at', now());
+end $$;
+grant execute on function public.leaderboard_period(text) to anon, authenticated;
 
 create or replace function public.leaderboard()
 returns table (username text, level int, xp numeric)
@@ -1619,6 +1711,9 @@ begin
         exit when t < acc;
       end loop;
       pay := round(r.pot * (1 - public._limit('jackpot_fee_pct', 5) / 100), 2);
+      for e in select * from jsonb_array_elements(pl) loop
+        perform public._apply_wager((e->>'user_id')::uuid, (e->>'bet')::numeric);
+      end loop;
       update public.profiles set balance = balance + pay where id = win;
       update public.jackpot_rounds set status = 'paid', players = pl, winner_id = win, ticket = t / r.pot, payout = pay where id = r.id;
       insert into public.game_log (user_id, game, wager, payout, details)
@@ -1686,9 +1781,30 @@ begin
   perform public._charge(uid, amt);
   insert into public.jackpot_bets (round_id, user_id, amount) values (r.id, uid, amt);
   update public.jackpot_rounds set pot = pot + amt where id = r.id;
-  perform public._apply_wager(uid, amt);
+  -- ulog (XP) se broji tek kod izvlačenja, jer se ulog može povući
   return public.jackpot_state();
 end $$;
+
+-- povuci svoj ulog iz trenutne runde (dok runda još traje)
+create or replace function public.jackpot_withdraw()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := public._uid();
+  r public.jackpot_rounds;
+  mine numeric;
+begin
+  perform public._jackpot_settle();
+  select * into r from public.jackpot_rounds where status = 'open' and ends_at > now() order by ends_at limit 1 for update;
+  if not found then raise exception 'Nema otvorene runde.'; end if;
+  if r.ends_at - now() < interval '3 seconds' then raise exception 'Prekasno, runda se upravo izvlači.'; end if;
+  select coalesce(sum(amount), 0) into mine from public.jackpot_bets where round_id = r.id and user_id = uid;
+  if mine <= 0 then raise exception 'Nemaš uloga u ovoj rundi.'; end if;
+  delete from public.jackpot_bets where round_id = r.id and user_id = uid;
+  update public.jackpot_rounds set pot = greatest(0, pot - mine) where id = r.id;
+  update public.profiles set balance = balance + mine where id = uid;
+  return public.jackpot_state();
+end $$;
+grant execute on function public.jackpot_withdraw() to authenticated;
 
 -- admin: završi trenutnu rundu odmah (izvlačenje sada)
 create or replace function public.admin_jackpot_draw_now()
@@ -1832,9 +1948,10 @@ insert into public.items (id, brand, model, year, category, body, rarity, value)
 (98, 'Rimac', 'Nevera', 2021, 'Hypercar', 'super', 'mythic', 4200.0),
 (99, 'Bugatti', 'Chiron Super Sport 300+', 2021, 'Hypercar', 'super', 'mythic', 7000.0),
 (100, 'Koenigsegg', 'Jesko Absolut', 2022, 'Hypercar', 'super', 'mythic', 7500.0),
-(101, 'Mercedes-Benz', '300 SLR Uhlenhaut Coupé', 1955, 'Hypercar', 'classic', 'mythic', 100000.0)
+(101, 'Mercedes-Benz', '300 SLR Uhlenhaut Coupé', 1955, 'Hypercar', 'classic', 'mythic', 100000.0),
+(102, 'BMW', 'M3 E30 Sport Evolution "Rekord"', 1990, 'Njemački', 'coupe', 'mythic', 200000.0)
 on conflict (id) do update set brand=excluded.brand, model=excluded.model, year=excluded.year, category=excluded.category, body=excluded.body, rarity=excluded.rarity, value=excluded.value;
-select setval('public.items_id_seq', 101);
+select setval('public.items_id_seq', 102);
 
 -- ===== SEED: kutije =====
 insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('gradska-guzva', 'Gradska gužva', 'Svakodnevni gradski ljubimci — jeftino i veselo.', 'normal', 1.5, null, 0, null, '#38bdf8', 0) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
@@ -1903,6 +2020,45 @@ insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id,
 insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('level-50', 'Level 50 kutija', 'Besplatno svaka 24h od levela 50.', 'level', 0, null, 50, null, '#f43f5e', 21) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
 delete from public.case_items where case_id = (select id from public.cases where slug='level-50');
 insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (29, 700855), (32, 143499), (34, 74493), (60, 36462), (86, 20482), (87, 10632), (62, 8287), (64, 3990), (76, 1301)) as v(item_id, w) where c.slug='level-50';
+
+-- ===== DODATNE KUTIJE (RTP 94 %) =====
+insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('istocni-blok', 'Istočni blok', 'Trabant, Lada, Wartburg i ponekad nešto zapadno.', 'normal', 2.0, null, 0, null, '#94a3b8', 31) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
+delete from public.case_items where case_id = (select id from public.cases where slug='istocni-blok');
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (1, 116516), (6, 103795), (5, 93904), (2, 85964), (8, 79433), (7, 73953), (9, 61717), (10, 51115), (22, 88982), (21, 80893), (11, 71186), (14, 44491), (15, 22246), (26, 22246), (56, 3559)) as v(item_id, w) where c.slug='istocni-blok';
+insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('studentski-budzet', 'Studentski budžet', 'Jeftino, a možda i Supra.', 'normal', 5.0, null, 0, null, '#22c55e', 32) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
+delete from public.case_items where case_id = (select id from public.cases where slug='studentski-budzet');
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (16, 76308), (20, 76308), (18, 76308), (17, 76308), (19, 76308), (12, 76308), (22, 76308), (21, 76308), (13, 76308), (14, 76308), (25, 80655), (26, 60491), (50, 40327), (55, 32262), (27, 16131), (32, 4033), (33, 3025)) as v(item_id, w) where c.slug='studentski-budzet';
+insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('nedjeljna-voznja', 'Nedjeljna vožnja', 'Kabrioleti, klasici i miris benzina.', 'normal', 10.0, null, 0, null, '#38bdf8', 33) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
+delete from public.case_items where case_id = (select id from public.cases where slug='nedjeljna-voznja');
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (23, 128766), (13, 128766), (14, 128766), (24, 128766), (15, 128766), (26, 128766), (69, 59891), (55, 46336), (83, 37572), (84, 33284), (92, 22604), (52, 13099), (30, 10399), (58, 3551), (87, 666)) as v(item_id, w) where c.slug='nedjeljna-voznja';
+insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('drift-kralj', 'Drift kralj', 'Bočno kroz zavoj: Silvia, AE86, RX-7.', 'normal', 20.0, null, 0, null, '#e11d48', 34) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
+delete from public.case_items where case_id = (select id from public.cases where slug='drift-kralj');
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (25, 387193), (26, 387193), (27, 62574), (28, 51211), (29, 36938), (30, 28456), (31, 20798), (32, 10321), (34, 6093), (35, 4694), (36, 3777), (37, 752)) as v(item_id, w) where c.slug='drift-kralj';
+insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('americki-san', 'Američki san', 'Od Crown Victorije do GT40.', 'normal', 35.0, null, 0, null, '#2563eb', 35) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
+delete from public.case_items where case_id = (select id from public.cases where slug='americki-san');
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (49, 236393), (48, 236393), (50, 236393), (51, 51363), (52, 45656), (53, 41090), (54, 31608), (38, 29350), (39, 22828), (40, 18677), (41, 17121), (42, 13697), (43, 10273), (44, 6848), (45, 1370), (46, 685), (47, 257)) as v(item_id, w) where c.slug='americki-san';
+insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('pola-pola', 'Pola-pola', 'Blizu cijene, rijetki skokovi.', 'normal', 50.0, null, 0, null, '#14b8a6', 36) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
+delete from public.case_items where case_id = (select id from public.cases where slug='pola-pola');
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (26, 242861), (55, 117871), (27, 53116), (28, 44487), (51, 38154), (93, 38154), (29, 33321), (52, 33321), (56, 39822), (30, 36899), (94, 36899), (70, 34418), (71, 32283), (31, 30425), (38, 30425), (95, 28791), (57, 26048), (39, 24883), (40, 21193), (32, 19768), (33, 15704), (59, 15704), (87, 5455)) as v(item_id, w) where c.slug='pola-pola';
+insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('muscle-vs-jdm', 'Muscle protiv JDM-a', 'Vječna rasprava, sada u kutiji.', 'normal', 100.0, null, 0, null, '#f59e0b', 37) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
+delete from public.case_items where case_id = (select id from public.cases where slug='muscle-vs-jdm');
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (49, 57870), (48, 57870), (25, 57870), (26, 57870), (27, 57870), (28, 57870), (51, 57870), (29, 57870), (30, 57870), (31, 57870), (38, 57870), (39, 57870), (40, 43960), (32, 40297), (41, 40297), (42, 32237), (33, 30222), (34, 26864), (43, 24178), (35, 21980), (36, 18598), (44, 16119), (37, 5373), (45, 3224), (46, 1612), (47, 604)) as v(item_id, w) where c.slug='muscle-vs-jdm';
+insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('supercar-ulica', 'Supercar ulica', 'Huracán, Testarossa, Countach, F40.', 'normal', 400.0, null, 0, null, '#dc2626', 38) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
+delete from public.case_items where case_id = (select id from public.cases where slug='supercar-ulica');
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (57, 155659), (58, 155659), (59, 155659), (60, 155659), (72, 155659), (73, 66030), (62, 33290), (63, 29914), (74, 27066), (64, 16522), (65, 14437), (75, 7082), (66, 6541), (76, 5642), (77, 3883), (89, 3489), (78, 3157), (97, 2419), (79, 2234)) as v(item_id, w) where c.slug='supercar-ulica';
+insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('kolekcionar', 'Kolekcionar', 'Za one koji skupljaju legende.', 'normal', 1500.0, null, 0, null, '#facc15', 39) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
+delete from public.case_items where case_id = (select id from public.cases where slug='kolekcionar');
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (60, 109868), (72, 97130), (73, 76971), (61, 62033), (87, 62033), (62, 55261), (63, 52474), (74, 49994), (37, 45768), (96, 45768), (64, 39373), (65, 36885), (88, 32858), (45, 27398), (75, 21630), (66, 20548), (76, 18680), (77, 14677), (46, 13699), (89, 13699), (78, 12843), (67, 11742), (97, 10815), (79, 10274), (98, 9785), (68, 9133), (90, 7472), (80, 6849), (99, 5871), (100, 5480), (47, 5137), (81, 4566), (91, 2055), (82, 822), (101, 411)) as v(item_id, w) where c.slug='kolekcionar';
+insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('gem-start', 'Gem start', 'Mala gem kutija za početak.', 'gem', 0, 20, 0, null, '#10b981', 40) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
+delete from public.case_items where case_id = (select id from public.cases where slug='gem-start');
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (16, 70967), (1, 70967), (6, 70967), (20, 70967), (5, 70967), (18, 70967), (12, 70967), (22, 70967), (21, 70967), (11, 70967), (23, 56297), (48, 56297), (13, 48254), (14, 42222), (25, 28148), (15, 21111), (26, 21111), (55, 11259), (27, 5630)) as v(item_id, w) where c.slug='gem-start';
+insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('gem-turbo', 'Gem turbo', 'Gemovi za ozbiljne.', 'gem', 0, 500, 0, null, '#06b6d4', 41) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
+delete from public.case_items where case_id = (select id from public.cases where slug='gem-turbo');
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (26, 82304), (50, 65852), (55, 58246), (83, 52689), (84, 49722), (85, 43980), (92, 41322), (27, 39783), (28, 36550), (51, 33961), (93, 33961), (29, 31831), (52, 31831), (56, 30039), (30, 28505), (94, 28505), (70, 27173), (71, 26191), (31, 24320), (38, 24320), (95, 22699), (57, 20029), (39, 18916), (40, 15477), (32, 14187), (41, 14187), (58, 12160), (42, 11350), (33, 10640), (59, 10640), (34, 9458), (43, 8512), (35, 7738), (36, 6548), (60, 6080), (44, 5675), (72, 5159), (73, 3783), (61, 2837), (87, 2837)) as v(item_id, w) where c.slug='gem-turbo';
+insert into public.cases (slug, name, description, case_type, price, gem_price, min_level, streak_min, color, sort) values ('nino', 'Nino', 'Rizično: najčešće sitniš, ali unutra je rekordni BMW M3 E30 Sport Evolution od 200.000.', 'normal', 500.0, null, 0, null, '#0ea5e9', 42) on conflict (slug) do update set name=excluded.name, description=excluded.description, case_type=excluded.case_type, price=excluded.price, gem_price=excluded.gem_price, min_level=excluded.min_level, streak_min=excluded.streak_min, color=excluded.color, sort=excluded.sort;
+delete from public.case_items where case_id = (select id from public.cases where slug='nino');
+insert into public.case_items (case_id, item_id, weight) select c.id, v.item_id, v.w from public.cases c, (values (102, 1461), (68, 8000), (65, 20000), (64, 30000), (62, 50000), (60, 70000), (59, 80000), (58, 100000), (55, 200000), (16, 146846), (1, 146846), (6, 146846)) as v(item_id, w) where c.slug='nino';
+
 
 -- Osvježi PostgREST cache da nove/promijenjene funkcije budu odmah vidljive API-ju
 notify pgrst, 'reload schema';

@@ -116,12 +116,12 @@ export function CaseView() {
     const total = won.reduce((s, w) => s + w.value, 0);
     const ratio = lastCost ? total / lastCost : 1;
     const bestRank = Math.max(...won.map((w) => rarityRank(w.rarity)));
-    // veliki dobici → overlay preko cijelog ekrana (nakon što se kartice okrenu)
-    if (ratio >= 2 || bestRank >= 3) {
+    // overlay preko cijelog ekrana samo za zlatne (legendarne / mitske) aute
+    if (bestRank >= 4) {
       setTimeout(
         () =>
           celebrate({
-            title: ratio >= 5 ? "Ogroman drop!" : bestRank >= 4 ? "Legendarno!" : "Veliki drop!",
+            title: ratio >= 5 ? "Ogroman drop!" : "Legendarno!",
             subtitle: lastCost ? `${ratio.toFixed(2)}× uloga` : c?.name,
             items: won,
             amount: total,

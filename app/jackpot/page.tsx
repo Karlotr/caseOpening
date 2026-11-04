@@ -73,6 +73,16 @@ export default function JackpotPage() {
     load();
   };
 
+  const withdraw = async () => {
+    setBusy(true);
+    const { error } = await createClient().rpc("jackpot_withdraw");
+    setBusy(false);
+    if (error) return toast(errMsg(error), "error");
+    toast("Ulog je povučen i vraćen na račun.", "success");
+    refresh();
+    load();
+  };
+
   const drawNow = async () => {
     if (!window.confirm("Završiti rundu i izvući pobjednika odmah?")) return;
     setBusy(true);
@@ -171,6 +181,11 @@ export default function JackpotPage() {
                 {left < 2000 ? "Izvlačenje…" : me ? `Dodaj ${coins(bet)}` : `Uloži ${coins(bet)}`}
               </button>
               <p className="text-xs text-muted">Ulog {coins(Number(st.min_bet ?? 1))} – {coins(Number(st.max_bet ?? 10000))}. Možeš ulagati više puta u istoj rundi. Ulozi se zatvaraju 2 sekunde prije izvlačenja.</p>
+              {me && left >= 3000 && (
+                <button className="w-full rounded-lg border border-line px-3 py-2 text-sm font-semibold text-muted hover:border-red-400/50 hover:text-red-300" disabled={busy} onClick={withdraw}>
+                  Povuci svoj ulog ({coins(me.bet)})
+                </button>
+              )}
               {isAdmin && (
                 <button className="w-full rounded-lg border border-accent2/40 px-3 py-2 text-sm font-semibold text-accent2 hover:bg-accent2/10" disabled={busy} onClick={drawNow}>
                   Admin: izvuci sada

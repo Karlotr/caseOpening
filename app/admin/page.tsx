@@ -36,6 +36,14 @@ const dt = (s: string | null) => (s ? new Date(s).toLocaleString("hr-HR", { date
 export default function AdminPage() {
   const { isAdmin, loading } = useAuth();
   const [tab, setTab] = useState<"stats" | "users" | "photos" | "log">("users");
+  // osvježavanje: gumb + automatski svakih 10 s
+  const [tick, setTick] = useState(0);
+  const [auto, setAuto] = useState(true);
+  useEffect(() => {
+    if (!auto) return;
+    const t = setInterval(() => setTick((x) => x + 1), 10_000);
+    return () => clearInterval(t);
+  }, [auto]);
   if (loading) return <div className="card h-40 animate-pulse" />;
   if (!isAdmin)
     return (
@@ -48,6 +56,12 @@ export default function AdminPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="h1">Admin</h1>
+        <div className="flex items-center gap-2">
+          <label className="flex cursor-pointer items-center gap-1.5 text-sm text-muted">
+            <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} className="accent-orange-500" /> Auto (10 s)
+          </label>
+          <button className="btn-ghost" onClick={() => setTick((x) => x + 1)}>Osvježi</button>
+        </div>
         <div className="flex gap-1" role="tablist">
           {([["stats", "Pregled"], ["users", "Korisnici"], ["photos", "Slike"], ["log", "Admin log"]] as const).map(([k, l]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`rounded-md border px-4 py-2 font-display text-lg font-bold ${tab === k ? "border-accent bg-accent text-ink" : "border-line hover:border-white/30"}`}>
@@ -56,19 +70,19 @@ export default function AdminPage() {
           ))}
         </div>
       </div>
-      {tab === "stats" && <StatsTab />}
-      {tab === "users" && <UsersTab />}
+      {tab === "stats" && <StatsTab tick={tick} />}
+      {tab === "users" && <UsersTab tick={tick} />}
       {tab === "photos" && <PhotosTab />}
-      {tab === "log" && <LogTab />}
+      {tab === "log" && <LogTab tick={tick} />}
     </div>
   );
 }
 
-function StatsTab() {
+function StatsTab({ tick }: { tick: number }) {
   const [s, setS] = useState<Stats | null>(null);
   useEffect(() => {
     sb().rpc("admin_stats").then(({ data }) => setS(data as Stats));
-  }, []);
+  }, [tick]);
   if (!s) return <div className="card h-40 animate-pulse" />;
   const house = Number(s.wagered_24h) - Number(s.payout_24h);
   return (
@@ -224,7 +238,7 @@ function Box({ l, v, sub, tone }: { l: string; v: string; sub?: string; tone?: "
   );
 }
 
-function UsersTab() {
+function UsersTab({ tick }: { tick: number }) {
   const toast = useToast();
   const [q, setQ] = useState("");
   const [users, setUsers] = useState<U[]>([]);
@@ -237,7 +251,7 @@ function UsersTab() {
   useEffect(() => {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
-  }, [load]);
+  }, [load, tick]);
   const current = users.find((u) => u.id === sel) ?? null;
 
   return (
@@ -279,12 +293,12 @@ function UsersTab() {
           </table>
         </div>
       </div>
-      {current ? <UserEditor key={current.id} u={current} onChanged={load} /> : <div className="card p-6 text-muted">Odaberi korisnika u tablici za uređivanje.</div>}
+      {current ? <UserEditor key={current.id} u={current} onChanged={load} tick={tick} /> : <div className="card p-6 text-muted">Odaberi korisnika u tablici za uređivanje.</div>}
     </div>
   );
 }
 
-function UserEditor({ u, onChanged }: { u: U; onChanged: () => void }) {
+function UserEditor({ u, onChanged, tick }: { u: U; onChanged: () => void; tick: number }) {
   const toast = useToast();
   const { user, refresh } = useAuth();
   const [d, setD] = useState<Detail | null>(null);
@@ -305,7 +319,7 @@ function UserEditor({ u, onChanged }: { u: U; onChanged: () => void }) {
   }, [u.id]);
   useEffect(() => {
     loadDetail();
-  }, [loadDetail]);
+  }, [loadDetail, tick]);
 
   const call = async (fn: string, args: Record<string, unknown>, ok: string) => {
     const { error } = await sb().rpc(fn, args);
@@ -392,7 +406,7 @@ function UserEditor({ u, onChanged }: { u: U; onChanged: () => void }) {
       </Section>
 
       <Section title="Zadnji dropovi">
-        <UserGarage userId={u.id} />
+        <UserGarage userId={u.id} tick={tick} />
       </Section>
 
       {d && (
@@ -422,12 +436,12 @@ function UserEditor({ u, onChanged }: { u: U; onChanged: () => void }) {
   );
 }
 
-function UserGarage({ userId }: { userId: string }) {
+function UserGarage({ userId, tick }: { userId: string; tick: number }) {
   const [list, setList] = useState<(Item & { inventory_id: number; source: string; created_at: string })[] | null>(null);
   const [all, setAll] = useState(false);
   useEffect(() => {
     sb().rpc("admin_user_garage", { p_user: userId }).then(({ data }) => setList(((data as Item[]) ?? []).map((i) => ({ ...i, value: Number(i.value) })) as never));
-  }, [userId]);
+  }, [userId, tick]);
   if (!list) return <div className="h-24 animate-pulse rounded-lg bg-panel2" />;
   if (!list.length) return <p className="text-sm text-muted">Još nema dropova.</p>;
   const shown = all ? list : list.slice(0, 12);
@@ -504,11 +518,11 @@ function Mini({ l, v }: { l: string; v: string }) {
   );
 }
 
-function LogTab() {
+function LogTab({ tick }: { tick: number }) {
   const [rows, setRows] = useState<LogRow[]>([]);
   useEffect(() => {
     sb().rpc("admin_recent_log", { p_limit: 100 }).then(({ data }) => setRows((data ?? []) as LogRow[]));
-  }, []);
+  }, [tick]);
   return (
     <div className="card overflow-x-auto">
       <table className="w-full min-w-[640px] text-sm">

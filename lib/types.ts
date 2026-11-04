@@ -12,6 +12,7 @@ export type Item = {
   value: number;
   photo?: boolean;
   inventory_id?: number;
+  roll?: { ticket: number; chance: number; gap: number; top: boolean };
 };
 
 export type CaseType = "normal" | "daily" | "gem" | "level";

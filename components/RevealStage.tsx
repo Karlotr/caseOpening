@@ -7,6 +7,9 @@ import { rarityRank, sfx } from "@/lib/sound";
 import { CarImage } from "./CarImage";
 import { CountUp } from "./CountUp";
 
+const fmtPct = (x: number) => `${(x * 100).toFixed(x < 0.001 ? 4 : x < 0.01 ? 3 : 2).replace(".", ",")} %`;
+const oneIn = (p: number) => (p > 0 ? Math.max(1, Math.round(1 / p)).toLocaleString("hr-HR") : "∞");
+
 // Scena otkrivanja nakon otvaranja kutije: kartice se okreću jedna po jedna, vrijednost se broji, profit je jasan.
 export function RevealStage({
   items,
@@ -103,6 +106,28 @@ export function RevealStage({
         {!demo && allShown && <span className="self-center rounded-lg bg-accent/10 px-3 py-2 text-sm font-semibold text-accent">+{coins(total)} dodano na račun</span>}
         {!demo && <span className="self-center text-xs text-muted">Razmaknica = otvori ponovno</span>}
       </div>
+      {!demo && allShown && items.some((i) => i.roll) && (
+        <details className="relative mt-4 rounded-lg border border-line/70 bg-ink/40 text-sm">
+          <summary className="cursor-pointer select-none px-3 py-2 text-xs text-muted hover:text-fg">Detalji izvlačenja (ticket i rijetkost)</summary>
+          <div className="divide-y divide-line/60 px-3 pb-2">
+            {items.map((it, k) =>
+              it.roll ? (
+                <div key={k} className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-0.5 py-2 sm:grid-cols-[minmax(0,1fr)_7rem_9rem_minmax(0,12rem)]">
+                  <span className="truncate font-semibold">{it.brand} {it.model}</span>
+                  <span className="text-right tabular-nums text-muted sm:text-left" title="Izvučeni broj od 0 do 1 (auti poredani od najjeftinijeg do najskupljeg)">#{Math.floor(Number(it.roll.ticket) * 100000).toString().padStart(5, "0")}</span>
+                  <span className="tabular-nums" style={{ color: RARITY[it.rarity].color }}>
+                    {fmtPct(Number(it.roll.chance))} · 1 u {oneIn(Number(it.roll.chance))}
+                  </span>
+                  <span className="text-right text-xs text-muted sm:text-left">
+                    {it.roll.top ? "Najrjeđi auto u kutiji" : `Do skupljeg auta falilo ${fmtPct(Number(it.roll.gap))}`}
+                  </span>
+                </div>
+              ) : null
+            )}
+            <p className="pt-2 text-xs text-muted">Ticket je broj od 00000 do 99999. Auti su poredani od najjeftinijeg do najskupljeg, pa što je ticket bliže 99999, to je drop rjeđi.</p>
+          </div>
+        </details>
+      )}
     </div>
   );
 }

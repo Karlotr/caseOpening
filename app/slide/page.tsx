@@ -6,6 +6,7 @@ import { useRpc } from "@/lib/useGame";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { BetInput } from "@/components/BetInput";
+import { useLimits } from "@/lib/useLimits";
 import { RequireAuth } from "@/components/RequireAuth";
 import { useCelebrate } from "@/components/WinOverlay";
 import { sfx } from "@/lib/sound";
@@ -27,6 +28,7 @@ function Slide() {
   const rpc = useRpc();
   const toast = useToast();
   const { refresh } = useAuth();
+  const limits = useLimits();
   const celebrate = useCelebrate();
   const [bet, setBet] = useState(1);
   const [target, setTarget] = useState(2);
@@ -100,7 +102,7 @@ function Slide() {
         <div className="pointer-events-none absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-accent shadow-[0_0_12px_#facc15]" />
       </div>
       <div className="card grid gap-4 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
-        <BetInput value={bet} onChange={setBet} disabled={busy} />
+        <BetInput value={bet} onChange={setBet} disabled={busy} min={limits.slide_min_bet ?? 0.1} max={limits.slide_max_bet ?? 10000} />
         <div>
           <label className="label" htmlFor="t">Ciljani multiplikator</label>
           <div className="flex gap-1">

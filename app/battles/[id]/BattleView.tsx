@@ -19,6 +19,7 @@ import { NameReel, type Entry } from "@/components/NameReel";
 import { CountUp } from "@/components/CountUp";
 import { useChat } from "@/components/Chat";
 import { StakePicker } from "@/components/StakePicker";
+import { Price } from "@/components/Price";
 
 const WIN = 32;
 const ROUND_PAUSE = 2300; // koliko izvučeni auti ostaju u traci prije sljedeće runde
@@ -84,6 +85,20 @@ export function BattleView() {
   const reelsDone = useRef(0);
 
   const heldRef = useRef(false);
+  // reprodukcija: brzina (1× / 2×), preskakanje i ponovno pokretanje
+  const [speed, setSpeed] = useState(1);
+  const speedRef = useRef(1);
+  const playId = useRef(0);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const later = (fn: () => void, ms: number) => {
+    const id = playId.current;
+    timers.current.push(setTimeout(() => id === playId.current && fn(), ms));
+  };
+  const clearTimers = () => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+  };
+  const caseStrip = useRef<HTMLDivElement>(null);
   const spinRound = useCallback(
     (r: number) => {
       if (!battle) return;
@@ -105,14 +120,32 @@ export function BattleView() {
   );
 
   const startPlayback = useCallback(() => {
+    playId.current += 1;
+    clearTimers();
     // makni trake prošle reprodukcije da se ne zavrti stara runda prije prve
     setStrips([]);
     setSpinning(false);
     setAnnounce(false);
     setRevealed(0);
     setPhase("rounds");
-    setTimeout(() => spinRound(0), 500);
+    later(() => spinRound(0), 500);
+     
   }, [spinRound]);
+
+  const skipToEnd = () => {
+    playId.current += 1;
+    clearTimers();
+    setStrips([]);
+    setSpinning(false);
+    setRevealed(rounds);
+    setPhase("done");
+    setAnnounce(true);
+  };
+  const toggleSpeed = () => {
+    const v = speedRef.current === 1 ? 2 : 1;
+    speedRef.current = v;
+    setSpeed(v);
+  };
 
   // kad battle završi: animiraj ako je svjež, inače odmah pokaži rezultat
   useEffect(() => {
@@ -149,8 +182,8 @@ export function BattleView() {
       const next = r + 1;
       // u brzom modu kratka pauza, osim ako je u rundi pao zlatni (rijetki) auto
       const gold = drops.some((d) => d.round === next && rarityRank(items.get(d.item_id)?.rarity ?? "common") >= 4);
-      const pause = battle?.fast && !gold ? FAST_PAUSE : ROUND_PAUSE;
-      setTimeout(() => {
+      const pause = (battle?.fast && !gold ? FAST_PAUSE : ROUND_PAUSE) / speedRef.current;
+      later(() => {
         if (next < rounds) spinRound(next);
         else if (battle?.jackpot) {
           setPhase("roulette");
@@ -162,7 +195,16 @@ export function BattleView() {
       }, pause);
       return next;
     });
+     
   }, [rounds, spinRound, battle, drops, items]);
+
+  // traka kutija na vrhu prati trenutnu rundu
+  useEffect(() => {
+    const box = caseStrip.current;
+    const el = box?.querySelector<HTMLElement>(`[data-case="${Math.min(revealed, rounds - 1)}"]`);
+    if (!box || !el) return;
+    box.scrollTo({ left: el.offsetLeft - box.clientWidth / 2 + el.clientWidth / 2, behavior: "smooth" });
+  }, [revealed, rounds]);
 
   // sljedeća runda tek kad su SVE trake stale (i one sa zlatnom drugom vrtnjom)
   const onReelDone = useCallback(() => {
@@ -260,16 +302,18 @@ export function BattleView() {
   const join = async (seat: number) => {
     if (!battle || !profile) return;
     const paid = battle.sponsored ? 0 : Math.round(battle.cost * stake * 100) / 100;
-    const before = { balance: Math.max(0, profile.balance - paid) };
+    const gemBattle = battle.currency === "gems";
+    const before = { balance: gemBattle ? profile.balance : Math.max(0, profile.balance - paid) };
     setBusy(true);
     const r = await rpc<{ ok: boolean; started: boolean }>("join_battle", { p_id: battle.id, p_seat: seat, p_stake: battle.sponsored ? 1 : stake }, { silentRefresh: true });
     setBusy(false);
     if (r) {
-      toast(battle.sponsored ? "Ušao si u battle!" : `Ušao si u battle! −${coins(paid)} coina`, "success");
+      toast(battle.sponsored ? "Ušao si u battle!" : `Ušao si u battle! −${coins(paid)} ${gemBattle ? "gemova" : "coina"}`, "success");
       if (r.started) {
         heldRef.current = true;
         holdWallet(before);
-      } else refresh();
+      }
+      refresh();
     }
     await reload();
   };
@@ -308,7 +352,7 @@ export function BattleView() {
         <div className="ml-auto flex gap-5 text-right">
           <div>
             <div className="text-sm text-muted">Ulaz</div>
-            <div className="font-display text-2xl font-bold text-accent">{battle.sponsored ? <span className="text-amber-300">Besplatno</span> : <><span className="coin" /> {coins(battle.cost)}</>}</div>
+            <div className="font-display text-2xl font-bold text-accent">{battle.sponsored ? <span className="text-amber-300">Besplatno</span> : <Price amount={battle.cost} gems={battle.currency === "gems"} />}</div>
           </div>
           <div>
             <div className="text-sm text-muted">Na stolu</div>
@@ -317,19 +361,28 @@ export function BattleView() {
         </div>
       </div>
 
-      <div className="card flex items-center gap-1.5 overflow-x-auto p-2">
+      <div className="card flex items-center gap-2 p-2">
+      <div ref={caseStrip} className="relative flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scroll-smooth">
         {battle.case_ids.map((cid, i) => {
           const c = cases.get(cid);
           const current = spinning && i === revealed;
           const past = i < revealed;
           return c ? (
-            <div key={i} className={`relative shrink-0 rounded-lg p-0.5 transition ${current ? "ring-2 ring-accent" : past ? "opacity-40" : ""}`}>
+            <div key={i} data-case={i} className={`relative shrink-0 rounded-lg p-0.5 transition ${current ? "ring-2 ring-accent" : past ? "opacity-40" : ""}`}>
               <CaseArt c={c} className="h-14 w-24" />
               <span className="absolute bottom-1 right-1.5 font-display text-sm font-bold text-white/80">{i + 1}</span>
             </div>
           ) : null;
         })}
-        <div className="ml-auto self-center whitespace-nowrap px-3 font-display text-xl font-bold">
+      </div>
+        {(phase === "rounds" || phase === "roulette") && (
+          <div className="flex shrink-0 gap-1">
+            <button type="button" onClick={toggleSpeed} aria-pressed={speed === 2} title="Ubrzaj reprodukciju" className={`rounded-lg border px-2.5 py-1.5 text-sm font-bold ${speed === 2 ? "border-accent2 bg-accent2/15 text-accent2" : "border-line text-muted hover:text-fg"}`}>{speed}×</button>
+            <button type="button" onClick={skipToEnd} title="Preskoči na rezultat" className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-bold text-muted hover:text-fg">Preskoči</button>
+            {(revealed > 0 || phase === "roulette") && <button type="button" onClick={startPlayback} title="Vrati na početak" className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-bold text-muted hover:text-fg">Ispočetka</button>}
+          </div>
+        )}
+        <div className="shrink-0 self-center whitespace-nowrap px-3 font-display text-xl font-bold">
           Runda {Math.min(revealed + (spinning ? 1 : 0), rounds)}<span className="text-muted">/{rounds}</span>
         </div>
       </div>
@@ -346,7 +399,7 @@ export function BattleView() {
           )}
         </div>
       )}
-      {battle.status === "waiting" && user && !meIn && !battle.sponsored && <StakePicker cost={battle.cost} value={stake} onChange={setStake} />}
+      {battle.status === "waiting" && user && !meIn && !battle.sponsored && <StakePicker cost={battle.cost} value={stake} onChange={setStake} gems={battle.currency === "gems"} />}
       {battle.status === "cancelled" && <div className="card p-4 text-muted">Ovaj battle je otkazan.</div>}
 
       {(phase === "roulette" || (done && battle.jackpot)) && (
@@ -426,7 +479,7 @@ export function BattleView() {
                                 <span className="font-display text-xl font-bold text-emerald-300">Spreman</span>
                               ) : user && !meIn ? (
                                 <button className="btn-primary" disabled={busy} onClick={() => join(seat)}>
-                                  {battle.sponsored ? "Uđi besplatno" : `Uđi za ${coins(battle.cost * stake)}`}
+                                  {battle.sponsored ? "Uđi besplatno" : `Uđi za ${coins(battle.cost * stake)}${battle.currency === "gems" ? " gemova" : ""}`}
                                 </button>
                               ) : !user ? (
                                 <Link href="/login" className="btn-ghost">Prijavi se</Link>
@@ -436,7 +489,7 @@ export function BattleView() {
                             </div>
                           ) : phase === "rounds" && strips[seat] ? (
                             <div className="relative">
-                              <Reel vertical items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} winnerIndex={WIN} spinKey={spinKey} duration={battle.fast ? FAST_SPIN : 3600} sound={seat === 0} onDone={onReelDone} />
+                              <Reel vertical items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} winnerIndex={WIN} spinKey={spinKey} duration={(battle.fast ? FAST_SPIN : 3600) / speed} sound={seat === 0} goldSound onDone={onReelDone} />
                             </div>
                           ) : phase === "rounds" ? (
                             <div className="h-[336px] rounded-2xl border border-line bg-[linear-gradient(180deg,#0c0c1c,#07070f)]" />
