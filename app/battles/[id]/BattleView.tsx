@@ -298,6 +298,12 @@ export function BattleView() {
   const isCreator = user?.id === battle.creator_id;
   const myWin = done && players.find((p) => p.user_id === user?.id)?.team === battle.winner_team;
   const teamMode = battle.team_size > 1;
+  // dio nagrade po igraču (ista formula kao na serveru): ukupno / broj mjesta u pobjedničkom timu × udio ulaza
+  const winnerSeats = players.filter((p) => p.team === battle.winner_team).length;
+  const shareOf = (p?: BattlePlayer) =>
+    p && p.team === battle.winner_team ? Math.round(((battle.total_value ?? 0) / Math.max(1, winnerSeats)) * p.stake * 100) / 100 : 0;
+  const myPlayer = players.find((p) => p.user_id === user?.id);
+  const myPayout = shareOf(myPlayer);
   // auti koji su već izašli iz trake (trenutna runda se još prikazuje u traci)
   const shownInReel = phase === "rounds" ? (spinning ? revealed + 1 : revealed) : -1;
   const mineOf = (seat: number) =>
@@ -456,6 +462,19 @@ export function BattleView() {
               {battle.team_size > 1 && <> · svaki pobjednik dobiva {coins((battle.total_value ?? 0) / battle.team_size)}</>}
             </div>
           </div>
+          {myPlayer && (
+            <div className={`pop rounded-xl px-4 py-2 text-right ${myWin ? "bg-accent/15 ring-1 ring-accent/60 shadow-[0_0_40px_-10px_#ffb547]" : "bg-white/[.04]"}`}>
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted">{myWin ? "Osvojio si" : "Ovaj put"}</div>
+              {myWin ? (
+                <div className="flex items-center justify-end gap-1.5 font-display text-4xl font-black leading-none text-accent tabular-nums">
+                  +<span className="coin" /><CountUp value={myPayout} from={0} duration={1400} />
+                </div>
+              ) : (
+                <div className="font-display text-2xl font-bold leading-none text-muted">bez dobitka</div>
+              )}
+              {myWin && myPlayer.stake < 1 && <div className="mt-0.5 text-xs text-muted">{Math.round(myPlayer.stake * 100)}% udio ulaza</div>}
+            </div>
+          )}
           <div className="ml-auto flex flex-wrap gap-2">
             {user && (
               <button className="btn-primary" disabled={busy} onClick={recreate} title="Kreira novi, identičan battle">
@@ -509,6 +528,11 @@ export function BattleView() {
                                   <span className="text-sm text-emerald-300">{chanceOf(ti).toFixed(1)}%</span>
                                 )}
                               </div>
+                              {done && p && (
+                                <div className={`mt-1 text-xs font-semibold tabular-nums ${won ? "text-emerald-300" : "text-muted"}`} title="Dio nagrade iz ovog battlea">
+                                  {won ? <>Dio pobjede: +{coins(shareOf(p))}</> : "Dio pobjede: 0"}
+                                </div>
+                              )}
                             </div>
                           </div>
                           {battle.status === "waiting" ? (
