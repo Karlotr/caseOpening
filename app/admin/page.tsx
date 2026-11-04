@@ -10,6 +10,7 @@ import type { Item } from "@/lib/types";
 import { coins, errMsg } from "@/lib/format";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
+import { loadLimitRows, type LimitRow } from "@/lib/limits";
 import { CHAT_COLORS, CHAT_EFFECTS, ChatName, type ChatStyle } from "@/components/ChatName";
 
 type U = {
@@ -98,6 +99,7 @@ function StatsTab() {
       </div>
       <p className="text-sm text-muted">Ukupno coina kod korisnika: {coins(s.total_balance)}</p>
       <SettingsBox />
+      <LimitsBox />
       <RainTrigger />
     </div>
   );
@@ -129,6 +131,54 @@ function RainTrigger() {
         <label className="text-sm">Mjesta<input className="input mt-1 w-24" type="number" min={1} max={500} value={slots} onChange={(e) => setSlots(e.target.value)} /></label>
         <label className="text-sm">Trajanje (min)<input className="input mt-1 w-24" type="number" min={1} max={30} value={mins} onChange={(e) => setMins(e.target.value)} /></label>
         <button className="btn-primary" onClick={go}>Pokreni kišu</button>
+      </div>
+    </div>
+  );
+}
+
+function LimitsBox() {
+  const toast = useToast();
+  const [rows, setRows] = useState<LimitRow[]>([]);
+  const [edit, setEdit] = useState<Record<string, string>>({});
+  useEffect(() => {
+    loadLimitRows().then((r) => {
+      setRows(r);
+      setEdit(Object.fromEntries(r.map((x) => [x.key, String(x.value)])));
+    });
+  }, []);
+  const save = async (k: string) => {
+    const v = Number(edit[k]);
+    const { error } = await sb().rpc("admin_set_limit", { p_key: k, p_value: v });
+    if (error) return toast(errMsg(error), "error");
+    setRows((rs) => rs.map((r) => (r.key === k ? { ...r, value: v } : r)));
+    toast("Limit je spremljen.", "success");
+  };
+  const drawNow = async () => {
+    if (!window.confirm("Završiti trenutnu jackpot rundu i izvući pobjednika odmah?")) return;
+    const { error } = await sb().rpc("admin_jackpot_draw_now");
+    if (error) return toast(errMsg(error), "error");
+    toast("Jackpot runda je izvučena.", "success");
+  };
+  return (
+    <div className="card p-4">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <h3 className="mr-auto font-display text-xl font-bold">Limiti</h3>
+        <button className="btn-ghost text-sm" onClick={drawNow}>Izvuci jackpot sada</button>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {rows.map((r) => {
+          const changed = edit[r.key] !== undefined && Number(edit[r.key]) !== r.value;
+          return (
+            <div key={r.key} className="flex items-center gap-2 rounded-md border border-line p-2">
+              <label htmlFor={`lim-${r.key}`} className="min-w-0 flex-1 text-sm">
+                {r.label}
+                <span className="block text-xs text-muted">{r.min_value} – {r.max_value}</span>
+              </label>
+              <input id={`lim-${r.key}`} type="number" className="input w-24 py-1.5" min={r.min_value} max={r.max_value} value={edit[r.key] ?? ""} onChange={(e) => setEdit((x) => ({ ...x, [r.key]: e.target.value }))} />
+              <button className={`rounded-md px-2.5 py-1.5 text-sm font-semibold ${changed ? "bg-accent text-ink" : "border border-line text-muted"}`} disabled={!changed} onClick={() => save(r.key)}>Spremi</button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

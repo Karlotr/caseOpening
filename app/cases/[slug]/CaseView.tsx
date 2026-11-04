@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLimits } from "@/lib/useLimits";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCases, randomFromCase } from "@/lib/data";
@@ -25,6 +26,7 @@ export function CaseView() {
   const rpc = useRpc();
   const toast = useToast();
   const celebrate = useCelebrate();
+  const limits = useLimits();
   const [c, setC] = useState<CaseWithItems | null>(null);
   const [missing, setMissing] = useState(false);
   const [count, setCount] = useState(1);
@@ -212,7 +214,7 @@ export function CaseView() {
           <div className="flex flex-wrap items-center gap-2">
             {c.case_type !== "level" && c.case_type !== "daily" && (
               <div className="flex overflow-hidden rounded-md border border-line" role="group" aria-label="Broj kutija">
-                {[1, 2, 3, 4, 5].map((n) => (
+                {Array.from({ length: limits.case_max_open }, (_, i) => i + 1).map((n) => (
                   <button key={n} disabled={spinning} onClick={() => setCount(n)} aria-pressed={count === n} className={`px-3.5 py-2 font-display text-lg font-bold ${count === n ? "bg-accent2 text-ink" : "bg-panel hover:bg-panel2"}`}>
                     {n}×
                   </button>

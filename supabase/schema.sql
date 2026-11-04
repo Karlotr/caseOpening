@@ -186,8 +186,35 @@ insert into public.site_settings (key, enabled) values
   ('instant_drops', false), ('weekly_drop', false), ('monthly_drop', false)
 on conflict (key) do nothing;
 
+-- ---------- LIMITI (admin ih mijenja) ----------
+create table if not exists public.site_limits (
+  key text primary key,
+  value numeric not null,
+  min_value numeric not null,
+  max_value numeric not null,
+  label text not null,
+  sort int not null default 0
+);
+insert into public.site_limits (key, value, min_value, max_value, label, sort) values
+  ('battle_max_cases', 50, 1, 100, 'Najviše kutija u battleu', 1),
+  ('case_max_open', 5, 1, 10, 'Najviše kutija odjednom (otvaranje)', 2),
+  ('jackpot_round_sec', 60, 15, 600, 'Trajanje jackpot runde (sekunde)', 3),
+  ('jackpot_min_bet', 1, 0.1, 1000, 'Jackpot najmanji ulog', 4),
+  ('jackpot_max_bet', 10000, 1, 1000000, 'Jackpot najveći ulog', 5),
+  ('jackpot_fee_pct', 5, 0, 20, 'Jackpot provizija kuće (%)', 6)
+on conflict (key) do update set min_value = excluded.min_value, max_value = excluded.max_value, label = excluded.label, sort = excluded.sort;
+
+create or replace function public._limit(p_key text, p_default numeric)
+returns numeric language sql stable security definer set search_path = public as $$
+  select coalesce((select value from public.site_limits where key = p_key), p_default);
+$$;
+
 -- ---------- RLS ----------
 alter table public.site_settings enable row level security;
+alter table public.site_limits enable row level security;
+drop policy if exists "limits read" on public.site_limits;
+create policy "limits read" on public.site_limits for select using (true);
+grant select on public.site_limits to anon, authenticated;
 drop policy if exists "settings read" on public.site_settings;
 create policy "settings read" on public.site_settings for select using (true);
 alter table public.user_controls enable row level security;
@@ -394,7 +421,9 @@ declare
   instant numeric := null;
   total_value numeric := 0;
 begin
-  if p_count < 1 or p_count > 5 then raise exception 'Možeš otvoriti 1–5 kutija odjednom.'; end if;
+  if p_count < 1 or p_count > public._limit('case_max_open', 5) then
+    raise exception 'Možeš otvoriti 1–% kutija odjednom.', public._limit('case_max_open', 5);
+  end if;
   select * into c from public.cases where slug = p_slug;
   if not found then raise exception 'Kutija ne postoji.'; end if;
   select * into prof from public.profiles where id = uid for update;
@@ -729,7 +758,9 @@ begin
     when '3v3' then seats := 6; tsize := 3;
     else raise exception 'Nepoznat mod.';
   end case;
-  if n < 1 or n > 50 then raise exception 'Battle mora imati 1–50 kutija.'; end if;
+  if n < 1 or n > public._limit('battle_max_cases', 50) then
+    raise exception 'Battle može imati 1–% kutija.', public._limit('battle_max_cases', 50);
+  end if;
   select sum(c.price) into cost from unnest(p_case_ids) as x(cid) join public.cases c on c.id = x.cid and c.case_type = 'normal';
   if cost is null or (select count(*) from unnest(p_case_ids) x(cid) join public.cases c on c.id = x.cid and c.case_type = 'normal') <> n then
     raise exception 'Neispravne kutije.';
@@ -1237,6 +1268,20 @@ begin
 end $$;
 grant execute on function public.admin_clear_chat() to authenticated;
 
+create or replace function public.admin_set_limit(p_key text, p_value numeric)
+returns void language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin(); l public.site_limits;
+begin
+  select * into l from public.site_limits where key = p_key;
+  if not found then raise exception 'Nepoznat limit.'; end if;
+  if p_value < l.min_value or p_value > l.max_value then
+    raise exception '% mora biti između % i %.', l.label, l.min_value, l.max_value;
+  end if;
+  update public.site_limits set value = p_value where key = p_key;
+  perform public._admin_log(a, null, 'limit', jsonb_build_object('key', p_key, 'value', p_value, 'old', l.value));
+end $$;
+grant execute on function public.admin_set_limit(text, numeric) to authenticated;
+
 create or replace function public.admin_set_level(p_user uuid, p_level int)
 returns void language plpgsql security definer set search_path = public as $$
 declare a uuid := public._admin();
@@ -1573,7 +1618,7 @@ begin
         wname := e->>'username';
         exit when t < acc;
       end loop;
-      pay := round(r.pot * 0.95, 2);
+      pay := round(r.pot * (1 - public._limit('jackpot_fee_pct', 5) / 100), 2);
       update public.profiles set balance = balance + pay where id = win;
       update public.jackpot_rounds set status = 'paid', players = pl, winner_id = win, ticket = t / r.pot, payout = pay where id = r.id;
       insert into public.game_log (user_id, game, wager, payout, details)
@@ -1589,12 +1634,14 @@ end $$;
 create or replace function public._jackpot_current()
 returns public.jackpot_rounds language plpgsql security definer set search_path = public as $$
 declare
-  e timestamptz := to_timestamp(ceil(extract(epoch from now()) / 60) * 60);
+  sec numeric := greatest(15, public._limit('jackpot_round_sec', 60));
+  e timestamptz := to_timestamp(ceil(extract(epoch from now()) / sec) * sec);
   r public.jackpot_rounds;
 begin
   select * into r from public.jackpot_rounds where status = 'open' and ends_at > now() order by ends_at limit 1;
   if found then return r; end if;
-  if e <= now() then e := e + interval '1 minute'; end if;
+  -- runda traje barem pola zadanog trajanja (da se ima vremena uložiti)
+  if e - now() < make_interval(secs => sec / 2) then e := e + make_interval(secs => sec); end if;
   insert into public.jackpot_rounds (ends_at) values (e) on conflict (ends_at) do nothing;
   select * into r from public.jackpot_rounds where ends_at = e;
   return r;
@@ -1609,6 +1656,7 @@ begin
   r := public._jackpot_current();
   return jsonb_build_object(
     'id', r.id, 'ends_at', r.ends_at, 'now', now(), 'pot', r.pot,
+    'min_bet', public._limit('jackpot_min_bet', 1), 'max_bet', public._limit('jackpot_max_bet', 10000), 'fee_pct', public._limit('jackpot_fee_pct', 5), 'round_sec', public._limit('jackpot_round_sec', 60),
     'players', public._jackpot_players(r.id),
     'last', (select to_jsonb(x) from (
         select jr.id, jr.status, jr.pot, jr.payout, jr.ticket, jr.players, jr.ends_at, jr.winner_id, p.username as winner
@@ -1629,7 +1677,9 @@ declare
   r public.jackpot_rounds;
   amt numeric := round(coalesce(p_amount, 0), 2);
 begin
-  if amt < 1 or amt > 10000 then raise exception 'Ulog mora biti 1–10000.'; end if;
+  if amt < public._limit('jackpot_min_bet', 1) or amt > public._limit('jackpot_max_bet', 10000) then
+    raise exception 'Ulog mora biti % – %.', public._limit('jackpot_min_bet', 1), public._limit('jackpot_max_bet', 10000);
+  end if;
   perform public._jackpot_settle();
   r := public._jackpot_current();
   if r.ends_at - now() < interval '2 seconds' then raise exception 'Runda se upravo zatvara, pričekaj sljedeću.'; end if;
@@ -1639,6 +1689,20 @@ begin
   perform public._apply_wager(uid, amt);
   return public.jackpot_state();
 end $$;
+
+-- admin: završi trenutnu rundu odmah (izvlačenje sada)
+create or replace function public.admin_jackpot_draw_now()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin(); r public.jackpot_rounds;
+begin
+  select * into r from public.jackpot_rounds where status = 'open' and ends_at > now() order by ends_at limit 1 for update;
+  if not found then raise exception 'Nema otvorene runde.'; end if;
+  update public.jackpot_rounds set ends_at = now() where id = r.id;
+  perform public._jackpot_settle();
+  perform public._admin_log(a, null, 'jackpot_draw_now', jsonb_build_object('round', r.id, 'pot', r.pot));
+  return public.jackpot_state();
+end $$;
+grant execute on function public.admin_jackpot_draw_now() to authenticated;
 
 revoke all on function public._jackpot_settle() from public, anon, authenticated;
 revoke all on function public._jackpot_current() from public, anon, authenticated;

@@ -2,10 +2,10 @@
 
 import { useAuth } from "./AuthProvider";
 
-export function BetInput({ value, onChange, disabled, min = 0.1 }: { value: number; onChange: (n: number) => void; disabled?: boolean; min?: number }) {
+export function BetInput({ value, onChange, disabled, min = 0.1, max = Infinity }: { value: number; onChange: (n: number) => void; disabled?: boolean; min?: number; max?: number }) {
   const { profile } = useAuth();
   const bal = profile?.balance ?? 0;
-  const set = (n: number) => onChange(Math.max(min, Math.round(n * 100) / 100));
+  const set = (n: number) => onChange(Math.min(max, Math.max(min, Math.round(n * 100) / 100)));
   return (
     <div>
       <label className="label" htmlFor="bet">Ulog</label>

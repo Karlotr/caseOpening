@@ -14,14 +14,13 @@ import { useCelebrate } from "@/components/WinOverlay";
 import { TEAM_COLORS } from "@/lib/battles";
 
 type Player = { user_id: string; username: string; level: number; bet: number };
-type Last = { id: number; status: "paid" | "refunded"; pot: number; payout: number | null; players: Player[]; winner_id: string | null; winner: string | null };
-type State = { id: number; ends_at: string; now: string; pot: number; players: Player[]; last: Last | null; history: { id: number; pot: number; payout: number; winner: string; n: number }[] };
+type Last = { ticket?: number | null; id: number; status: "paid" | "refunded"; pot: number; payout: number | null; players: Player[]; winner_id: string | null; winner: string | null };
+type State = { id: number; ends_at: string; now: string; pot: number; min_bet?: number; max_bet?: number; fee_pct?: number; round_sec?: number; players: Player[]; last: Last | null; history: { id: number; pot: number; payout: number; winner: string; n: number }[] };
 
-const ROUND_MS = 60_000;
 const color = (i: number) => TEAM_COLORS[i % TEAM_COLORS.length];
 
 export default function JackpotPage() {
-  const { user, refresh } = useAuth();
+  const { user, refresh, isAdmin } = useAuth();
   const toast = useToast();
   const celebrate = useCelebrate();
   const now = useNow(250);
@@ -74,6 +73,15 @@ export default function JackpotPage() {
     load();
   };
 
+  const drawNow = async () => {
+    if (!window.confirm("Završiti rundu i izvući pobjednika odmah?")) return;
+    setBusy(true);
+    const { error } = await createClient().rpc("admin_jackpot_draw_now");
+    setBusy(false);
+    if (error) return toast(errMsg(error), "error");
+    load();
+  };
+
   const onDrawDone = useCallback(() => {
     const d = drawRef.current;
     if (!d) return;
@@ -96,7 +104,8 @@ export default function JackpotPage() {
 
   if (!st || now === null) return <div className="card h-96 animate-pulse" />;
   const left = Math.max(0, new Date(st.ends_at).getTime() - (now + skew));
-  const progress = 1 - left / ROUND_MS;
+  const roundMs = Number(st.round_sec ?? 60) * 1000;
+  const progress = Math.max(0, 1 - left / roundMs);
   const me = st.players.find((p) => p.user_id === user?.id);
   const myChance = me && st.pot ? (me.bet / st.pot) * 100 : 0;
   const R = 54;
@@ -106,7 +115,7 @@ export default function JackpotPage() {
     <div className="space-y-5">
       <div>
         <h1 className="h1">Jackpot</h1>
-        <p className="mt-2 max-w-2xl text-muted">Svake minute nova runda s pravim igračima. Veći ulog znači veću šansu, a pobjednik uzima cijeli pot (−5%). Ako u rundi bude samo jedan igrač, ulog mu se vraća.</p>
+        <p className="mt-2 max-w-2xl text-muted">Runde traju {Number(st.round_sec ?? 60)} s i igraju ih samo pravi igrači. Veći ulog znači veću šansu, a pobjednik uzima cijeli pot (−{Number(st.fee_pct ?? 5)}%). Ako u rundi bude samo jedan igrač, ulog mu se vraća.</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
@@ -157,11 +166,16 @@ export default function JackpotPage() {
           <h2 className="font-display text-2xl font-extrabold">Uloži u ovu rundu</h2>
           {user ? (
             <>
-              <BetInput value={bet} onChange={setBet} disabled={busy} min={1} />
-              <button className="btn-primary w-full py-3 text-lg" disabled={busy || bet < 1 || left < 2000} onClick={place}>
+              <BetInput value={bet} onChange={setBet} disabled={busy} min={Number(st.min_bet ?? 1)} max={Number(st.max_bet ?? 10000)} />
+              <button className="btn-primary w-full py-3 text-lg" disabled={busy || bet < Number(st.min_bet ?? 1) || bet > Number(st.max_bet ?? 10000) || left < 2000} onClick={place}>
                 {left < 2000 ? "Izvlačenje…" : me ? `Dodaj ${coins(bet)}` : `Uloži ${coins(bet)}`}
               </button>
-              <p className="text-xs text-muted">Možeš ulagati više puta u istoj rundi. Ulozi se zatvaraju 2 sekunde prije izvlačenja.</p>
+              <p className="text-xs text-muted">Ulog {coins(Number(st.min_bet ?? 1))} – {coins(Number(st.max_bet ?? 10000))}. Možeš ulagati više puta u istoj rundi. Ulozi se zatvaraju 2 sekunde prije izvlačenja.</p>
+              {isAdmin && (
+                <button className="w-full rounded-lg border border-accent2/40 px-3 py-2 text-sm font-semibold text-accent2 hover:bg-accent2/10" disabled={busy} onClick={drawNow}>
+                  Admin: izvuci sada
+                </button>
+              )}
             </>
           ) : (
             <p className="text-muted">Prijavi se da bi uložio.</p>
@@ -188,7 +202,7 @@ export default function JackpotPage() {
             <h2 className="font-display text-3xl font-extrabold tracking-tight">Izvlačenje runde #{draw.last.id}</h2>
             <span className="text-sm text-muted">Pot {coins(draw.last.pot)}</span>
           </div>
-          <NameReel entries={drawEntries} winner={drawWinner} spinKey={draw.key} duration={6000} onDone={onDrawDone} />
+          <NameReel entries={drawEntries} winner={drawWinner} spinKey={draw.key} duration={6000} ticket={draw.last.ticket == null ? null : Number(draw.last.ticket)} pot={Number(draw.last.pot)} onDone={onDrawDone} />
         </div>
       )}
     </div>

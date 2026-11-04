@@ -355,10 +355,7 @@ export function BattleView() {
             <h2 className="font-display text-3xl font-extrabold tracking-tight">Jackpot rulet</h2>
             <span className="text-sm text-muted">{isCrazy ? "Crazy: manja vrijednost znači veću šansu" : `Šansa = vrijednost / ${coins(grand)}`}</span>
           </div>
-          <div className="flex h-3 overflow-hidden rounded-full">
-            {entries.map((e, i) => <div key={i} style={{ width: `${chanceOf(i)}%`, background: e.color }} title={`${e.label}: ${e.sub}`} />)}
-          </div>
-          <NameReel entries={entries} winner={battle.winner_team ?? 0} spinKey={rouletteKey} onDone={onRouletteDone} />
+          <NameReel entries={entries} winner={battle.winner_team ?? 0} spinKey={rouletteKey} ticket={battle.jackpot_ticket} pot={grand} onDone={onRouletteDone} />
         </div>
       )}
 
