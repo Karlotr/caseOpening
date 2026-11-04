@@ -87,6 +87,8 @@ export function BattleView() {
   const heldRef = useRef(false);
   // reprodukcija: brzina (1× / 2×), preskakanje i ponovno pokretanje
   const [speed, setSpeed] = useState(1);
+  // kontrole (2×, Preskoči, Ispočetka) samo kod ponovnog gledanja završenog battlea, ne uživo
+  const [replay, setReplay] = useState(false);
   const speedRef = useRef(1);
   const playId = useRef(0);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -375,7 +377,7 @@ export function BattleView() {
           ) : null;
         })}
       </div>
-        {(phase === "rounds" || phase === "roulette") && (
+        {replay && (phase === "rounds" || phase === "roulette") && (
           <div className="flex shrink-0 gap-1">
             <button type="button" onClick={toggleSpeed} aria-pressed={speed === 2} title="Ubrzaj reprodukciju" className={`rounded-lg border px-2.5 py-1.5 text-sm font-bold ${speed === 2 ? "border-accent2 bg-accent2/15 text-accent2" : "border-line text-muted hover:text-fg"}`}>{speed}×</button>
             <button type="button" onClick={skipToEnd} title="Preskoči na rezultat" className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-bold text-muted hover:text-fg">Preskoči</button>
@@ -424,7 +426,7 @@ export function BattleView() {
             </div>
           </div>
           <div className="ml-auto flex gap-2">
-            <button className="btn-ghost" onClick={startPlayback}>Pogledaj ponovno</button>
+            <button className="btn-ghost" onClick={() => { setReplay(true); startPlayback(); }}>Pogledaj ponovno</button>
             {user && <button className="btn-ghost" onClick={() => shareBattle(battle.id)}>Podijeli u chat</button>}
           </div>
         </div>

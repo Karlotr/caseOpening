@@ -89,7 +89,7 @@ function UserBox() {
         </span>
       </button>
       {open && (
-        <div className="card absolute right-0 top-12 z-40 w-56 p-1.5 shadow-2xl" onMouseLeave={() => setOpen(false)}>
+        <div className="card absolute right-0 top-12 z-[55] w-56 p-1.5 shadow-2xl" onMouseLeave={() => setOpen(false)}>
           <Link href="/profile" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Profil i povijest</Link>
           <Link href="/rewards" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Nagrade i level</Link>
           <Link href="/affiliate" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Pozovi prijatelje</Link>
@@ -129,7 +129,7 @@ function SoundToggle() {
 export function Navbar() {
   const [mobile, setMobile] = useState(false);
   return (
-    <header className="sticky top-0 z-30 border-b border-white/[.06] bg-[#090a14]/70 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-white/[.06] bg-[#090a14]/70 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4">
         <button className="lg:hidden" onClick={() => setMobile((m) => !m)} aria-label="Izbornik">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
