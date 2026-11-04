@@ -9,6 +9,7 @@ import { Navbar } from "@/components/Navbar";
 import { ChatProvider } from "@/components/Chat";
 import { BackgroundFX } from "@/components/BackgroundFX";
 import { BackButton } from "@/components/BackButton";
+import { Analytics } from "@vercel/analytics/next";
 
 const manrope = Manrope({ variable: "--font-manrope", subsets: ["latin", "latin-ext"] });
 const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin", "latin-ext"] });
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </WinOverlayProvider>
           </ToastProvider>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
