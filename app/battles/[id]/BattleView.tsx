@@ -130,6 +130,8 @@ export function BattleView() {
     setAnnounce(false);
     setRevealed(0);
     setPhase("rounds");
+    // mobitel: zaglavlje je visoko — skrolaj do trake kutija kad reprodukcija krene
+    if (typeof window !== "undefined" && window.innerWidth < 768) caseStrip.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     later(() => spinRound(0), 500);
      
   }, [spinRound]);
@@ -363,8 +365,8 @@ export function BattleView() {
         </div>
       </div>
 
-      <div className="card flex items-center gap-2 p-2">
-      <div ref={caseStrip} className="relative flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scroll-smooth">
+      <div className="card flex flex-wrap items-center gap-2 p-2 sm:flex-nowrap">
+      <div ref={caseStrip} className="relative flex min-w-0 flex-1 basis-full scroll-mt-20 items-center gap-1.5 overflow-x-auto scroll-smooth sm:basis-auto">
         {battle.case_ids.map((cid, i) => {
           const c = cases.get(cid);
           const current = spinning && i === revealed;
@@ -384,7 +386,7 @@ export function BattleView() {
             {(revealed > 0 || phase === "roulette") && <button type="button" onClick={startPlayback} title="Vrati na početak" className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-bold text-muted hover:text-fg">Ispočetka</button>}
           </div>
         )}
-        <div className="shrink-0 self-center whitespace-nowrap px-3 font-display text-xl font-bold">
+        <div className="ml-auto shrink-0 self-center whitespace-nowrap px-3 font-display text-xl font-bold">
           Runda {Math.min(revealed + (spinning ? 1 : 0), rounds)}<span className="text-muted">/{rounds}</span>
         </div>
       </div>
@@ -432,15 +434,16 @@ export function BattleView() {
         </div>
       )}
 
-      <div className="overflow-x-auto pb-2">
-        <div className="flex min-w-max gap-2 md:min-w-0">
+      {/* mobitel: mreža mjesta (2 ili 3 stupca) / timovi jedan ispod drugog; desktop: timovi u redu */}
+      <div className="pb-2 md:overflow-x-auto">
+        <div className={`grid gap-2 md:flex md:min-w-0 ${battle.team_size > 1 ? "grid-cols-1" : battle.seats % 3 === 0 ? "grid-cols-3" : "grid-cols-2"}`}>
           {teams.map((seats, ti) => {
             const won = done && battle.winner_team === ti;
             const tc = TEAM_COLORS[ti % TEAM_COLORS.length];
             return (
               <Fragment key={ti}>
-                {ti > 0 && <div className="grid w-10 shrink-0 place-items-center font-display text-2xl font-black text-muted">VS</div>}
-                <div className={`flex flex-1 flex-col gap-2 rounded-xl p-1.5 transition ${won ? "bg-accent/10 ring-2 ring-accent" : done ? "opacity-60" : ""}`}>
+                {ti > 0 && <div className="hidden w-10 shrink-0 place-items-center font-display text-2xl font-black text-muted md:grid">VS</div>}
+                <div className={`flex min-w-0 flex-1 flex-col gap-2 rounded-xl p-1 transition md:p-1.5 ${won ? "bg-accent/10 ring-2 ring-accent" : done ? "opacity-60" : ""}`}>
                   {battle.team_size > 1 && (
                     <div className="flex items-center justify-between px-1 font-display text-lg font-bold">
                       <span style={{ color: tc }}>Tim {ti + 1}</span>
@@ -450,21 +453,21 @@ export function BattleView() {
                       </span>
                     </div>
                   )}
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5 md:gap-2">
                     {seats.map((seat) => {
                       const p = players.find((x) => x.seat === seat);
                       const shownInReel = phase === "rounds" ? (spinning ? revealed + 1 : revealed) : -1;
                       const mine = drops.filter((d) => d.seat === seat && d.round <= revealed && d.round !== shownInReel).sort((a, b) => b.round - a.round);
                       const isMe = p?.user_id && p.user_id === user?.id;
                       return (
-                        <div key={seat} className="w-44 flex-1 space-y-2 md:w-auto md:min-w-36">
-                          <div className="card flex items-center gap-2 p-2" style={{ boxShadow: `inset 3px 0 0 ${tc}` }}>
-                            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-md font-display text-base font-black ${p ? (p.is_bot ? "bg-panel2 text-accent2" : "bg-accent text-ink") : "border border-dashed border-line text-muted"}`}>
+                        <div key={seat} className="min-w-0 flex-1 space-y-2 md:min-w-36">
+                          <div className="card flex items-center gap-2 p-1.5 md:p-2" style={{ boxShadow: `inset 3px 0 0 ${tc}` }}>
+                            <span className={`hidden h-9 w-9 shrink-0 place-items-center rounded-md font-display text-base font-black min-[440px]:grid md:grid ${p ? (p.is_bot ? "bg-panel2 text-accent2" : "bg-accent text-ink") : "border border-dashed border-line text-muted"}`}>
                               {p ? (p.is_bot ? "AI" : p.name.slice(0, 2).toUpperCase()) : "?"}
                             </span>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
-                                <span className="truncate font-semibold">{p?.name ?? "Slobodno mjesto"}{isMe && <span className="text-accent2"> (ti)</span>}</span>
+                                <span className="truncate text-sm font-semibold md:text-base">{p?.name ?? "Slobodno mjesto"}{isMe && <span className="text-accent2"> (ti)</span>}</span>
                                 {p && p.stake < 1 && <span className="shrink-0 rounded bg-amber-400/20 px-1 text-xs font-bold text-amber-300" title="Posudio dio ulaza — dobiva toliki dio nagrade">{Math.round(p.stake * 100)}%</span>}
                               </div>
                               <div className="flex items-center gap-2 font-display text-lg font-bold leading-none text-accent">
@@ -476,7 +479,7 @@ export function BattleView() {
                             </div>
                           </div>
                           {battle.status === "waiting" ? (
-                            <div className="card grid h-[336px] place-items-center p-3 text-center">
+                            <div className="card grid h-[260px] place-items-center p-2 text-center md:h-[336px] md:p-3">
                               {p ? (
                                 <span className="font-display text-xl font-bold text-emerald-300">Spreman</span>
                               ) : user && !meIn ? (
@@ -494,7 +497,7 @@ export function BattleView() {
                               <Reel vertical items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} winnerIndex={WIN} spinKey={spinKey} duration={(battle.fast ? FAST_SPIN : 3600) / speed} sound={seat === 0} goldSound onDone={onReelDone} />
                             </div>
                           ) : phase === "rounds" ? (
-                            <div className="h-[336px] rounded-2xl border border-line bg-[linear-gradient(180deg,#0c0c1c,#07070f)]" />
+                            <div className="h-[260px] rounded-2xl border border-line md:h-[336px] bg-[linear-gradient(180deg,#0c0c1c,#07070f)]" />
                           ) : null}
                           <div className="space-y-1.5">
                             {mine.map((d) => {

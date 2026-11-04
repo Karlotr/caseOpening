@@ -93,7 +93,7 @@ export default function BattlesPage() {
                   {b.currency === "gems" && <span className="rounded bg-emerald-400/15 px-1.5 text-xs font-bold text-emerald-300">Gem</span>}
                 </div>
               </div>
-              <div className="col-span-2 flex min-w-0 items-center gap-2 lg:col-span-1">
+              <div className="order-3 col-span-2 flex min-w-0 items-center gap-2 lg:order-none lg:col-span-1">
                 <div className="flex min-w-0 flex-1 gap-1.5 overflow-hidden [mask-image:linear-gradient(90deg,#000_85%,transparent)]">
                   {b.case_ids.slice(0, MAX).map((cid, i) => {
                     const c = byId.get(cid);
@@ -102,7 +102,7 @@ export default function BattlesPage() {
                 </div>
                 {b.case_ids.length > 1 && <span className="shrink-0 rounded-md bg-panel2 px-2 py-1 font-display text-sm font-bold text-muted">{b.case_ids.length}×</span>}
               </div>
-              <div className="flex flex-wrap gap-1">
+              <div className="order-4 flex flex-wrap gap-1 lg:order-none">
                 {Array.from({ length: b.seats }).map((_, s) => {
                   const p = ps.find((x) => x.seat === s);
                   const win = b.status === "finished" && !running && p && p.team === b.winner_team;
@@ -113,11 +113,11 @@ export default function BattlesPage() {
                   );
                 })}
               </div>
-              <div className="text-right">
+              <div className="order-2 text-right lg:order-none">
                 <div className="font-display text-2xl font-bold text-accent">{b.sponsored ? <span className="text-amber-300">Besplatno</span> : <Price amount={b.cost} gems={b.currency === "gems"} />}</div>
                 <div className="text-xs text-muted">{b.case_ids.length} {b.case_ids.length === 1 ? "runda" : "rundi"}</div>
               </div>
-              <span className={`text-center ${b.status === "waiting" ? "btn-primary" : running ? "btn-ghost border-emerald-400/50 text-emerald-300" : "btn-ghost"}`}>{b.status === "waiting" ? "Uđi" : running ? "Gledaj" : "Pogledaj"}</span>
+              <span className={`order-5 text-center lg:order-none ${b.status === "waiting" ? "btn-primary" : running ? "btn-ghost border-emerald-400/50 text-emerald-300" : "btn-ghost"}`}>{b.status === "waiting" ? "Uđi" : running ? "Gledaj" : "Pogledaj"}</span>
             </Link>
           );
         })}

@@ -18,7 +18,7 @@ export const xpForLevel = (level: number) => 25 * (level - 1) ** 2;
 export const levelProgress = (xp: number, level: number) => {
   const a = xpForLevel(level);
   const b = xpForLevel(level + 1);
-  return { pct: Math.min(100, ((xp - a) / (b - a)) * 100), next: b, current: a };
+  return { pct: Math.max(0, Math.min(100, ((xp - a) / (b - a)) * 100)), next: b, current: a };
 };
 
 export const errMsg = (e: unknown) => {

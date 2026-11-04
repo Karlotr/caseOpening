@@ -70,14 +70,14 @@ function UserBox() {
     );
   const lp = profile ? levelProgress(profile.xp, profile.level) : { pct: 0 };
   return (
-    <div className="relative flex items-center gap-2 sm:gap-3">
+    <div className="relative flex min-w-0 items-center gap-1.5 sm:gap-3">
       <Link href="/gems" className="hidden items-center gap-1.5 rounded-xl border border-emerald-400/20 bg-emerald-400/[.06] px-3 py-1.5 font-display text-base font-bold text-emerald-300 transition hover:border-emerald-400/50 sm:flex" title="Gemovi">
         <span className="gem" /> <CountUp value={profile?.gems ?? 0} />
       </Link>
-      <div className="flex items-center gap-1.5 rounded-xl border border-accent/40 bg-accent/10 px-3 py-1.5 font-display text-base font-bold text-accent shadow-[0_0_24px_-8px_#ffb547]" title="Stanje (virtualni coini)">
+      <div className="flex min-w-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-accent/40 bg-accent/10 px-2.5 py-1.5 font-display text-sm font-bold tabular-nums text-accent shadow-[0_0_24px_-8px_#ffb547] sm:px-3 sm:text-base" title="Stanje (virtualni coini)">
         <span className="coin" /> <CountUp value={profile?.balance ?? 0} />
       </div>
-      <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-white/5">
+      <button onClick={() => setOpen((o) => !o)} className="flex shrink-0 items-center gap-2 rounded-md px-1 py-1 hover:bg-white/5 sm:px-2" aria-label="Korisnički izbornik">
         <span className="grid h-9 w-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#5ce1ff,#8b5cf6)] font-display text-lg font-black text-ink shadow-[0_0_18px_-4px_#5ce1ff]" title="Level">
           {profile?.level ?? 1}
         </span>
@@ -89,7 +89,7 @@ function UserBox() {
         </span>
       </button>
       {open && (
-        <div className="card absolute right-0 top-12 z-[55] w-56 p-1.5 shadow-2xl" onMouseLeave={() => setOpen(false)}>
+        <div className="card absolute right-0 top-12 z-[55] w-[min(14rem,calc(100vw-1.5rem))] p-1.5 shadow-2xl" onMouseLeave={() => setOpen(false)}>
           <Link href="/profile" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Profil i povijest</Link>
           <Link href="/rewards" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Nagrade i level</Link>
           <Link href="/affiliate" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Pozovi prijatelje</Link>
@@ -130,32 +130,38 @@ export function Navbar() {
   const [mobile, setMobile] = useState(false);
   return (
     <header className="sticky top-0 z-50 border-b border-white/[.06] bg-[#090a14]/70 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4">
-        <button className="lg:hidden" onClick={() => setMobile((m) => !m)} aria-label="Izbornik">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-3 sm:gap-4 sm:px-4">
+        <button className="-ml-1 grid h-10 w-10 shrink-0 place-items-center rounded-lg lg:hidden" onClick={() => setMobile((m) => !m)} aria-label="Izbornik" aria-expanded={mobile}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
         </button>
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="GARAŽA.gg naslovna">
           <span className="relative grid h-8 w-8 place-items-center">
             <span className="absolute inset-0 rounded-lg bg-[linear-gradient(135deg,#ff2b4e,#ffb547)] shadow-[0_0_20px_-2px_#ff2b4e]" />
             <span className="relative h-1 w-5 rounded-full bg-white/90 shadow-[0_0_8px_#fff]" />
           </span>
-          <span className="font-display text-2xl font-extrabold">garaža<span className="text-muted">.gg</span></span>
+          <span className="hidden font-display text-2xl font-extrabold min-[430px]:inline">garaža<span className="text-muted">.gg</span></span>
         </Link>
         <nav className="hidden flex-1 items-center gap-0.5 lg:flex">
           <Suspense fallback={<StaticLinks />}>
             <Links />
           </Suspense>
         </nav>
-        <div className="ml-auto flex items-center gap-2">
-          <SoundToggle />
+        <div className="ml-auto flex min-w-0 items-center gap-1.5 sm:gap-2">
+          <span className="hidden sm:block"><SoundToggle /></span>
           <UserBox />
         </div>
       </div>
       {mobile && (
-        <nav className="grid grid-cols-2 gap-1 border-t border-line p-3 lg:hidden">
-          <Suspense fallback={<StaticLinks />}>
-            <Links onClick={() => setMobile(false)} />
-          </Suspense>
+        <nav className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-line p-3 lg:hidden">
+          <div className="grid grid-cols-2 gap-1">
+            <Suspense fallback={<StaticLinks />}>
+              <Links onClick={() => setMobile(false)} />
+            </Suspense>
+          </div>
+          <div className="mt-2 flex items-center justify-between border-t border-line pt-3 sm:hidden">
+            <span className="text-sm text-muted">Zvuk</span>
+            <SoundToggle />
+          </div>
         </nav>
       )}
     </header>

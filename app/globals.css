@@ -27,7 +27,10 @@
   inherits: false;
 }
 
-html { color-scheme: dark; }
+html { color-scheme: dark; overflow-x: clip; -webkit-text-size-adjust: 100%; }
+body { overflow-x: clip; }
+/* veće mete za dodir i bez plavog bljeska na mobitelu */
+@media (pointer: coarse) { button, a { -webkit-tap-highlight-color: transparent; } }
 
 body {
   background: var(--color-ink);
@@ -71,7 +74,7 @@ body {
     box-shadow: 0 1px 0 #ffffff12 inset, 0 20px 50px -30px #000;
   }
   .input {
-    @apply w-full rounded-xl border border-white/10 bg-black/30 px-3.5 py-2.5 text-sm outline-none transition placeholder:text-muted/70 focus:border-accent2/70 focus:bg-black/40 focus:shadow-[0_0_0_4px_#5ce1ff1f];
+    @apply w-full rounded-xl border border-white/10 bg-black/30 px-3.5 py-2.5 text-base outline-none sm:text-sm transition placeholder:text-muted/70 focus:border-accent2/70 focus:bg-black/40 focus:shadow-[0_0_0_4px_#5ce1ff1f];
   }
   .h1 { @apply font-display text-4xl font-extrabold leading-[.95] sm:text-6xl; }
   .label { @apply mb-1.5 block text-sm font-medium text-muted; }

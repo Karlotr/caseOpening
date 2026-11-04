@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Bricolage_Grotesque, Manrope } from "next/font/google";
 import "./globals.css";
@@ -12,6 +12,13 @@ import { BackButton } from "@/components/BackButton";
 
 const manrope = Manrope({ variable: "--font-manrope", subsets: ["latin", "latin-ext"] });
 const bricolage = Bricolage_Grotesque({ variable: "--font-bricolage", subsets: ["latin", "latin-ext"], axes: ["wdth", "opsz"] });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#090a14",
+};
 
 export const metadata: Metadata = {
   title: "GARAŽA.gg — kutije, battles i oldtajmeri",

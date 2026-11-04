@@ -144,15 +144,19 @@ function ChatPanel() {
   return (
     <>
       {!open && (
-        <button onClick={() => setOpen(true)} className="fixed bottom-4 left-4 z-40 flex items-center gap-2 rounded-full border border-line bg-panel2 px-4 py-2.5 font-display text-lg font-bold shadow-2xl hover:border-accent2">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12Z" /></svg>
-          Chat
-          {unread > 0 && <span className="rounded-full bg-accent px-1.5 text-sm text-ink">{unread}</span>}
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Otvori chat"
+          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-40 flex h-12 w-12 items-center justify-center gap-2 rounded-full border border-line bg-panel2/95 font-display text-lg font-bold shadow-2xl backdrop-blur hover:border-accent2 sm:left-4 sm:right-auto sm:h-auto sm:w-auto sm:px-4 sm:py-2.5"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12Z" /></svg>
+          <span className="hidden sm:inline">Chat</span>
+          {unread > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-xs text-ink sm:static sm:h-auto sm:text-sm">{unread}</span>}
         </button>
       )}
       <aside
         aria-label="Chat"
-        className={`fixed bottom-0 right-0 top-[67px] z-40 flex w-full max-w-[340px] flex-col border-l border-line bg-ink/95 backdrop-blur transition-transform duration-300 ${open ? "translate-x-0" : "translate-x-full"}`}
+        className={`fixed inset-0 z-[60] flex w-full flex-col bg-ink backdrop-blur transition-transform duration-300 sm:inset-auto sm:bottom-0 sm:right-0 sm:top-[67px] sm:z-40 sm:max-w-[340px] sm:border-l sm:border-line sm:bg-ink/95 ${open ? "translate-x-0" : "pointer-events-none translate-x-full"}`}
       >
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <div>
@@ -223,7 +227,7 @@ function ChatPanel() {
           })}
         </div>
         {user ? (
-          <form onSubmit={send} className="flex gap-2 border-t border-line p-3">
+          <form onSubmit={send} className="flex gap-2 border-t border-line p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <input className="input" maxLength={300} value={text} onChange={(e) => setText(e.target.value)} placeholder={`Piši kao ${profile?.username ?? ""}…`} aria-label="Poruka" />
             <button className="btn-primary px-4" disabled={sending || !text.trim()}>Pošalji</button>
           </form>

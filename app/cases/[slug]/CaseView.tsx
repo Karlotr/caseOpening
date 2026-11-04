@@ -42,6 +42,7 @@ export function CaseView() {
   const [lastCost, setLastCost] = useState(0);
   const busyRef = useRef(false);
   const reelsDone = useRef(0);
+  const reelBox = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getCases().then((all) => {
@@ -67,6 +68,8 @@ export function CaseView() {
       );
       setWon(winners);
       reelsDone.current = 0;
+      // mobitel: trake su ispod podataka o kutiji — skrolaj do njih kad krene vrtnja
+      if (window.innerWidth < 1024) reelBox.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       const go = () => {
         setSpinning(true);
         setSpinKey((k) => k + 1);
@@ -193,7 +196,7 @@ export function CaseView() {
         </div>
 
         <div className="card min-w-0 space-y-4 p-4">
-          <div className="relative space-y-2 overflow-hidden rounded-lg">
+          <div ref={reelBox} className="relative scroll-mt-20 space-y-2 overflow-hidden rounded-lg">
             {strips.map((s, i) => (
               <Reel key={i} size={strips.length === 1 ? "lg" : "md"} pool={c.items} items={s} winnerIndex={WIN} spinKey={spinKey} duration={fast ? 1800 : 5600} sound={i === 0} onDone={reelDone} />
             ))}
