@@ -29,7 +29,7 @@ type Phase = "idle" | "rounds" | "roulette" | "done";
 
 export function BattleView() {
   const { id } = useParams<{ id: string }>();
-  const { user, profile, refresh, holdWallet } = useAuth();
+  const { user, profile, refresh, holdWallet, deferCredit } = useAuth();
   const rpc = useRpc();
   const toast = useToast();
   const { shareBattle } = useChat();
@@ -158,16 +158,20 @@ export function BattleView() {
     const age = Date.now() - new Date(battle.finished_at ?? battle.created_at).getTime();
     if (age < 90_000) {
       sfx.lightsOut();
-      if (user && players.some((p) => p.user_id === user.id) && profile && !heldRef.current) {
+      const me = user ? players.find((p) => p.user_id === user.id) : undefined;
+      if (me) {
+        // isplata je već na računu — sakrij je dok se battle ne odvrti (ista formula kao na serveru)
+        const winners = players.filter((p) => p.team === battle.winner_team).length;
+        const payout = me.team === battle.winner_team ? Math.round(((battle.total_value ?? 0) / Math.max(1, winners)) * me.stake * 100) / 100 : 0;
         heldRef.current = true;
-        holdWallet({ balance: profile.balance });
+        deferCredit(payout);
       }
       startPlayback();
     } else {
       setRevealed(rounds);
       setPhase("done");
     }
-  }, [battle, drops, cases, items, rounds, startPlayback, user, players, profile, holdWallet]);
+  }, [battle, drops, cases, items, rounds, startPlayback, user, players, deferCredit]);
 
   // kad animacija završi (ili napustiš stranicu) pokaži pravo stanje
   useEffect(() => {
@@ -292,6 +296,11 @@ export function BattleView() {
   const meIn = players.some((p) => p.user_id === user?.id);
   const isCreator = user?.id === battle.creator_id;
   const myWin = done && players.find((p) => p.user_id === user?.id)?.team === battle.winner_team;
+  const teamMode = battle.team_size > 1;
+  // auti koji su već izašli iz trake (trenutna runda se još prikazuje u traci)
+  const shownInReel = phase === "rounds" ? (spinning ? revealed + 1 : revealed) : -1;
+  const mineOf = (seat: number) =>
+    drops.filter((d) => d.seat === seat && d.round <= revealed && d.round !== shownInReel).sort((a, b) => b.round - a.round);
 
   const copyLink = async () => {
     try {
@@ -322,9 +331,9 @@ export function BattleView() {
     await reload();
   };
 
-  const act = async (fn: string, args: Record<string, unknown>, msg?: string) => {
+  const act = async (fn: string, args: Record<string, unknown>, msg?: string, silentRefresh = false) => {
     setBusy(true);
-    const r = await rpc(fn, args);
+    const r = await rpc(fn, args, { silentRefresh });
     setBusy(false);
     if (r && msg) toast(msg, "success");
     await reload();
@@ -397,7 +406,7 @@ export function BattleView() {
           {user && <button className="btn-ghost" onClick={() => shareBattle(battle.id)}>Podijeli u chat</button>}
           {isCreator && (
             <div className="ml-auto flex gap-2">
-              <button className="btn-primary" disabled={busy} onClick={() => act("fill_battle_bots", { p_id: battle.id })}>Popuni botovima i kreni</button>
+              <button className="btn-primary" disabled={busy} onClick={() => act("fill_battle_bots", { p_id: battle.id }, undefined, true)}>Popuni botovima i kreni</button>
               {players.length === 1 && <button className="btn-ghost" disabled={busy} onClick={() => act("cancel_battle", { p_id: battle.id }, "Battle otkazan, coini su vraćeni.")}>Otkaži battle</button>}
             </div>
           )}
@@ -456,8 +465,7 @@ export function BattleView() {
                   <div className="flex gap-1.5 md:gap-2">
                     {seats.map((seat) => {
                       const p = players.find((x) => x.seat === seat);
-                      const shownInReel = phase === "rounds" ? (spinning ? revealed + 1 : revealed) : -1;
-                      const mine = drops.filter((d) => d.seat === seat && d.round <= revealed && d.round !== shownInReel).sort((a, b) => b.round - a.round);
+                      const mine = mineOf(seat);
                       const isMe = p?.user_id && p.user_id === user?.id;
                       return (
                         <div key={seat} className="min-w-0 flex-1 space-y-2 md:min-w-36">
@@ -499,16 +507,7 @@ export function BattleView() {
                           ) : phase === "rounds" ? (
                             <div className="h-[260px] rounded-2xl border border-line md:h-[336px] bg-[linear-gradient(180deg,#0c0c1c,#07070f)]" />
                           ) : null}
-                          <div className="space-y-1.5">
-                            {mine.map((d) => {
-                              const it = items.get(d.item_id);
-                              return it ? (
-                                <div key={d.round} className="drop-in relative">
-                                  <ItemCard item={it} size="sm" />
-                                </div>
-                              ) : null;
-                            })}
-                          </div>
+                          <DropList className={teamMode ? "hidden md:block" : ""} drops={mine} items={items} />
                         </div>
                       );
                     })}
@@ -519,6 +518,38 @@ export function BattleView() {
           })}
         </div>
       </div>
+
+      {/* mobitel, timski battle (2v2, 3v3…): osvojeni auti na dnu, da ne razdvajaju timove */}
+      {teamMode && drops.some((d) => d.round <= revealed) && (
+        <div className="space-y-3 md:hidden">
+          <h2 className="font-display text-xl font-bold">Osvojeno</h2>
+          {teams.map((seats, ti) => (
+            <div key={ti} className="space-y-1.5">
+              <div className="px-1 font-display text-base font-bold" style={{ color: TEAM_COLORS[ti % TEAM_COLORS.length] }}>Tim {ti + 1}</div>
+              <div className="flex gap-1.5">
+                {seats.map((seat) => (
+                  <DropList key={seat} className="min-w-0 flex-1" drops={mineOf(seat)} items={items} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DropList({ drops, items, className = "" }: { drops: BattleDrop[]; items: Map<number, Item>; className?: string }) {
+  return (
+    <div className={`space-y-1.5 ${className}`}>
+      {drops.map((d) => {
+        const it = items.get(d.item_id);
+        return it ? (
+          <div key={d.round} className="drop-in relative">
+            <ItemCard item={it} size="sm" />
+          </div>
+        ) : null;
+      })}
     </div>
   );
 }

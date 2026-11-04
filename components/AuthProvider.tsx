@@ -13,10 +13,13 @@ type Ctx = {
   refresh: () => Promise<void>;
   // privremeno "zamrzni" prikaz stanja i garaže (npr. dok se vrti battle, da se rezultat ne vidi unaprijed)
   holdWallet: (h: Wallet | null) => void;
+  // dobitak je već na računu (server), ali se prikazuje tek kad animacija završi: holdWallet(null) ga otpušta
+  deferCredit: (amount: number) => void;
   signOut: () => Promise<void>;
 };
 
-type Wallet = { balance: number };
+type Wallet = { balance: number; gems?: number };
+const SAFETY_RELEASE = 10 * 60_000; // sigurnosno otpuštanje zamrznutog stanja (dugi battleovi traju i preko 2 min)
 
 const AuthCtx = createContext<Ctx | null>(null);
 
@@ -35,6 +38,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [hold, setHold] = useState<Wallet | null>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdRef = useRef<Wallet | null>(null);
+  const profileRef = useRef<Profile | null>(null);
+  useEffect(() => {
+    holdRef.current = hold;
+    profileRef.current = profile;
+  }, [hold, profile]);
 
   const loadProfile = useCallback(
     async (u: User | null) => {
@@ -100,20 +109,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   }, [supabase]);
 
+  const setHoldSafe = useCallback((h: Wallet | null) => {
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    holdRef.current = h;
+    setHold(h);
+    if (h) holdTimer.current = setTimeout(() => setHold(null), SAFETY_RELEASE);
+  }, []);
+
   const holdWallet = useCallback(
     (h: Wallet | null) => {
-      if (holdTimer.current) clearTimeout(holdTimer.current);
-      setHold(h);
-      if (h) holdTimer.current = setTimeout(() => setHold(null), 90_000); // sigurnosno otpuštanje
-      else loadProfile(user);
+      setHoldSafe(h);
+      if (!h) loadProfile(user);
     },
-    [loadProfile, user]
+    [setHoldSafe, loadProfile, user]
   );
 
-  const shownProfile = useMemo(() => (hold && profile ? { ...profile, balance: hold.balance } : profile), [hold, profile]);
+  const deferCredit = useCallback(
+    (amount: number) => {
+      // već zamrznuto prije isplate (npr. pri ulasku u battle) → ta vrijednost je točna, ne diraj
+      if (holdRef.current || !user) return;
+      const p = profileRef.current;
+      // odmah zamrzni ono što je na ekranu, pa iz svježeg stanja oduzmi dobitak
+      // (lokalni profil je možda već povukao isplatu, npr. periodičnim osvježavanjem)
+      if (p) setHoldSafe({ balance: p.balance, gems: p.gems });
+      supabase
+        .from("profiles")
+        .select("balance")
+        .eq("id", user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data && holdRef.current) setHoldSafe({ ...holdRef.current, balance: Math.max(0, Number(data.balance) - amount) });
+        });
+    },
+    [supabase, user, setHoldSafe]
+  );
+
+  const shownProfile = useMemo(
+    () => (hold && profile ? { ...profile, balance: hold.balance, gems: hold.gems ?? profile.gems } : profile),
+    [hold, profile]
+  );
 
   return (
-    <AuthCtx value={{ user, profile: shownProfile, isAdmin, loading, refresh, holdWallet, signOut }}>{children}</AuthCtx>
+    <AuthCtx value={{ user, profile: shownProfile, isAdmin, loading, refresh, holdWallet, deferCredit, signOut }}>{children}</AuthCtx>
   );
 }
 

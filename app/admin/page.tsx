@@ -113,9 +113,9 @@ export default function AdminPage() {
               role="tab"
               aria-selected={tab === t.k}
               onClick={() => setTab(t.k)}
-              className={`group flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${tab === t.k ? "bg-accent/15 text-fg ring-1 ring-accent/50" : "text-muted hover:bg-white/[.04] hover:text-fg"}`}
+              className={`group flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-2 text-left transition lg:gap-3 lg:px-3 lg:py-2.5 ${tab === t.k ? "bg-accent/15 text-fg ring-1 ring-accent/50" : "text-muted hover:bg-white/[.04] hover:text-fg"}`}
             >
-              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${tab === t.k ? "bg-accent text-ink" : "bg-white/[.05]"}`}>
+              <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg lg:h-8 lg:w-8 ${tab === t.k ? "bg-accent text-ink" : "bg-white/[.05]"}`}>
                 <Icon d={t.icon} />
               </span>
               <span>
@@ -128,9 +128,9 @@ export default function AdminPage() {
       </aside>
 
       <div className="min-w-0 space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="mr-auto font-display text-3xl font-extrabold sm:text-4xl">{cur.l}</h1>
-          <span className="text-xs text-muted tabular-nums">{at ? `Osvježeno ${at.toLocaleTimeString("hr-HR")}` : ""}</span>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <h1 className="mr-auto font-display text-2xl font-extrabold sm:text-4xl">{cur.l}</h1>
+          <span className="hidden text-xs text-muted tabular-nums sm:inline">{at ? `Osvježeno ${at.toLocaleTimeString("hr-HR")}` : ""}</span>
           <button role="switch" aria-checked={auto} onClick={() => setAuto(!auto)} className="flex items-center gap-2 rounded-lg border border-line px-2.5 py-1.5 text-sm text-muted hover:text-fg">
             <span className={`flex h-4 w-7 items-center rounded-full p-0.5 transition ${auto ? "bg-emerald-400" : "bg-line"}`}>
               <span className={`h-3 w-3 rounded-full bg-white transition ${auto ? "translate-x-3" : ""}`} />
@@ -158,12 +158,12 @@ function StatsTab({ tick }: { tick: number }) {
   useEffect(() => {
     sb().rpc("admin_stats").then(({ data }) => setS(data as Stats));
   }, [tick]);
-  if (!s) return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="card h-28 animate-pulse" />)}</div>;
+  if (!s) return <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="card h-28 animate-pulse" />)}</div>;
   const house = Number(s.wagered_24h) - Number(s.payout_24h);
   const maxW = Math.max(1, ...s.by_game.map((g) => Number(g.wager)));
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
         <Kpi l="Korisnika" v={String(s.users)} sub={`+${s.new_24h} novih u 24 h`} icon={TABS[1].icon} />
         <Kpi l="Aktivni u 24 h" v={String(s.active_24h)} sub={`${s.open_battles} otvorenih battleova · ${s.banned} blokiranih`} icon="M13 2 3 14h9l-1 8 10-12h-9l1-8Z" />
         <Kpi l="Odigrano u 24 h" v={coins(s.wagered_24h)} sub={`isplaćeno ${coins(s.payout_24h)}`} icon="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
@@ -177,7 +177,7 @@ function StatsTab({ tick }: { tick: number }) {
             {s.by_game.map((g) => {
               const rtp = Number(g.wager) > 0 ? (Number(g.payout) / Number(g.wager)) * 100 : null;
               return (
-                <div key={g.game} className="grid grid-cols-[6.5rem_minmax(0,1fr)_auto] items-center gap-3 text-sm">
+                <div key={g.game} className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-2 text-sm sm:grid-cols-[6.5rem_minmax(0,1fr)_auto] sm:gap-3">
                   <span className="truncate font-semibold capitalize">{g.game}</span>
                   <div>
                     <div className="h-2 overflow-hidden rounded-full bg-white/[.06]">
@@ -185,7 +185,7 @@ function StatsTab({ tick }: { tick: number }) {
                     </div>
                     <div className="mt-1 text-xs text-muted tabular-nums">{g.rounds} rundi · uloženo {coins(g.wager)} · isplaćeno {coins(g.payout)}</div>
                   </div>
-                  <span className={`w-16 text-right font-display font-bold tabular-nums ${rtp === null ? "text-muted" : rtp > 100 ? "text-red-300" : "text-emerald-300"}`} title="Povrat igračima">{rtp === null ? "—" : `${rtp.toFixed(1)}%`}</span>
+                  <span className={`w-14 text-right font-display font-bold tabular-nums sm:w-16 ${rtp === null ? "text-muted" : rtp > 100 ? "text-red-300" : "text-emerald-300"}`} title="Povrat igračima">{rtp === null ? "—" : `${rtp.toFixed(1)}%`}</span>
                 </div>
               );
             })}
@@ -202,12 +202,12 @@ function StatsTab({ tick }: { tick: number }) {
 
 function Kpi({ l, v, sub, tone, icon }: { l: string; v: string; sub?: string; tone?: "good" | "bad"; icon: string }) {
   return (
-    <div className="card relative overflow-hidden p-4">
-      <div className="flex items-center gap-2 text-sm text-muted">
-        <span className="grid h-7 w-7 place-items-center rounded-lg bg-white/[.05]"><Icon d={icon} className="h-4 w-4" /></span>
+    <div className="card relative min-w-0 overflow-hidden p-3 sm:p-4">
+      <div className="flex items-center gap-2 text-xs text-muted sm:text-sm">
+        <span className="hidden h-7 w-7 shrink-0 place-items-center rounded-lg bg-white/[.05] sm:grid"><Icon d={icon} className="h-4 w-4" /></span>
         {l}
       </div>
-      <div title={v} className={`mt-2 truncate font-display text-2xl font-extrabold tabular-nums 2xl:text-3xl ${tone === "good" ? "text-emerald-300" : tone === "bad" ? "text-red-300" : ""}`}>{v}</div>
+      <div title={v} className={`mt-1.5 truncate font-display text-xl font-extrabold tabular-nums sm:mt-2 sm:text-2xl 2xl:text-3xl ${tone === "good" ? "text-emerald-300" : tone === "bad" ? "text-red-300" : ""}`}>{v}</div>
       {sub && <div className="mt-0.5 text-xs text-muted">{sub}</div>}
     </div>
   );
@@ -353,12 +353,12 @@ function LimitsBox() {
                 {list.map((r) => {
                   const changed = edit[r.key] !== undefined && Number(edit[r.key]) !== r.value;
                   return (
-                    <div key={r.key} className={`flex items-center gap-2 rounded-xl border p-2.5 transition ${changed ? "border-accent/60 bg-accent/[.05]" : "border-line"}`}>
-                      <label htmlFor={`lim-${r.key}`} className="min-w-0 flex-1 text-sm">
+                    <div key={r.key} className={`flex flex-wrap items-center gap-2 rounded-xl border p-2.5 transition min-[420px]:flex-nowrap ${changed ? "border-accent/60 bg-accent/[.05]" : "border-line"}`}>
+                      <label htmlFor={`lim-${r.key}`} className="min-w-0 basis-full text-sm min-[420px]:basis-0 min-[420px]:flex-1">
                         {r.label}
                         <span className="block text-xs text-muted">{r.min_value} – {r.max_value}</span>
                       </label>
-                      <input id={`lim-${r.key}`} type="number" className="input w-24 py-1.5 text-right tabular-nums" min={r.min_value} max={r.max_value} value={edit[r.key] ?? ""} onChange={(e) => setEdit((x) => ({ ...x, [r.key]: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && changed && save(r.key)} />
+                      <input id={`lim-${r.key}`} type="number" className="input min-w-0 flex-1 py-1.5 text-right tabular-nums min-[420px]:w-24 min-[420px]:flex-none" min={r.min_value} max={r.max_value} value={edit[r.key] ?? ""} onChange={(e) => setEdit((x) => ({ ...x, [r.key]: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && changed && save(r.key)} />
                       <button className={`rounded-lg px-2.5 py-1.5 text-sm font-semibold transition ${changed ? "bg-accent text-ink" : "pointer-events-none text-muted/50"}`} disabled={!changed} onClick={() => save(r.key)}>Spremi</button>
                     </div>
                   );
@@ -404,6 +404,16 @@ function UsersTab({ tick }: { tick: number }) {
     return [...f].sort((a, b) => val(b) - val(a));
   }, [users, filter, sort, now]);
   const current = users.find((u) => u.id === sel) ?? null;
+  // ladica na mobitelu/tabletu: stranica ispod se ne skrola
+  const drawerOpen = !!current;
+  useEffect(() => {
+    if (!drawerOpen || window.matchMedia("(min-width: 1536px)").matches) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [drawerOpen]);
   const counts = { all: users.length, admin: users.filter((u) => u.role === "admin").length, banned: users.filter((u) => u.banned).length };
 
   return (
@@ -455,7 +465,7 @@ function UsersTab({ tick }: { tick: number }) {
         <>
           {/* uži ekrani: uređivanje u bočnoj ladici; široki: stupac desno */}
           <button aria-label="Zatvori" onClick={() => setSel(null)} className="fixed inset-0 z-[64] bg-black/60 backdrop-blur-sm 2xl:hidden" />
-          <div className="fixed inset-y-0 right-0 z-[65] w-full max-w-[480px] overflow-y-auto bg-ink p-2 shadow-[0_0_80px_rgba(0,0,0,.8)] 2xl:static 2xl:z-auto 2xl:max-w-none 2xl:overflow-visible 2xl:bg-transparent 2xl:p-0 2xl:shadow-none">
+          <div className="fixed inset-y-0 right-0 z-[65] w-full max-w-[480px] overflow-y-auto overscroll-contain bg-ink p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_0_80px_rgba(0,0,0,.8)] 2xl:static 2xl:z-auto 2xl:max-w-none 2xl:overflow-visible 2xl:bg-transparent 2xl:p-0 2xl:shadow-none">
             <UserEditor key={current.id} u={current} onChanged={load} tick={tick} onClose={() => setSel(null)} />
           </div>
         </>
@@ -517,7 +527,7 @@ function UserEditor({ u, onChanged, tick, onClose }: { u: U; onChanged: () => vo
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full font-display text-lg font-extrabold text-ink" style={{ background: `hsl(${hue(u.username)} 80% 70%)` }}>{initials(u.username)}</span>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="truncate font-display text-2xl font-extrabold">{u.username}</span>
+              <span className="truncate font-display text-xl font-extrabold sm:text-2xl">{u.username}</span>
               {u.role === "admin" && <span className="rounded bg-accent2/20 px-1.5 text-xs font-bold text-accent2">admin</span>}
               {u.banned && <span className="rounded bg-red-500/20 px-1.5 text-xs font-bold text-red-300">blokiran</span>}
             </div>
@@ -545,7 +555,7 @@ function UserEditor({ u, onChanged, tick, onClose }: { u: U; onChanged: () => vo
             <Block title="Sreća" hint="Utječe na kutije, battle dropove, dnevnu kutiju i upgrader. Korisnik je ne vidi.">
               <div className="flex items-center gap-3">
                 <input id="luck" type="range" min={0.25} max={5} step={0.05} value={luck} onChange={(e) => setLuck(Number(e.target.value))} className="flex-1 accent-orange-500" aria-label="Sreća" />
-                <span className={`w-28 text-right text-sm font-semibold tabular-nums ${luck > 1 ? "text-emerald-300" : luck < 1 ? "text-red-300" : "text-muted"}`}>{luck.toFixed(2)}× {luckLabel}</span>
+                <span className={`w-24 text-right text-xs font-semibold tabular-nums sm:w-28 sm:text-sm ${luck > 1 ? "text-emerald-300" : luck < 1 ? "text-red-300" : "text-muted"}`}>{luck.toFixed(2)}× {luckLabel}</span>
               </div>
               <div className="flex gap-1.5">
                 {[0.5, 1, 1.5, 2].map((v) => (
@@ -567,7 +577,7 @@ function UserEditor({ u, onChanged, tick, onClose }: { u: U; onChanged: () => vo
               <button className="btn-primary w-full" onClick={() => call("admin_set_controls", { p_user: u.id, p_luck: luck, p_banned: banned, p_role: role, p_note: note || null }, "Postavke su spremljene.")}>Spremi kontrole</button>
             </Block>
             <Block title="Level i nagrade">
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <input className="input w-24" type="number" min={1} max={100} value={level} onChange={(e) => setLevel(e.target.value)} aria-label="Level" />
                 <button className="btn-ghost" onClick={() => call("admin_set_level", { p_user: u.id, p_level: Number(level) }, "Level je postavljen.")}>Postavi</button>
                 <button className="btn-ghost ml-auto" onClick={() => call("admin_reset_cooldowns", { p_user: u.id }, "Nagrade su ponovno dostupne.")}>Resetiraj nagrade</button>

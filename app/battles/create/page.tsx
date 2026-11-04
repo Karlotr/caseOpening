@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useLimits } from "@/lib/useLimits";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getCases } from "@/lib/data";
 import { MODES, modeDesc, modeLabel } from "@/lib/battles";
 import type { CaseWithItems } from "@/lib/types";
@@ -44,12 +44,32 @@ export default function CreateBattle() {
   const cost = picked.reduce((s, id) => s + ((gems ? byId.get(id)?.gem_price : byId.get(id)?.price) ?? 0), 0);
   const m = MODES.find((x) => x.k === mode)!;
 
-  const add = (id: number) => setPicked((p) => (p.length >= limits.battle_max_cases ? p : [...p, id]));
-  const remove = (id: number) =>
+  // ručno sidrenje skrola: iOS Safari nema scroll anchoring, pa bi promjena visine iznad
+  // (odabrane kutije, cijena, posudba) pomaknula karticu koju upravo tapkaš
+  const anchor = useRef<{ el: HTMLElement; top: number } | null>(null);
+  const keepInPlace = (e?: React.MouseEvent) => {
+    const el = (e?.currentTarget as HTMLElement | undefined)?.closest<HTMLElement>("[data-anchor]");
+    anchor.current = el ? { el, top: el.getBoundingClientRect().top } : null;
+  };
+  useLayoutEffect(() => {
+    const a = anchor.current;
+    anchor.current = null;
+    if (!a || !a.el.isConnected) return;
+    const d = a.el.getBoundingClientRect().top - a.top;
+    if (Math.abs(d) > 0.5) window.scrollBy({ top: d, behavior: "instant" });
+  }, [picked, stake]);
+
+  const add = (id: number, e?: React.MouseEvent) => {
+    keepInPlace(e);
+    setPicked((p) => (p.length >= limits.battle_max_cases ? p : [...p, id]));
+  };
+  const remove = (id: number, e?: React.MouseEvent) => {
+    keepInPlace(e);
     setPicked((p) => {
       const i = p.lastIndexOf(id);
       return i < 0 ? p : [...p.slice(0, i), ...p.slice(i + 1)];
     });
+  };
 
   const create = async () => {
     setBusy(true);
@@ -98,12 +118,12 @@ export default function CreateBattle() {
           </div>
           <div>
             <span className="label">Odabrane kutije ({picked.length}/{limits.battle_max_cases})</span>
-            <div className="flex min-h-16 flex-wrap gap-1.5 rounded-md border border-dashed border-line p-2">
+            <div className="flex h-[66px] gap-1.5 overflow-x-auto overflow-y-hidden rounded-md border border-dashed border-line p-2 sm:h-auto sm:min-h-16 sm:flex-wrap sm:overflow-visible">
               {picked.length === 0 && <span className="self-center text-sm text-muted">Dodaj kutije ispod.</span>}
               {picked.map((id, i) => {
                 const c = byId.get(id);
                 return c ? (
-                  <button key={i} onClick={() => remove(id)} title="Ukloni" className="group relative">
+                  <button key={i} onClick={() => remove(id)} title="Ukloni" className="group relative shrink-0">
                     <CaseArt c={c} className="h-12 w-20 [&_svg]:h-8 [&_svg]:w-16" />
                     <span className="absolute inset-0 hidden place-items-center rounded-lg bg-black/70 text-xs font-bold text-red-400 group-hover:grid">Ukloni</span>
                   </button>
@@ -121,12 +141,12 @@ export default function CreateBattle() {
           </div>
           <div className="space-y-3 border-t border-line pt-4">
             <StakePicker cost={cost} value={stake} onChange={setStake} extra={sponsored ? cost * (m.seats - 1) : 0} gems={gems} />
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm text-muted">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div className="text-sm text-muted tabular-nums">
                 Ulaz po igraču: <Price amount={cost} gems={gems} className="font-display text-lg text-fg" />
                 {sponsored && <> · sponzorstvo: <Price amount={cost * (m.seats - 1)} gems={gems} className="font-display text-lg text-emerald-300" /></>}
               </div>
-              <button className="btn-primary px-6 py-3 text-lg" disabled={!picked.length || busy} onClick={create}>
+              <button className="btn-primary w-full whitespace-nowrap px-6 py-3 text-lg tabular-nums sm:w-auto" disabled={!picked.length || busy} onClick={create}>
                 {busy ? "Kreiram…" : `Kreiraj battle za ${coins(cost * stake + (sponsored ? cost * (m.seats - 1) : 0))}${gems ? " gemova" : ""}`}
               </button>
             </div>
@@ -136,7 +156,7 @@ export default function CreateBattle() {
           {shownCases.map((c) => {
             const n = picked.filter((x) => x === c.id).length;
             return (
-              <div key={c.id} className="card p-3">
+              <div key={c.id} data-anchor className="card p-3">
                 <CaseArt c={c} className="h-28" />
                 <div className="mt-2 flex items-center justify-between">
                   <div className="min-w-0">
@@ -144,9 +164,9 @@ export default function CreateBattle() {
                     <div className="text-xs text-accent"><Price amount={gems ? c.gem_price ?? 0 : c.price} gems={gems} /></div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button className="btn-ghost h-8 w-8 p-0" onClick={() => remove(c.id)} disabled={!n}>−</button>
+                    <button className="btn-ghost h-8 w-8 p-0" onClick={(e) => remove(c.id, e)} disabled={!n}>−</button>
                     <span className="w-5 text-center text-sm">{n}</span>
-                    <button className="btn-primary h-8 w-8 p-0" onClick={() => add(c.id)}>+</button>
+                    <button className="btn-primary h-8 w-8 p-0" onClick={(e) => add(c.id, e)}>+</button>
                   </div>
                 </div>
               </div>
