@@ -1298,6 +1298,30 @@ begin
   return jsonb_build_object('balance', p.balance, 'gems', p.gems);
 end $$;
 
+-- postavi točan iznos stanja / gemova (null = ne mijenjaj)
+create or replace function public.admin_set_balance(p_user uuid, p_balance numeric default null, p_gems numeric default null, p_reason text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare a uuid := public._admin(); old public.profiles; p public.profiles; delta numeric;
+begin
+  if p_balance is not null and (p_balance < 0 or p_balance > 1000000000) then raise exception 'Stanje mora biti 0 – 1.000.000.000.'; end if;
+  if p_gems is not null and (p_gems < 0 or p_gems > 1000000000) then raise exception 'Gemovi moraju biti 0 – 1.000.000.000.'; end if;
+  select * into old from public.profiles where id = p_user for update;
+  if not found then raise exception 'Korisnik ne postoji.'; end if;
+  update public.profiles
+     set balance = coalesce(round(p_balance, 2), balance),
+         gems = coalesce(round(p_gems, 2), gems)
+   where id = p_user returning * into p;
+  delta := p.balance - old.balance;
+  perform public._admin_log(a, p_user, 'set_balance', jsonb_build_object(
+    'balance_old', old.balance, 'balance', p.balance, 'gems_old', old.gems, 'gems', p.gems, 'reason', p_reason));
+  if delta <> 0 then
+    insert into public.game_log (user_id, game, wager, payout, details)
+    values (p_user, 'admin', 0, greatest(delta, 0), jsonb_build_object('reason', p_reason, 'delta', delta, 'set', true));
+  end if;
+  return jsonb_build_object('balance', p.balance, 'gems', p.gems);
+end $$;
+grant execute on function public.admin_set_balance(uuid, numeric, numeric, text) to authenticated;
+
 create or replace function public.admin_set_controls(p_user uuid, p_luck numeric, p_banned boolean, p_role text, p_note text default null)
 returns void language plpgsql security definer set search_path = public as $$
 declare a uuid := public._admin();

@@ -57,7 +57,7 @@ function Links({ onClick, all = false }: { onClick?: () => void; all?: boolean }
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`transition ${more ? "rotate-180" : ""}`} aria-hidden><path d="m6 9 6 6 6-6" /></svg>
           </button>
           {more && (
-            <div className="card absolute left-0 top-full z-[55] mt-1 w-44 p-1.5 shadow-2xl">
+            <div className="absolute left-0 top-full z-[55] mt-1 w-44 rounded-2xl border border-white/10 bg-[#14142c] p-1.5 shadow-[0_24px_60px_-12px_rgba(0,0,0,.85)]">
               {extra.map((n) => (
                 <Link key={n.href} href={n.href} onClick={() => setMore(false)} className={`block rounded px-3 py-2 font-display text-[15px] font-bold hover:bg-white/5 ${path.startsWith(n.href) ? "text-fg" : "text-muted"}`}>
                   {n.label}
@@ -115,7 +115,7 @@ function UserBox() {
         </span>
       </button>
       {open && (
-        <div className="card absolute right-0 top-12 z-[55] w-[min(14rem,calc(100vw-1.5rem))] p-1.5 shadow-2xl" onMouseLeave={() => setOpen(false)}>
+        <div className="absolute right-0 top-12 z-[55] w-[min(14rem,calc(100vw-1.5rem))] rounded-2xl border border-white/10 bg-[#14142c] p-1.5 shadow-[0_24px_60px_-12px_rgba(0,0,0,.85)]" onMouseLeave={() => setOpen(false)}>
           <Link href="/profile" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Profil i povijest</Link>
           <Link href="/rewards" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Nagrade i level</Link>
           <Link href="/affiliate" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Pozovi prijatelje</Link>
