@@ -18,7 +18,7 @@
   --color-tail: #ff2b4e; /* stop-svjetla — akcije */
   --color-violet: #8b5cf6;
   --font-sans: var(--font-manrope), system-ui, sans-serif;
-  --font-display: var(--font-bricolage), var(--font-manrope), sans-serif;
+  --font-display: var(--font-jakarta), var(--font-manrope), sans-serif;
 }
 
 @property --angle {
@@ -43,8 +43,8 @@ body {
 ::selection { background: #ff2b4e66; }
 :focus-visible { outline: 2px solid var(--color-accent2); outline-offset: 3px; border-radius: 8px; }
 
-/* naslovi: Bricolage, uži i gušći */
-.font-display { font-variation-settings: "wdth" 88, "opsz" 72; letter-spacing: -0.02em; }
+/* naslovi: Plus Jakarta Sans */
+.font-display { letter-spacing: -0.015em; }
 
 @layer components {
   /* primarni gumb: stop-svjetlo → natrij, s odsjajem */

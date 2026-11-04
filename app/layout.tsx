@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
-import { Bricolage_Grotesque, Manrope } from "next/font/google";
+import { Manrope, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ToastProvider } from "@/components/Toast";
@@ -11,7 +11,7 @@ import { BackgroundFX } from "@/components/BackgroundFX";
 import { BackButton } from "@/components/BackButton";
 
 const manrope = Manrope({ variable: "--font-manrope", subsets: ["latin", "latin-ext"] });
-const bricolage = Bricolage_Grotesque({ variable: "--font-bricolage", subsets: ["latin", "latin-ext"], axes: ["wdth", "opsz"] });
+const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin", "latin-ext"] });
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="hr" className={`${manrope.variable} ${bricolage.variable} h-full antialiased`}>
+    <html lang="hr" className={`${manrope.variable} ${jakarta.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <BackgroundFX />
         <AuthProvider>
