@@ -59,7 +59,7 @@ function Links({ onClick, all = false }: { onClick?: () => void; all?: boolean }
             }`}
           >
             {/* desktop: ikona tek kad ima mjesta; mobilni izbornik: uvijek */}
-            <GameIcon href={n.href} className={`h-4 w-4 ${active ? "text-accent" : "opacity-80"} ${all ? "" : "hidden min-[1380px]:block"}`} />
+            <GameIcon href={n.href} className={`h-4 w-4 ${active ? "text-accent" : "opacity-80"} ${all ? "" : "hidden xl:block"}`} />
             {n.label}
             {active && <span className="absolute inset-x-3 -bottom-[14px] h-[2px] rounded-full bg-[linear-gradient(90deg,#ff2b4e,#ffb547)] shadow-[0_0_12px_#ff5a3c]" />}
           </Link>
@@ -107,7 +107,7 @@ function StaticLinks() {
     <>
       {NAV.filter((n) => !n.more).map((n) => (
         <Link key={n.href} href={n.href} className="flex items-center gap-1.5 px-2 py-2 font-display text-[15px] font-bold text-muted">
-          <GameIcon href={n.href} className="hidden h-4 w-4 opacity-80 min-[1380px]:block" />
+          <GameIcon href={n.href} className="hidden h-4 w-4 opacity-80 xl:block" />
           {n.label}
         </Link>
       ))}
@@ -129,15 +129,15 @@ function UserBox() {
   const lp = profile ? levelProgress(profile.xp, profile.level) : { pct: 0 };
   return (
     <div className="relative flex shrink-0 items-center gap-1.5 sm:gap-3">
-      <Link href="/gems" className="hidden items-center gap-1.5 rounded-xl border border-emerald-400/20 bg-emerald-400/[.06] px-3 py-1.5 font-display text-base font-bold text-emerald-300 transition hover:border-emerald-400/50 sm:flex" title="Gemovi">
+      <Link href="/gems" className="hidden items-center gap-1.5 rounded-xl border border-emerald-400/20 xl:!hidden 2xl:!flex bg-emerald-400/[.06] px-3 py-1.5 font-display text-base font-bold text-emerald-300 transition hover:border-emerald-400/50 sm:flex" title="Gemovi">
         <span className="gem" /> <CountUp value={profile?.gems ?? 0} />
       </Link>
-      <div className="flex shrink-0 flex-col items-start gap-0.5 whitespace-nowrap rounded-xl border border-accent/40 bg-accent/10 px-2.5 py-1 font-display text-sm font-bold tabular-nums text-accent shadow-[0_0_24px_-8px_#ffb547] sm:flex-row sm:items-center sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-base" title="Stanje (virtualni coini)">
+      <div className="flex shrink-0 flex-col items-start gap-0.5 whitespace-nowrap rounded-xl border border-accent/40 bg-accent/10 px-2.5 py-1 font-display text-sm font-bold tabular-nums text-accent shadow-[0_0_24px_-8px_#ffb547] sm:flex-row sm:items-center sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-base xl:flex-col xl:items-start xl:gap-0.5 xl:py-1 2xl:flex-row 2xl:items-center 2xl:gap-1.5 2xl:py-1.5" title="Stanje (virtualni coini)">
         <span className="flex items-center gap-1.5 leading-none">
           <span className="coin" /> <CountUp value={profile?.balance ?? 0} />
         </span>
         {/* mobitel: gemovi ispod coina (zaseban gumb ne stane u traku) */}
-        <Link href="/gems" className="flex items-center gap-1 text-[11px] leading-none text-emerald-300 sm:hidden" title="Gemovi">
+        <Link href="/gems" className="flex items-center gap-1 text-[11px] leading-none text-emerald-300 sm:hidden xl:flex 2xl:hidden" title="Gemovi">
           <span className="gem" /> <CountUp value={profile?.gems ?? 0} />
         </Link>
       </div>
@@ -194,7 +194,7 @@ export function Navbar() {
   const [mobile, setMobile] = useState(false);
   return (
     <header className="sticky top-0 z-50 border-b border-white/[.06] bg-[#090a14]/70 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-3 sm:gap-4 sm:px-4">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-3 sm:gap-4 sm:px-4 xl:max-w-none xl:gap-6 xl:px-6 2xl:px-8">
         <button className="-ml-1 grid h-10 w-10 shrink-0 place-items-center rounded-lg xl:hidden" onClick={() => setMobile((m) => !m)} aria-label="Izbornik" aria-expanded={mobile}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
         </button>
@@ -205,7 +205,7 @@ export function Navbar() {
           </span>
           <span className="hidden font-display text-2xl font-extrabold min-[430px]:inline">garaža<span className="text-muted">.gg</span></span>
         </Link>
-        <nav className="hidden min-w-0 flex-1 items-center gap-0.5 xl:flex">
+        <nav className="hidden min-w-max flex-1 items-center gap-0.5 xl:flex 2xl:gap-1">
           <Suspense fallback={<StaticLinks />}>
             <Links />
           </Suspense>
