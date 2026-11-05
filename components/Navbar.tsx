@@ -14,6 +14,7 @@ export const NAV = [
   { href: "/battles", label: "Battles" },
   { href: "/upgrader", label: "Upgrader" },
   { href: "/crash", label: "Crash" },
+  { href: "/crossroad", label: "Crossroad" },
   { href: "/rulet", label: "Rulet" },
   { href: "/jackpot", label: "Jackpot" },
   { href: "/rewards", label: "Nagrade", more: true },

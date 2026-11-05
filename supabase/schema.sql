@@ -2313,3 +2313,149 @@ grant execute on function public.crash_withdraw() to authenticated;
 grant execute on function public.crash_cashout() to authenticated;
 revoke all on function public._crash_tick() from public, anon, authenticated;
 revoke all on function public._crash_current() from public, anon, authenticated;
+
+-- ---------- CROSSROAD (prijeđi autocestu traku po traku; 4% house edge) ----------
+-- Svaki korak: preživiš s vjerojatnošću p (ovisno o težini). Multiplikator na traci n = 0.96 / p^n.
+-- Izlaziš kad hoćeš (cashout); na zadnjoj traci isplata ide sama. Ishod svakog koraka bira server u trenutku koraka.
+create table if not exists public.crossroad_games (
+  id bigserial primary key,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  bet numeric(14,2) not null check (bet > 0),
+  difficulty text not null check (difficulty in ('easy','medium','hard','hardcore')),
+  lane int not null default 0,
+  status text not null default 'active' check (status in ('active','cashed','crashed')),
+  payout numeric(14,2) not null default 0,
+  created_at timestamptz not null default now(),
+  ended_at timestamptz
+);
+create unique index if not exists crossroad_one_active on public.crossroad_games(user_id) where status = 'active';
+create index if not exists crossroad_user_idx on public.crossroad_games(user_id, created_at desc);
+alter table public.crossroad_games enable row level security;
+
+insert into public.site_limits (key, value, min_value, max_value, label, sort) values
+  ('crossroad_min_bet', 0.1, 0.1, 1000, 'Crossroad najmanji ulog', 12),
+  ('crossroad_max_bet', 10000, 1, 1000000, 'Crossroad najveći ulog', 13)
+on conflict (key) do update set min_value = excluded.min_value, max_value = excluded.max_value, label = excluded.label, sort = excluded.sort;
+
+-- p = šansa da prođeš traku, lanes = broj traka do kraja
+create or replace function public._crossroad_cfg(p_diff text)
+returns jsonb language sql immutable as $$
+  select case p_diff
+    when 'easy' then '{"p": 0.90, "lanes": 24}'::jsonb
+    when 'medium' then '{"p": 0.80, "lanes": 20}'::jsonb
+    when 'hard' then '{"p": 0.65, "lanes": 15}'::jsonb
+    else '{"p": 0.45, "lanes": 10}'::jsonb end;
+$$;
+create or replace function public._crossroad_mult(p_diff text, p_lane int)
+returns numeric language sql immutable as $$
+  select case when p_lane <= 0 then 1
+              else floor(0.96 / power(((public._crossroad_cfg(p_diff))->>'p')::numeric, p_lane) * 100) / 100 end;
+$$;
+
+create or replace function public._crossroad_json(g public.crossroad_games)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when g.id is null then null else jsonb_build_object(
+    'id', g.id, 'bet', g.bet, 'difficulty', g.difficulty, 'lane', g.lane, 'status', g.status, 'payout', g.payout,
+    'lanes', ((public._crossroad_cfg(g.difficulty))->>'lanes')::int,
+    'mult', public._crossroad_mult(g.difficulty, g.lane),
+    'next_mult', public._crossroad_mult(g.difficulty, g.lane + 1)) end;
+$$;
+
+create or replace function public.crossroad_state()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := auth.uid();
+  g public.crossroad_games;
+begin
+  select * into g from public.crossroad_games where user_id = uid and status = 'active' limit 1;
+  return jsonb_build_object(
+    'game', public._crossroad_json(g),
+    'min_bet', public._limit('crossroad_min_bet', 0.1), 'max_bet', public._limit('crossroad_max_bet', 10000),
+    'tables', (select jsonb_object_agg(d, jsonb_build_object('p', (public._crossroad_cfg(d))->>'p', 'lanes', ((public._crossroad_cfg(d))->>'lanes')::int,
+                 'mults', (select jsonb_agg(public._crossroad_mult(d, n) order by n) from generate_series(1, ((public._crossroad_cfg(d))->>'lanes')::int) n)))
+                 from unnest(array['easy','medium','hard','hardcore']) d),
+    'history', (select coalesce(jsonb_agg(x order by x.ended_at desc), '[]'::jsonb) from (
+        select difficulty, lane, status, bet, payout, ended_at from public.crossroad_games
+         where user_id = uid and status <> 'active' order by ended_at desc limit 12) x)
+  );
+end $$;
+
+create or replace function public.crossroad_start(p_bet numeric, p_difficulty text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := public._uid();
+  amt numeric := round(coalesce(p_bet, 0), 2);
+begin
+  if p_difficulty not in ('easy','medium','hard','hardcore') then raise exception 'Neispravna težina.'; end if;
+  if amt < public._limit('crossroad_min_bet', 0.1) or amt > public._limit('crossroad_max_bet', 10000) then
+    raise exception 'Ulog mora biti % – %.', public._limit('crossroad_min_bet', 0.1), public._limit('crossroad_max_bet', 10000);
+  end if;
+  if exists (select 1 from public.crossroad_games where user_id = uid and status = 'active') then raise exception 'Već imaš igru u tijeku.'; end if;
+  perform public._charge(uid, amt);
+  insert into public.crossroad_games (user_id, bet, difficulty) values (uid, amt, p_difficulty);
+  return public.crossroad_state();
+end $$;
+
+create or replace function public._crossroad_end(g public.crossroad_games, p_status text, p_payout numeric)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare lvl jsonb;
+begin
+  update public.crossroad_games set status = p_status, payout = p_payout, ended_at = now() where id = g.id;
+  if p_payout > 0 then update public.profiles set balance = balance + p_payout where id = g.user_id; end if;
+  lvl := public._apply_wager(g.user_id, g.bet);
+  insert into public.game_log (user_id, game, wager, payout, details)
+  values (g.user_id, 'crossroad', g.bet, p_payout, jsonb_build_object('difficulty', g.difficulty, 'lane', g.lane, 'status', p_status));
+  return lvl;
+end $$;
+
+-- jedan korak naprijed
+create or replace function public.crossroad_step()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := public._uid();
+  g public.crossroad_games;
+  cfg jsonb;
+  lvl jsonb := '{}'::jsonb;
+  ok boolean;
+begin
+  select * into g from public.crossroad_games where user_id = uid and status = 'active' for update;
+  if not found then raise exception 'Nemaš igru u tijeku.'; end if;
+  cfg := public._crossroad_cfg(g.difficulty);
+  ok := random()::numeric < (cfg->>'p')::numeric;
+  if not ok then
+    lvl := public._crossroad_end(g, 'crashed', 0);
+    g.status := 'crashed';
+  else
+    g.lane := g.lane + 1;
+    update public.crossroad_games set lane = g.lane where id = g.id;
+    if g.lane >= (cfg->>'lanes')::int then
+      g.payout := round(g.bet * public._crossroad_mult(g.difficulty, g.lane), 2);
+      lvl := public._crossroad_end(g, 'cashed', g.payout);
+      g.status := 'cashed';
+    end if;
+  end if;
+  return jsonb_build_object('ok', ok, 'result', public._crossroad_json(g)) || public.crossroad_state() || coalesce(lvl, '{}'::jsonb);
+end $$;
+
+create or replace function public.crossroad_cashout()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := public._uid();
+  g public.crossroad_games;
+  lvl jsonb;
+begin
+  select * into g from public.crossroad_games where user_id = uid and status = 'active' for update;
+  if not found then raise exception 'Nemaš igru u tijeku.'; end if;
+  if g.lane < 1 then raise exception 'Prijeđi barem jednu traku.'; end if;
+  g.payout := round(g.bet * public._crossroad_mult(g.difficulty, g.lane), 2);
+  lvl := public._crossroad_end(g, 'cashed', g.payout);
+  g.status := 'cashed';
+  return jsonb_build_object('result', public._crossroad_json(g)) || public.crossroad_state() || coalesce(lvl, '{}'::jsonb);
+end $$;
+
+grant execute on function public.crossroad_state() to authenticated;
+grant execute on function public.crossroad_start(numeric, text) to authenticated;
+grant execute on function public.crossroad_step() to authenticated;
+grant execute on function public.crossroad_cashout() to authenticated;
+revoke all on function public._crossroad_end(public.crossroad_games, text, numeric) from public, anon, authenticated;
+revoke all on function public._crossroad_json(public.crossroad_games) from public, anon, authenticated;

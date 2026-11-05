@@ -19,7 +19,7 @@ export default function GemsPage() {
         <div className="absolute -right-10 -top-10 h-48 w-48 rotate-45 rounded-3xl bg-emerald-500/10" />
         <h1 className="h1">Gem Stash</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted">
-          Svaki odigrani coin (kutije, battles, upgrader, crash, rulet, jackpot) puni tvoj stash: dobivaš <b className="text-emerald-400">0,1 gem po coinu</b>. Gemovima otključavaš ekskluzivne bonus kutije.
+          Svaki odigrani coin (kutije, battles, upgrader, crash, crossroad, rulet, jackpot) puni tvoj stash: dobivaš <b className="text-emerald-400">0,1 gem po coinu</b>. Gemovima otključavaš ekskluzivne bonus kutije.
         </p>
         <div className="mt-4 flex items-center gap-2 font-display text-3xl text-emerald-400">
           <span className="gem" /> {coins(profile?.gems ?? 0)}

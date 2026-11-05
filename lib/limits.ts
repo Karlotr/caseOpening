@@ -15,6 +15,8 @@ export const DEFAULT_LIMITS: Limits = {
   rulet_max_bet: 10000,
   crash_min_bet: 0.1,
   crash_max_bet: 10000,
+  crossroad_min_bet: 0.1,
+  crossroad_max_bet: 10000,
 };
 export type LimitRow = { key: string; value: number; min_value: number; max_value: number; label: string; sort: number };
 
