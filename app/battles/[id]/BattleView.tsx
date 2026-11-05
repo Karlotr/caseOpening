@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { getCases, getItems, randomFromCase } from "@/lib/data";
 import { TEAM_COLORS, jackpotWeight, loadBattle, modeDesc, modeLabel, type Battle, type BattleDrop, type BattlePlayer } from "@/lib/battles";
@@ -14,6 +14,8 @@ import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { CaseArt } from "@/components/CaseCard";
 import { ItemCard } from "@/components/ItemCard";
+import { CarImage } from "@/components/CarImage";
+import { RARITY } from "@/lib/format";
 import { Reel } from "@/components/Reel";
 import { preloadCars } from "@/components/CarImage";
 import { NameReel, type Entry } from "@/components/NameReel";
@@ -97,6 +99,8 @@ export function BattleView() {
   const heldRef = useRef(false);
   // reprodukcija: brzina (1× / 2×), preskakanje i ponovno pokretanje
   const [speed, setSpeed] = useState(1);
+  // komp (≥768px): veća vodoravna traka; mobitel: kompaktna
+  const wide = useSyncExternalStore(subscribeWide, () => window.matchMedia("(min-width: 768px)").matches, () => true);
   // kontrole (2×, Preskoči, Ispočetka) samo kod ponovnog gledanja završenog battlea, ne uživo
   const [replay, setReplay] = useState(false);
   const speedRef = useRef(1);
@@ -150,11 +154,18 @@ export function BattleView() {
     setPhase("rounds");
     // mobitel: zaglavlje je visoko — skrolaj do trake kutija kad reprodukcija krene
     // bez glatkog skrola: glatki skrol istovremeno s pokretanjem vrtnje je na mobitelu trzao
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
+    // mjeri tek kad se novi raspored iscrta (trake umjesto popisa igrača)
+    if (typeof window !== "undefined" && window.innerWidth < 768) later(() => {
       // timovi / 4+ igrača: skrolaj do traka (vide se oba tima); inače do trake kutija
-      const target = battleRef.current && (battleRef.current.team_size > 1 || battleRef.current.seats > 3) ? seatsBox.current : caseStrip.current;
-      target?.scrollIntoView({ behavior: "auto", block: "start" });
-    }
+      const b = battleRef.current;
+      if (b && (b.team_size > 1 || b.seats > 3) && seatsBox.current) {
+        // sredina između timova na sredinu ekrana (ispod navbara) — vide se trake oba tima
+        const nav = 64;
+        const r = seatsBox.current.getBoundingClientRect();
+        const y = window.scrollY + r.top + r.height / 2 - (nav + (window.innerHeight - nav) / 2);
+        window.scrollTo({ top: Math.max(0, y), behavior: "auto" });
+      } else caseStrip.current?.scrollIntoView({ behavior: "auto", block: "start" });
+    }, 60);
     later(() => spinRound(from), from > 0 ? 250 : 500);
      
   }, [spinRound]);
@@ -351,8 +362,10 @@ export function BattleView() {
   const isCreator = user?.id === battle.creator_id;
   const myWin = done && players.find((p) => p.user_id === user?.id)?.team === battle.winner_team;
   const teamMode = battle.team_size > 1;
-  // mobitel: kod timova i 4+ igrača osvojeni auti idu na dno, a trake svih igrača ostaju u fokusu
-  const dropsAtBottom = teamMode || battle.seats > 3;
+  // raspored: dvije strane (1v1, 2v2, 3v3 — tim lijevo, tim desno, igrači u timu jedan ispod drugog)
+  // ili mreža (1v1v1, 4-way, 6-way). Kad je igrača više, osvojeni auti su kompaktna traka ispod spinnera.
+  const twoSides = teams.length === 2;
+  const stacked = teamMode || battle.seats > 2;
   // dio nagrade po igraču (ista formula kao na serveru): ukupno / broj mjesta u pobjedničkom timu × udio ulaza
   const winnerSeats = players.filter((p) => p.team === battle.winner_team).length;
   const shareOf = (p?: BattlePlayer) =>
@@ -566,13 +579,13 @@ export function BattleView() {
 
       {/* mobitel: mreža mjesta (2 ili 3 stupca) / timovi jedan ispod drugog; desktop: timovi u redu */}
       <div ref={seatsBox} className="scroll-mt-20 pb-2 md:overflow-x-auto">
-        <div className={`grid gap-2 md:flex md:min-w-0 ${battle.team_size > 1 ? "grid-cols-1" : battle.seats % 3 === 0 ? "grid-cols-3" : "grid-cols-2"}`}>
+        <div className={twoSides ? "grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 md:flex md:min-w-0" : `grid gap-2 ${battle.seats === 3 ? "grid-cols-1 md:grid-cols-3" : battle.seats % 3 === 0 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2"}`}>
           {teams.map((seats, ti) => {
             const won = done && battle.winner_team === ti;
             const tc = TEAM_COLORS[ti % TEAM_COLORS.length];
             return (
               <Fragment key={ti}>
-                {ti > 0 && <div className="hidden w-10 shrink-0 place-items-center font-display text-2xl font-black text-muted md:grid">VS</div>}
+                {twoSides && ti > 0 && <div className="hidden w-10 shrink-0 place-items-center font-display text-2xl font-black text-muted md:grid">VS</div>}
                 <div className={`flex min-w-0 flex-1 flex-col gap-2 rounded-xl p-1 transition md:p-1.5 ${won ? "bg-accent/10 ring-2 ring-accent" : done ? "opacity-60" : ""}`}>
                   {battle.team_size > 1 && (
                     <div className="flex items-center justify-between px-1 font-display text-lg font-bold">
@@ -583,13 +596,13 @@ export function BattleView() {
                       </span>
                     </div>
                   )}
-                  <div className="flex gap-1.5 md:gap-2">
+                  <div className="flex flex-col gap-2">
                     {seats.map((seat) => {
                       const p = players.find((x) => x.seat === seat);
                       const mine = mineOf(seat);
                       const isMe = p?.user_id && p.user_id === user?.id;
                       return (
-                        <div key={seat} className="min-w-0 flex-1 space-y-2 md:min-w-36">
+                        <div key={seat} className="min-w-0 space-y-1.5">
                           <div className="card flex items-center gap-2 p-1.5 md:p-2" style={{ boxShadow: `inset 3px 0 0 ${tc}` }}>
                             <span className={`hidden h-9 w-9 shrink-0 place-items-center rounded-md font-display text-base font-black min-[440px]:grid md:grid ${p ? (p.is_bot ? "bg-panel2 text-accent2" : "bg-accent text-ink") : "border border-dashed border-line text-muted"}`}>
                               {p ? (p.is_bot ? "AI" : p.name.slice(0, 2).toUpperCase()) : "?"}
@@ -613,7 +626,7 @@ export function BattleView() {
                             </div>
                           </div>
                           {battle.status === "waiting" ? (
-                            <div className="card grid h-[260px] place-items-center p-2 text-center md:h-[336px] md:p-3">
+                            <div className="card grid h-[150px] place-items-center p-2 text-center md:h-[172px] md:p-3">
                               {p ? (
                                 <span className="font-display text-xl font-bold text-emerald-300">Spreman</span>
                               ) : user && !meIn ? (
@@ -627,13 +640,13 @@ export function BattleView() {
                               )}
                             </div>
                           ) : phase === "rounds" && strips[seat] ? (
-                            <div className="relative mx-auto w-full md:max-w-[230px]">
-                              <Reel vertical items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} goldMin={goldThreshold(cases.get(battle.case_ids[Math.min(revealed, rounds - 1)]))} winnerIndex={WIN} spinKey={spinKey} duration={(battle.fast ? FAST_SPIN : 3600) / speed} sound={seat === 0} goldSound onDone={onReelDone} />
+                            <div className="relative">
+                              <Reel size={wide ? "md" : "sm"} items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} goldMin={goldThreshold(cases.get(battle.case_ids[Math.min(revealed, rounds - 1)]))} winnerIndex={WIN} spinKey={spinKey} duration={(battle.fast ? FAST_SPIN : 3600) / speed} sound={seat === 0} goldSound onDone={onReelDone} />
                             </div>
                           ) : phase === "rounds" ? (
-                            <div className="mx-auto h-[260px] w-full rounded-2xl border border-line bg-[linear-gradient(180deg,#0c0c1c,#07070f)] md:h-[336px] md:max-w-[230px]" />
+                            <div className="h-[150px] rounded-2xl border border-line bg-[linear-gradient(180deg,#0c0c1c,#07070f)] md:h-[172px]" />
                           ) : null}
-                          <DropList className={dropsAtBottom ? "hidden md:block" : ""} drops={mine} items={items} />
+                          {stacked ? <DropStrip drops={mine} items={items} /> : <DropList drops={mine} items={items} />}
                         </div>
                       );
                     })}
@@ -645,39 +658,39 @@ export function BattleView() {
         </div>
       </div>
 
-      {/* mobitel, timski battle (2v2, 3v3…) i 4+ igrača: osvojeni auti na dnu */}
-      {dropsAtBottom && drops.some((d) => d.round <= revealed) && (
-        <div className="space-y-3 md:hidden">
-          <h2 className="font-display text-xl font-bold">Osvojeno</h2>
-          {!teamMode && (
-            <div className="grid grid-cols-3 gap-1.5">
-              {teams.flat().map((seat) => (
-                <div key={seat} className="min-w-0 space-y-1.5">
-                  <div className="truncate px-1 text-sm font-bold" style={{ color: TEAM_COLORS[seat % TEAM_COLORS.length] }}>{players.find((p) => p.seat === seat)?.name ?? `Igrač ${seat + 1}`}</div>
-                  <DropList drops={mineOf(seat)} items={items} />
-                </div>
-              ))}
-            </div>
-          )}
-          {teamMode && teams.map((seats, ti) => (
-            <div key={ti} className="space-y-1.5">
-              <div className="px-1 font-display text-base font-bold" style={{ color: TEAM_COLORS[ti % TEAM_COLORS.length] }}>Tim {ti + 1}</div>
-              <div className="flex gap-1.5">
-                {seats.map((seat) => (
-                  <DropList key={seat} className="min-w-0 flex-1" drops={mineOf(seat)} items={items} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+    </div>
+  );
+}
+
+const subscribeWide = (cb: () => void) => {
+  const m = window.matchMedia("(min-width: 768px)");
+  m.addEventListener("change", cb);
+  return () => m.removeEventListener("change", cb);
+};
+
+// kompaktna vodoravna traka osvojenih auta (kad je igrača više, da ne razvlači raspored)
+function DropStrip({ drops, items }: { drops: BattleDrop[]; items: Map<number, Item> }) {
+  if (!drops.length) return null;
+  return (
+    <div className="nice-scroll flex gap-1 overflow-x-auto pb-1">
+      {drops.map((d) => {
+        const it = items.get(d.item_id);
+        if (!it) return null;
+        const c = RARITY[it.rarity].color;
+        return (
+          <div key={d.round} className="drop-in relative flex w-[60px] shrink-0 flex-col items-center rounded-md border border-line bg-panel/70 px-1 pb-1 pt-1 md:w-[72px]" title={`${it.brand} ${it.model}`} style={{ boxShadow: `inset 0 -2px 0 ${c}` }}>
+            <CarImage item={it} thumb className="h-7 w-full md:h-8" />
+            <span className="mt-0.5 w-full truncate text-center font-display text-[10px] font-bold tabular-nums leading-none text-accent">{coins(it.value)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 function DropList({ drops, items, className = "" }: { drops: BattleDrop[]; items: Map<number, Item>; className?: string }) {
   return (
-    <div className={`space-y-1.5 ${className}`}>
+    <div className={`grid grid-cols-1 gap-1.5 md:grid-cols-3 ${className}`}>
       {drops.map((d) => {
         const it = items.get(d.item_id);
         return it ? (

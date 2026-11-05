@@ -14,7 +14,7 @@ import { useCelebrate } from "@/components/WinOverlay";
 import { TEAM_COLORS } from "@/lib/battles";
 
 type Player = { user_id: string; username: string; level: number; bet: number };
-type Last = { ticket?: number | null; id: number; status: "paid" | "refunded"; pot: number; payout: number | null; players: Player[]; winner_id: string | null; winner: string | null };
+type Last = { ticket?: number | null; id: number; status: "paid" | "refunded"; pot: number; payout: number | null; players: Player[]; winner_id: string | null; winner: string | null; ends_at?: string };
 type State = { id: number; ends_at: string; now: string; pot: number; min_bet?: number; max_bet?: number; fee_pct?: number; round_sec?: number; players: Player[]; last: Last | null; history: { id: number; pot: number; payout: number; winner: string; n: number }[] };
 
 const color = (i: number) => TEAM_COLORS[i % TEAM_COLORS.length];
@@ -26,6 +26,8 @@ export default function JackpotPage() {
   const now = useNow(100);
   const [st, setSt] = useState<State | null>(null);
   const [skew, setSkew] = useState(0);
+  // koliko je bilo do kraja runde kad smo je prvi put vidjeli (rezerva ako se ne zna kraj prošle runde)
+  const [firstLeft, setFirstLeft] = useState<{ id: number; ms: number } | null>(null);
   const [bet, setBet] = useState(5);
   const [busy, setBusy] = useState(false);
   const [draw, setDraw] = useState<{ last: Last; key: number } | null>(null);
@@ -51,6 +53,7 @@ export default function JackpotPage() {
     skewRef.current = sk;
     setSkew(sk);
     setSt(s);
+    setFirstLeft((f) => (f && f.id === s.id ? f : { id: s.id, ms: new Date(s.ends_at).getTime() - new Date(s.now).getTime() }));
     const lastId = s.last?.id ?? null;
     if (seenLast.current === undefined) {
       seenLast.current = lastId; // prvo učitavanje: ne vrti stari rezultat
@@ -122,8 +125,15 @@ export default function JackpotPage() {
 
   if (!st || now === null) return <div className="card h-96 animate-pulse" />;
   const left = Math.max(0, new Date(st.ends_at).getTime() - (now + skew));
-  const roundMs = Number(st.round_sec ?? 60) * 1000;
-  const progress = Math.max(0, 1 - left / roundMs);
+  // runda ne traje uvijek točno round_sec: završava na "okruglom" vremenu i traje barem pola runde,
+  // pa zna potrajati i do 1,5× (npr. 90 s). Duljina = od kraja prošle runde do kraja ove.
+  const roundSec = Number(st.round_sec ?? 60) * 1000;
+  const endMs = new Date(st.ends_at).getTime();
+  const prevEnd = st.last?.ends_at ? new Date(st.last.ends_at).getTime() : 0;
+  const span = endMs - prevEnd;
+  const seen = firstLeft && firstLeft.id === st.id ? firstLeft.ms : 0;
+  const roundMs = Math.max(left, span > 0 && span <= roundSec * 2 ? span : Math.max(roundSec, seen));
+  const progress = Math.max(0, Math.min(1, 1 - left / roundMs));
   const me = st.players.find((p) => p.user_id === user?.id);
   const myChance = me && st.pot ? (me.bet / st.pot) * 100 : 0;
   const R = 54;

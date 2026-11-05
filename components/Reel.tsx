@@ -12,8 +12,8 @@ const GOLD_RANK = 4; // zamjensko pravilo (bez goldMin): legendarni i mitski su 
 // Zlatnih je malo (dinamični prag, lib/gold.ts), pa si možemo priuštiti bogatije efekte.
 // Animira se samo transform/opacity; efekti rade i dok se traka vrti (zlatni obrub, zrake, sjaj).
 const BURST = Array.from({ length: 14 }, (_, i) => (i / 14) * Math.PI * 2);
-function GoldTile({ big = false, vertical = false }: { big?: boolean; vertical?: boolean }) {
-  const S = big ? 124 : vertical ? 60 : 76;
+function GoldTile({ big = false, vertical = false, small = false }: { big?: boolean; vertical?: boolean; small?: boolean }) {
+  const S = big ? (small ? 108 : 124) : vertical || small ? 60 : 76;
   return (
     <div className={`gold-tile relative grid place-items-center ${big ? "gold-pop" : ""}`} style={{ width: S, height: S }}>
       <div className={`gold-rays ${big ? "gold-rays-fast" : ""}`} />
@@ -42,6 +42,10 @@ function GoldTile({ big = false, vertical = false }: { big?: boolean; vertical?:
   );
 }
 
+// Near-miss (samo vizualno, ishod se ne mijenja): ponekad je odmah do dobitka skuplji auto,
+// a traka prvo stane malo bliže njemu pa se poravna. Rijetko i blago, da ne bude očito.
+const NEAR_MISS = 0.16;
+
 const SPIN_EASE = "cubic-bezier(0.08, 0.6, 0.12, 1)";
 const SETTLE_EASE = "cubic-bezier(0.45, 0, 0.2, 1)"; // kratko poravnanje na sredinu nakon zaustavljanja
 
@@ -69,7 +73,7 @@ export function Reel({
   vertical?: boolean;
   sound?: boolean;
   goldSound?: boolean; // zvukovi zlatne vrtnje i kad je `sound` isključen (battle: sve trake)
-  size?: "md" | "lg";
+  size?: "sm" | "md" | "lg"; // sm: kompaktna vodoravna traka (battle)
   pool?: Item[]; // svi auti iz kutije (za drugu, "zlatnu" vrtnju)
   goldMin?: number; // dinamični prag zlatnog dropa za ovu kutiju (lib/gold.ts)
   onDone?: () => void;
@@ -83,8 +87,9 @@ export function Reel({
   const [stage, setStage] = useState<Stage>("idle");
   const [strip, setStrip] = useState<Item[]>(items);
   const lg = size === "lg" && !vertical;
-  const tile = vertical ? 112 : lg ? 188 : 156;
-  const H = lg ? 214 : 172;
+  const sm = size === "sm" && !vertical;
+  const tile = vertical ? 112 : lg ? 188 : sm ? 116 : 156;
+  const H = lg ? 214 : sm ? 150 : 172;
   const isGold = (it: Item) => (goldMin !== undefined ? it.value >= goldMin : rarityRank(it.rarity) >= GOLD_RANK);
   const goldRef = useRef(isGold);
   useLayoutEffect(() => {
@@ -119,7 +124,7 @@ export function Reel({
     const timers: ReturnType<typeof setTimeout>[] = [];
     let raf = 0;
 
-    const run = (len: number, onLand: () => void, goldSpin = false) => {
+    const run = (len: number, onLand: () => void, goldSpin = false, lean = 0) => {
       let lastIdx = -1;
       setEase(SPIN_EASE);
       const t0 = performance.now();
@@ -144,7 +149,8 @@ export function Reel({
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
           setAnimate(true);
-          setOffset(center + (Math.random() - 0.5) * tile * 0.7);
+          // lean ≠ 0: stani bliže susjedu (near-miss), inače nasumično unutar polja
+          setOffset(center + (lean ? lean * tile * (0.3 + Math.random() * 0.12) : (Math.random() - 0.5) * tile * 0.7));
           if (sound) sfx.spin();
           // praćenje pozicije (za tick zvuk) čita getComputedStyle svaki frame — skupo; radi samo traka koja svira
           if (goldSpin ? gs : sound) raf = requestAnimationFrame(watch);
@@ -168,10 +174,27 @@ export function Reel({
       doneRef.current?.();
     };
 
-    const base = itemsRef.current;
+    let base = itemsRef.current;
     const winner = base[winnerIndex];
     const src = poolRef.current ?? base;
     const gold = goldRef.current;
+    // near-miss: skuplji auto iz kutije (gornjih ~15%) odmah iznad/ispod dobitka
+    let lean = 0;
+    if (winner && !gold(winner) && Math.random() < NEAR_MISS) {
+      // prvo skuplji "obični" auti; zlatni dijamant do dobitka samo ponekad (inače je previše očito)
+      const pricier = [...src].filter((i) => i.value > winner.value * 2).sort((a, b) => b.value - a.value);
+      const plain = pricier.filter((i) => !gold(i));
+      const pickFrom = plain.length ? plain : Math.random() < 0.4 ? pricier : [];
+      const top = pickFrom.slice(0, Math.max(1, Math.ceil(pickFrom.length * 0.35)));
+      if (top.length) {
+        lean = Math.random() < 0.5 ? -1 : 1;
+        const n = winnerIndex + lean;
+        if (n >= 0 && n < base.length) {
+          base = base.slice();
+          base[n] = top[Math.floor(Math.random() * top.length)];
+        } else lean = 0;
+      }
+    }
     let rare = src.filter(gold);
     // za napetost u drugoj traci: ako je malo zlatnih, dodaj i one malo ispod praga
     if (rare.length > 0 && rare.length < 4) {
@@ -197,7 +220,7 @@ export function Reel({
           run(Math.max(2200, duration * 0.6), finish, true);
         }, 1300)
       );
-    });
+    }, false, lean);
 
     return () => {
       timers.forEach(clearTimeout);
@@ -214,7 +237,7 @@ export function Reel({
   return (
     <div
       ref={box}
-      className={`reel relative w-full min-w-0 overflow-hidden rounded-2xl border [contain:layout_paint] ${stage === "spin" || stage === "spin2" ? "reel-moving" : ""} bg-[linear-gradient(180deg,#0c0c1c,#07070f)] transition-colors duration-500 ${vertical ? "h-[260px] bg-[radial-gradient(80%_40%_at_50%_50%,#ffb5471a,transparent_70%),linear-gradient(180deg,#0e0e22,#07070f)] md:h-[336px]" : ""} ${stage === "spin2" ? "bg-[radial-gradient(circle,#facc1522,transparent_70%)]" : ""}`}
+      className={`reel relative w-full min-w-0 overflow-hidden rounded-2xl border [contain:layout_paint] ${stage === "spin" || stage === "spin2" ? "reel-moving" : ""} bg-[linear-gradient(180deg,#0c0c1c,#07070f)] transition-colors duration-500 ${vertical ? "h-[260px] md:h-[336px]" : ""} ${stage === "spin2" ? "bg-[radial-gradient(circle,#facc1522,transparent_70%)]" : ""}`}
       style={{ height: vertical ? undefined : H, borderColor: glow ?? "var(--color-line)", boxShadow: glow ? `0 0 30px ${glow}55, inset 0 0 40px ${glow}22` : undefined }}
     >
       <div
@@ -244,14 +267,14 @@ export function Reel({
               }}
             >
               {hidden ? (
-                <GoldTile big={isWin && stage === "gold"} vertical={vertical} />
+                <GoldTile big={isWin && stage === "gold"} vertical={vertical} small={sm} />
               ) : (
                 <>
                   <span className="absolute inset-x-0 bottom-0 h-[3px]" style={{ background: c }} />
-                  <CarImage item={it} eager className={vertical ? "h-11 w-24 md:h-14 md:w-32" : lg ? "h-20 w-40" : "h-16 w-32"} />
+                  <CarImage item={it} eager thumb className={vertical ? "h-11 w-24" : lg ? "h-20 w-40" : sm ? "h-12 w-24" : "h-16 w-32"} />
                   <div className="mt-0.5 w-full truncate px-2 text-center text-[11px] text-muted">{it.brand}</div>
                   <div className={`w-full truncate px-2 text-center font-semibold leading-tight ${isWin ? "text-[15px]" : "text-[13px]"}`}>{it.model}</div>
-                  <span className={`plate mt-1 ${lg ? "text-base" : "text-[13px]"} ${isWin ? "scale-125 transition-transform" : ""}`}>{coins(it.value)}</span>
+                  <span className={`plate mt-1 ${lg ? "text-base" : sm ? "text-[11px]" : "text-[13px]"} ${isWin ? "scale-125 transition-transform" : ""}`}>{coins(it.value)}</span>
                   {isWin && <span className="mt-1 text-xs font-bold" style={{ color: c }}>{RARITY[it.rarity].label}</span>}
                 </>
               )}
@@ -259,14 +282,20 @@ export function Reel({
           );
         })}
       </div>
+      {/* kratki bljesak u boji rijetkosti kad traka stane (jači za rjeđe) */}
+      {landed && (
+        <div
+          key={`hit${spinKey}`}
+          className="reel-hit pointer-events-none absolute inset-0 z-20 rounded-2xl"
+          style={{ ["--hc" as string]: wc, ["--hp" as string]: String(0.45 + 0.14 * Math.min(4, rarityRank(winner?.rarity ?? "common"))) }}
+        />
+      )}
       {stage === "gold" && <div className="flash pointer-events-none absolute inset-0 z-20 bg-[radial-gradient(circle,#facc15aa,transparent_60%)]" />}
       {/* oznaka */}
       <div className={`pointer-events-none absolute z-20 ${vertical ? "inset-x-0 top-1/2 -translate-y-1/2" : "inset-y-0 left-1/2 -translate-x-1/2"}`}>
         {vertical ? (
           <>
-            {/* okvir oko odabranog polja (battle) */}
-            <div className="absolute inset-x-1.5 top-1/2 h-[104px] -translate-y-1/2 rounded-xl border-2 border-accent/70 shadow-[0_0_22px_-4px_#ffb547,inset_0_0_18px_-6px_#ffb547]" />
-            <div className="h-[2px] w-full bg-[linear-gradient(90deg,transparent,#ff2b4e_15%,#ffb547_50%,#ff2b4e_85%,transparent)] opacity-60 shadow-[0_0_16px_#ff5a3c]" />
+            <div className="h-[2px] w-full bg-[linear-gradient(90deg,#ff2b4e,#ffb547,#ff2b4e)] shadow-[0_0_16px_#ff5a3c]" />
             <div className="absolute -left-1 top-1/2 h-0 w-0 -translate-y-1/2 border-y-[7px] border-l-[9px] border-y-transparent border-l-accent" />
             <div className="absolute -right-1 top-1/2 h-0 w-0 -translate-y-1/2 border-y-[7px] border-r-[9px] border-y-transparent border-r-accent" />
           </>

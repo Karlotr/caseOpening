@@ -13,6 +13,7 @@ import { StakePicker } from "@/components/StakePicker";
 import { Price } from "@/components/Price";
 import { RequireAuth } from "@/components/RequireAuth";
 import { useAuth } from "@/components/AuthProvider";
+import { useFavorites } from "@/lib/favorites";
 
 export default function CreateBattle() {
   const router = useRouter();
@@ -35,7 +36,22 @@ export default function CreateBattle() {
     getCases().then((c) => setCases(c.filter((x) => x.case_type === "normal" || x.case_type === "gem")));
   }, []);
   const gems = cur === "gems";
-  const shownCases = cases.filter((c) => c.case_type === (gems ? "gem" : "normal"));
+  // filtriranje i sortiranje kao na stranici kutija; omiljene uvijek prve (dodaju se na stranici kutija)
+  const { fav } = useFavorites();
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<"asc" | "desc">("asc");
+  const [onlyFav, setOnlyFav] = useState(false);
+  const ofCur = cases.filter((c) => c.case_type === (gems ? "gem" : "normal"));
+  const favCount = ofCur.filter((c) => fav.includes(c.id)).length;
+  const shownCases = useMemo(() => {
+    const ql = q.trim().toLowerCase();
+    const val = (c: CaseWithItems) => (gems ? c.gem_price ?? 0 : c.price);
+    return cases
+      .filter((c) => c.case_type === (gems ? "gem" : "normal"))
+      .filter((c) => !onlyFav || fav.includes(c.id))
+      .filter((c) => !ql || c.name.toLowerCase().includes(ql) || c.items.some((i) => `${i.brand} ${i.model}`.toLowerCase().includes(ql)))
+      .sort((a, b) => Number(fav.includes(b.id)) - Number(fav.includes(a.id)) || (sort === "asc" ? val(a) - val(b) : val(b) - val(a)));
+  }, [cases, gems, onlyFav, fav, q, sort]);
   const switchCur = (c: "coins" | "gems") => {
     if (c === cur) return;
     setCur(c);
@@ -143,7 +159,7 @@ export default function CreateBattle() {
           </div>
           <div>
             <span className="label">Odabrane kutije ({picked.length}/{limits.battle_max_cases})</span>
-            <div className="flex h-[66px] gap-1.5 overflow-x-auto overflow-y-hidden rounded-md border border-dashed border-line p-2 sm:h-auto sm:min-h-16 sm:flex-wrap sm:overflow-visible">
+            <div className="nice-scroll flex h-[74px] gap-1.5 overflow-x-auto overflow-y-hidden rounded-md border border-dashed border-line p-2 pb-1.5 sm:h-auto sm:min-h-16 sm:flex-wrap sm:overflow-visible">
               {picked.length === 0 && <span className="self-center text-sm text-muted">Dodaj kutije ispod.</span>}
               {picked.map((id, i) => {
                 const c = byId.get(id);
@@ -182,12 +198,43 @@ export default function CreateBattle() {
             </div>
           </div>
         </div>
+        <div className="space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {[
+                { k: false, l: gems ? "Gem kutije" : "Sve kutije" },
+                { k: true, l: "★ Omiljene" },
+              ].map((t) => (
+                <button
+                  key={String(t.k)}
+                  onClick={() => setOnlyFav(t.k)}
+                  className={`shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-bold ring-1 transition sm:px-4 sm:py-2 ${
+                    onlyFav === t.k ? "bg-[linear-gradient(100deg,#ff2b4e,#ff5a3c_45%,#ffb547)] text-white ring-white/20 shadow-[0_6px_20px_-8px_#ff2b4ecc]" : "bg-white/[.04] text-white/75 ring-white/10 hover:bg-white/[.08] hover:text-white"
+                  }`}
+                >
+                  {t.l}
+                  {t.k && favCount > 0 && <span className={`ml-1.5 rounded-full px-1.5 text-[11px] ${onlyFav ? "bg-black/25" : "bg-amber-300/20 text-amber-200"}`}>{favCount}</span>}
+                </button>
+              ))}
+            </div>
+            <div className="flex w-full gap-2 sm:w-auto">
+              <input className="input min-w-0 flex-1 sm:w-64 sm:flex-none" placeholder="Traži kutiju ili auto (npr. Supra)" value={q} onChange={(e) => setQ(e.target.value)} />
+              <select className="input w-auto shrink-0" value={sort} onChange={(e) => setSort(e.target.value as "asc" | "desc")} aria-label="Sortiraj">
+                <option value="asc">Cijena ↑</option>
+                <option value="desc">Cijena ↓</option>
+              </select>
+            </div>
+          </div>
+          {cases.length > 0 && shownCases.length === 0 && (
+            <p className="text-sm text-muted">{onlyFav ? "Nemaš omiljenih kutija ovdje. Dodaj ih zvjezdicom ☆ na stranici Kutije." : "Nema rezultata."}</p>
+          )}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {shownCases.map((c) => {
             const n = picked.filter((x) => x === c.id).length;
             return (
-              <div key={c.id} data-anchor className="card p-3">
+              <div key={c.id} data-anchor className="card relative p-3">
                 <CaseArt c={c} label className="h-32" />
+                {fav.includes(c.id) && <span className="pointer-events-none absolute left-5 top-5 z-20 grid h-6 w-6 place-items-center rounded-full bg-black/55 text-sm leading-none text-amber-300 ring-1 ring-amber-300/50" title="Omiljena">★</span>}
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                   <div className="inline-flex rounded-lg bg-black/40 px-2 py-0.5 font-display text-base font-black text-accent ring-1 ring-accent/30"><Price amount={gems ? c.gem_price ?? 0 : c.price} gems={gems} /></div>
                   <div className="flex items-center gap-1">
@@ -199,6 +246,7 @@ export default function CreateBattle() {
               </div>
             );
           })}
+        </div>
         </div>
       </div>
     </RequireAuth>

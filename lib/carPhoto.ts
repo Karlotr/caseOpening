@@ -91,6 +91,12 @@ export function photoQuery(i: Pick<Item, "brand" | "model" | "year">) {
   return { make: o?.make ?? i.brand, model: o?.model ?? clean, year: i.year };
 }
 
+// Mala sličica (300px, public/cars/sm) za trake koje se vrte — puno manje za dekodirati i iscrtati na mobitelu
+export function thumbUrl(i: Pick<Item, "id" | "brand" | "model" | "year">) {
+  const f = LOCAL_PHOTOS[String(i.id)]?.file;
+  return f ? `/cars/sm/${f}` : photoUrl(i);
+}
+
 // Jedna širina svugdje → preglednik i CDN keširaju istu sliku (manje zahtjeva prema kvoti)
 export function photoUrl(i: Pick<Item, "id" | "brand" | "model" | "year">) {
   const l = localPhoto(i.id);
