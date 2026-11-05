@@ -8,6 +8,8 @@ export type Entry = { label: string; names?: string; sub?: string; color: string
 
 const LAPS = 9; // koliko puta se traka ponavlja
 const TARGET_LAP = 6; // u kojem krugu se zaustavlja
+const EASE = "cubic-bezier(0.12,0.6,0.08,1)";
+const FAKE_NEAR = 0.18; // koliko često se "glumi" near-miss kad stvarni listić nije blizu ruba
 
 const initials = (s: string) =>
   s
@@ -19,6 +21,7 @@ const initials = (s: string) =>
 
 // Jackpot rulet: traka obojenih segmenata čija je širina proporcionalna šansi.
 // `ticket` (0–1) je pozicija koju je izvukao server; ako ne odgovara pobjedniku, uzima se nasumična točka unutar njegovog segmenta.
+// Zaustavljanje ponekad dobije "near-miss" dramu (vidi dolje) — ishod se nikad ne mijenja.
 export function NameReel({
   entries,
   winner,
@@ -41,6 +44,7 @@ export function NameReel({
   const [boxW, setBoxW] = useState(900);
   const [offset, setOffset] = useState(0);
   const [anim, setAnim] = useState(false);
+  const [tr, setTr] = useState(`transform ${duration}ms ${EASE}`);
   const [landed, setLanded] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const doneRef = useRef(onDone);
@@ -69,8 +73,40 @@ export function NameReel({
     const s = segs[winner] ?? { start: 0, size: 1 };
     const inWinner = ticket != null && ticket >= s.start && ticket < s.start + s.size;
     // ne staj točno na rub segmenta
-    const frac = inWinner ? ticket! : s.start + s.size * (0.15 + Math.random() * 0.7);
-    const target = TARGET_LAP * L + frac * L - w / 2;
+    let frac = inWinner ? ticket! : s.start + s.size * (0.15 + Math.random() * 0.7);
+
+    // NAPETOST (samo prikaz — pobjednik je uvijek isti, pokazivač uvijek završi u njegovom polju):
+    // - pravi near-miss: listić je stvarno blizu ruba → završno puzanje do njega
+    // - povremeni "glumljeni": točka se pomakne blizu ruba pobjedničkog polja (i dalje unutar njega)
+    const segPx = s.size * L;
+    const startPx = s.start * L;
+    const endPx = (s.start + s.size) * L;
+    const multi = entries.length > 1 && s.size < 0.97;
+    const edge = Math.min(frac * L - startPx, endPx - frac * L);
+    let mode: "none" | "creep" | "rollback" = "none";
+    if (multi && edge < Math.max(14, segPx * 0.1)) mode = "creep";
+    else if (multi && segPx > 50 && Math.random() < FAKE_NEAR) {
+      const nearEnd = Math.random() < 0.6;
+      const px = 4 + Math.random() * Math.min(10, segPx * 0.08);
+      frac = nearEnd ? (endPx - px) / L : (startPx + px) / L;
+      mode = nearEnd && Math.random() < 0.4 ? "rollback" : "creep";
+    }
+    const base = TARGET_LAP * L - w / 2;
+    const target = base + frac * L;
+    // faza 1 (glavna vrtnja) → faza 2 (puzanje / povratak)
+    const phases: { to: number; ms: number; ease: string; wait?: number }[] =
+      mode === "none"
+        ? [{ to: target, ms: duration, ease: EASE }]
+        : mode === "creep"
+          ? [
+              { to: target - (32 + Math.random() * 26), ms: duration - 500, ease: EASE },
+              { to: target, ms: 1100, ease: "cubic-bezier(0.3,0.1,0.3,1)" },
+            ]
+          : [
+              { to: base + endPx + 6 + Math.random() * 9, ms: duration - 400, ease: EASE },
+              { to: target, ms: 520, ease: "cubic-bezier(0.45,0,0.25,1)", wait: 320 },
+            ];
+    const totalMs = phases.reduce((a, ph) => a + ph.ms + (ph.wait ?? 0), 0);
 
     setLanded(false);
     setAnim(false);
@@ -91,22 +127,36 @@ export function NameReel({
         if (last !== -1) sfx.tick();
         last = idx;
       }
-      if (performance.now() - t0 < duration + 100) raf = requestAnimationFrame(watch);
+      if (performance.now() - t0 < totalMs + 300) raf = requestAnimationFrame(watch);
     };
+    const timers: ReturnType<typeof setTimeout>[] = [];
     const id = setTimeout(() => {
       setAnim(true);
-      setOffset(target);
+      setTr(`transform ${phases[0].ms}ms ${phases[0].ease}`);
+      setOffset(phases[0].to);
       sfx.spin();
       raf = requestAnimationFrame(watch);
+      let at = phases[0].ms;
+      for (const ph of phases.slice(1)) {
+        at += ph.wait ?? 0;
+        timers.push(
+          setTimeout(() => {
+            setTr(`transform ${ph.ms}ms ${ph.ease}`);
+            setOffset(ph.to);
+          }, at)
+        );
+        at += ph.ms;
+      }
     }, 120);
     const t = setTimeout(() => {
       setLanded(true);
       setSpinning(false);
       doneRef.current?.();
-    }, duration + 220);
+    }, totalMs + 220);
     return () => {
       clearTimeout(id);
       clearTimeout(t);
+      timers.forEach(clearTimeout);
       cancelAnimationFrame(raf);
     };
     // segs/ticket se čitaju u trenutku pokretanja vrtnje
@@ -122,7 +172,7 @@ export function NameReel({
         <div
           ref={track}
           className="absolute inset-y-0 left-0 flex"
-          style={{ transform: `translateX(${-offset}px)`, transition: anim ? `transform ${duration}ms cubic-bezier(0.12,0.6,0.08,1)` : "none" }}
+          style={{ transform: `translateX(${-offset}px)`, transition: anim ? tr : "none" }}
         >
           {Array.from({ length: LAPS }, (_, k) =>
             entries.map((e, i) => {
