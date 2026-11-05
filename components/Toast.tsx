@@ -47,7 +47,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block font-display text-[13px] font-bold" style={{ color: st.color }}>{st.title}</span>
-                <span className="block text-[15px] font-medium leading-snug text-fg">{t.text}</span>
+                <span className="block whitespace-pre-line text-[15px] font-medium leading-snug text-fg">{t.text}</span>
               </span>
               <span className="toast-timer absolute bottom-0 left-0 h-[3px] w-full origin-left" style={{ background: st.color, animationDuration: `${t.ms}ms` }} />
             </button>

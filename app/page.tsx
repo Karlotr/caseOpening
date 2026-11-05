@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { getCases } from "@/lib/data";
 import type { CaseWithItems } from "@/lib/types";
 import { CaseCard } from "@/components/CaseCard";
+import { useFavorites } from "@/lib/favorites";
 import { DropTower } from "@/components/LiveDrops";
 import { CarImage } from "@/components/CarImage";
 
@@ -110,6 +111,7 @@ export default function Home() {
     getCases().then(setCases).catch(() => setErr("Kutije se nisu učitale. Provjeri je li supabase/schema.sql pokrenut u Supabaseu."));
   }, []);
   const normal = cases.filter((c) => c.case_type === "normal");
+  const { fav } = useFavorites(); // omiljene kutije prve
 
   return (
     <div className="space-y-14">
@@ -133,7 +135,7 @@ export default function Home() {
         </div>
         {err && <div className="card p-4 text-red-300">{err}</div>}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {(normal.length ? normal.slice(0, 8) : Array.from({ length: 8 })).map((c, i) =>
+          {(normal.length ? [...normal].sort((a, b) => Number(fav.includes(b.id)) - Number(fav.includes(a.id))).slice(0, 8) : Array.from({ length: 8 })).map((c, i) =>
             c ? <CaseCard key={(c as CaseWithItems).id} c={c as CaseWithItems} /> : <div key={i} className="card aspect-[4/5] animate-pulse" />
           )}
         </div>

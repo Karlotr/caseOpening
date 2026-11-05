@@ -46,6 +46,7 @@ function Upgrader() {
   const chance = target && input > 0 ? Math.min((input / target.value) * 0.95, 0.8) : 0;
   // ulog ≥ vrijednost auta: nema smisla upgradeati (već ga "imaš"), pa ne pokazujemo zbunjujućih 80%
   const overTarget = !!target && input >= target.value;
+  const shownChance = overTarget ? 1 : chance; // krug pun kad je ulog veći od auta
   // filteri i sortiranje popisa ciljeva (svi auti)
   const [rar, setRar] = useState<Rarity | "all">("all");
   const [cat, setCat] = useState("all");
@@ -106,7 +107,7 @@ function Upgrader() {
     }, 4200);
   };
 
-  const R = 90;
+  const R = 84;
   const C = 2 * Math.PI * R;
 
   return (
@@ -116,69 +117,117 @@ function Upgrader() {
         <p className="text-sm text-muted">Uloži coine i odaberi auto. Ako uspije, dobivaš njegovu vrijednost na račun. Maksimalna šansa 80%.</p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_300px_1fr]">
-        <div className="card p-4">
-          <div className="label">Tvoj ulog</div>
-          <div className="font-display text-2xl text-accent"><span className="coin" /> {coins(input)}</div>
-          <div className="mt-3">
+      {/* ARENA: ulog → kolo → cilj */}
+      <div className="card relative overflow-hidden p-4 sm:p-6">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(50%_70%_at_50%_45%,#34d39914,transparent_70%)]" />
+        <div className="relative grid items-center gap-6 lg:grid-cols-[1fr_auto_1fr]">
+          {/* ulog */}
+          <div className="space-y-3">
+            <div className="label">Tvoj ulog</div>
+            <div className="flex items-center gap-3">
+              <span className="relative grid h-14 w-14 shrink-0 place-items-center">
+                {[0, 1, 2].map((k) => (
+                  <span key={k} className="coin absolute" style={{ width: 40, height: 40, transform: `translate(${(k - 1) * 6}px, ${-k * 5}px)` }} />
+                ))}
+              </span>
+              <div className="font-display text-3xl font-black tabular-nums text-accent sm:text-4xl">{coins(input)}</div>
+            </div>
             <label className="label" htmlFor="extra">Ulog u coinima (stanje {coins(profile?.balance)})</label>
             <NumberField id="extra" className="input" value={extra} onChange={setBet} placeholder="0" />
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {[1, 10, 50, 100].map((v) => (
-              <button key={v} type="button" className="rounded-md border border-line px-2.5 py-1 text-sm font-semibold hover:border-accent" onClick={() => setBet(input + v)}>+{v}</button>
-            ))}
-            <button type="button" className="rounded-md border border-line px-2.5 py-1 text-sm font-semibold hover:border-accent" onClick={() => setBet(input / 2)}>½</button>
-            <button type="button" className="rounded-md border border-line px-2.5 py-1 text-sm font-semibold hover:border-accent" onClick={() => setBet(input * 2)}>2×</button>
-            <button type="button" className="rounded-md border border-line px-2.5 py-1 text-sm text-muted hover:text-fg" onClick={() => setBet(0)}>Očisti</button>
-          </div>
-        </div>
-
-        <div className="card grid place-items-center p-4">
-          <div className="relative h-56 w-56">
-            <svg viewBox="0 0 200 200" className="h-full w-full -rotate-90">
-              <circle cx="100" cy="100" r={R} fill="none" stroke="#2a2e37" strokeWidth="14" />
-              <circle cx="100" cy="100" r={R} fill="none" stroke={result ? (result.won ? "#22c55e" : "#ef4444") : "#facc15"} strokeWidth="14" strokeDasharray={`${chance * C} ${C}`} style={{ transition: "stroke-dasharray .4s" }} />
-            </svg>
-            <div className="absolute inset-0" style={{ transform: `rotate(${angle}deg)`, transition: anim ? "transform 4s cubic-bezier(.1,.7,.1,1)" : "none" }}>
-              <div className="absolute left-1/2 top-1 h-6 w-1.5 -translate-x-1/2 rounded bg-white shadow-[0_0_10px_white]" />
+            <div className="flex flex-wrap gap-1.5">
+              {[1, 10, 50, 100].map((v) => (
+                <button key={v} type="button" className="rounded-md border border-line px-2.5 py-1 text-sm font-semibold hover:border-accent" onClick={() => setBet(input + v)}>+{v}</button>
+              ))}
+              <button type="button" className="rounded-md border border-line px-2.5 py-1 text-sm font-semibold hover:border-accent" onClick={() => setBet(input / 2)}>½</button>
+              <button type="button" className="rounded-md border border-line px-2.5 py-1 text-sm font-semibold hover:border-accent" onClick={() => setBet(input * 2)}>2×</button>
+              <button type="button" className="rounded-md border border-line px-2.5 py-1 text-sm text-muted hover:text-fg" onClick={() => setBet(0)}>Očisti</button>
             </div>
-            <div className="absolute inset-0 grid place-items-center text-center">
-              <div>
-                {result ? (
-                  <>
-                    <div className={`font-display text-3xl font-bold ${result.won ? "text-emerald-400" : "text-red-400"}`}>{result.won ? "USPJEH" : "PROMAŠAJ"}</div>
-                    <div className="text-xs text-muted">šansa {(Number(result.chance) * 100).toFixed(2)}% · roll {(result.roll * 100).toFixed(2)}</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="font-display text-4xl font-bold">{overTarget ? "100" : (chance * 100).toFixed(2)}%</div>
-                    <div className="text-xs text-muted">šansa</div>
-                  </>
-                )}
-                {target && !result && <div className="mt-1 text-xs text-accent">x{(target.value / Math.max(input, 0.01)).toFixed(2)}</div>}
+          </div>
+
+          {/* kolo */}
+          <div className="mx-auto grid place-items-center">
+            <div className={`relative h-64 w-64 sm:h-72 sm:w-72 ${result ? (result.won ? "upg-win" : "upg-lose") : ""}`}>
+              <svg viewBox="0 0 220 220" className="h-full w-full -rotate-90">
+                <defs>
+                  <linearGradient id="upgArc" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor={result ? (result.won ? "#4ade80" : "#f87171") : "#6ee7b7"} />
+                    <stop offset="1" stopColor={result ? (result.won ? "#16a34a" : "#dc2626") : "#10b981"} />
+                  </linearGradient>
+                  <filter id="upgGlow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="4" result="b" />
+                    <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+                  </filter>
+                </defs>
+                {/* crtice */}
+                {Array.from({ length: 60 }, (_, i) => {
+                  const a = (i / 60) * Math.PI * 2;
+                  const r1 = 104, r2 = i % 5 === 0 ? 96 : 100;
+                  return <line key={i} x1={110 + Math.cos(a) * r1} y1={110 + Math.sin(a) * r1} x2={110 + Math.cos(a) * r2} y2={110 + Math.sin(a) * r2} stroke="#ffffff" strokeOpacity={i % 5 === 0 ? 0.25 : 0.1} strokeWidth="1.5" />;
+                })}
+                <circle cx="110" cy="110" r={R} fill="none" stroke="#1c1d33" strokeWidth="16" />
+                <circle
+                  cx="110"
+                  cy="110"
+                  r={R}
+                  fill="none"
+                  stroke="url(#upgArc)"
+                  strokeWidth="16"
+                  strokeLinecap="round"
+                  filter="url(#upgGlow)"
+                  strokeDasharray={`${shownChance * C} ${C}`}
+                  style={{ transition: "stroke-dasharray .45s cubic-bezier(.2,.8,.2,1)" }}
+                />
+              </svg>
+              {/* pokazivač */}
+              <div className="absolute inset-0" style={{ transform: `rotate(${angle}deg)`, transition: anim ? "transform 4s cubic-bezier(.1,.7,.1,1)" : "none" }}>
+                <div className="absolute left-1/2 top-0 -translate-x-1/2">
+                  <div className="h-0 w-0 border-x-[9px] border-t-[14px] border-x-transparent border-t-white drop-shadow-[0_0_8px_#fff]" />
+                </div>
+                <div className="absolute left-1/2 top-[16px] h-3 w-3 -translate-x-1/2 rounded-full bg-white shadow-[0_0_14px_4px_#ffffffaa]" />
+              </div>
+              <div className="absolute inset-0 grid place-items-center text-center">
+                <div>
+                  {result ? (
+                    <>
+                      <div className={`pop font-display text-3xl font-black ${result.won ? "text-emerald-400" : "text-red-400"}`}>{result.won ? "USPJEH" : "PROMAŠAJ"}</div>
+                      <div className="text-xs text-muted tabular-nums">šansa {(Number(result.chance) * 100).toFixed(2)}% · roll {(result.roll * 100).toFixed(2)}</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-display text-5xl font-black tabular-nums">{overTarget ? "100" : (chance * 100).toFixed(2)}<span className="text-2xl text-muted">%</span></div>
+                      <div className="text-xs font-semibold uppercase tracking-widest text-muted">šansa</div>
+                    </>
+                  )}
+                  {target && !result && !overTarget && (
+                    <div className="mt-2 inline-block rounded-full bg-accent/15 px-3 py-0.5 font-display text-sm font-black tabular-nums text-accent ring-1 ring-accent/40">
+                      {(target.value / Math.max(input, 0.01)).toFixed(2)}×
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+            <button className="btn-primary mt-4 w-64 py-3 text-lg sm:w-72" disabled={!target || input <= 0 || busy || overTarget} onClick={go}>
+              {busy ? "Vrti se..." : overTarget ? "Ulog je veći od auta" : "Upgradeaj"}
+            </button>
           </div>
-          <button className="btn-primary mt-3 w-full" disabled={!target || input <= 0 || busy || input >= (target?.value ?? 0)} onClick={go}>
-            {busy ? "Vrti se..." : overTarget ? "Ulog je veći od auta" : "Upgradeaj"}
-          </button>
-        </div>
 
-        <div className="card p-4">
-          <div className="label">Ciljani automobil</div>
-          {target ? (
-            <div className="flex items-center gap-3">
-              <CarImage item={target} className="h-14 w-28" />
-              <div className="min-w-0">
-                <div className="text-xs" style={{ color: RARITY[target.rarity].color }}>{target.brand} · {target.year}</div>
-                <div className="truncate font-semibold">{target.model}</div>
-                <div className="font-display text-accent">{coins(target.value)}</div>
+          {/* cilj */}
+          <div className="space-y-2 lg:text-right">
+            <div className="label lg:text-right">Ciljani automobil</div>
+            {target ? (
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-0 rounded-2xl" style={{ background: `radial-gradient(70% 60% at 50% 60%, ${RARITY[target.rarity].color}44, transparent 70%)` }} />
+                <CarImage item={target} reflect className="relative mx-auto h-28 w-full max-w-72 lg:ml-auto lg:mr-0" />
+                <div className="relative mt-2">
+                  <div className="text-xs font-semibold" style={{ color: RARITY[target.rarity].color }}>{RARITY[target.rarity].label} · {target.brand} · {target.year}</div>
+                  <div className="truncate font-display text-2xl font-black">{target.model}</div>
+                  <div className="font-display text-2xl font-black tabular-nums text-accent">{coins(target.value)}</div>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="text-sm text-muted">Odaberi auto iz popisa ispod.</div>
-          )}
+            ) : (
+              <div className="grid h-40 place-items-center rounded-2xl border border-dashed border-line text-sm text-muted">Odaberi auto iz popisa ispod.</div>
+            )}
+          </div>
         </div>
       </div>
 

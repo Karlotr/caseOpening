@@ -146,7 +146,8 @@ export function Reel({
           setAnimate(true);
           setOffset(center + (Math.random() - 0.5) * tile * 0.7);
           if (sound) sfx.spin();
-          raf = requestAnimationFrame(watch);
+          // praćenje pozicije (za tick zvuk) čita getComputedStyle svaki frame — skupo; radi samo traka koja svira
+          if (goldSpin ? gs : sound) raf = requestAnimationFrame(watch);
         })
       );
       timers.push(
@@ -213,7 +214,7 @@ export function Reel({
   return (
     <div
       ref={box}
-      className={`reel relative w-full min-w-0 overflow-hidden rounded-2xl border [contain:layout_paint] ${stage === "spin" || stage === "spin2" ? "reel-moving" : ""} bg-[linear-gradient(180deg,#0c0c1c,#07070f)] transition-colors duration-500 ${vertical ? "h-[260px] md:h-[336px]" : ""} ${stage === "spin2" ? "bg-[radial-gradient(circle,#facc1522,transparent_70%)]" : ""}`}
+      className={`reel relative w-full min-w-0 overflow-hidden rounded-2xl border [contain:layout_paint] ${stage === "spin" || stage === "spin2" ? "reel-moving" : ""} bg-[linear-gradient(180deg,#0c0c1c,#07070f)] transition-colors duration-500 ${vertical ? "h-[260px] bg-[radial-gradient(80%_40%_at_50%_50%,#ffb5471a,transparent_70%),linear-gradient(180deg,#0e0e22,#07070f)] md:h-[336px]" : ""} ${stage === "spin2" ? "bg-[radial-gradient(circle,#facc1522,transparent_70%)]" : ""}`}
       style={{ height: vertical ? undefined : H, borderColor: glow ?? "var(--color-line)", boxShadow: glow ? `0 0 30px ${glow}55, inset 0 0 40px ${glow}22` : undefined }}
     >
       <div
@@ -247,7 +248,7 @@ export function Reel({
               ) : (
                 <>
                   <span className="absolute inset-x-0 bottom-0 h-[3px]" style={{ background: c }} />
-                  <CarImage item={it} eager className={vertical ? "h-11 w-24" : lg ? "h-20 w-40" : "h-16 w-32"} />
+                  <CarImage item={it} eager className={vertical ? "h-11 w-24 md:h-14 md:w-32" : lg ? "h-20 w-40" : "h-16 w-32"} />
                   <div className="mt-0.5 w-full truncate px-2 text-center text-[11px] text-muted">{it.brand}</div>
                   <div className={`w-full truncate px-2 text-center font-semibold leading-tight ${isWin ? "text-[15px]" : "text-[13px]"}`}>{it.model}</div>
                   <span className={`plate mt-1 ${lg ? "text-base" : "text-[13px]"} ${isWin ? "scale-125 transition-transform" : ""}`}>{coins(it.value)}</span>
@@ -263,7 +264,9 @@ export function Reel({
       <div className={`pointer-events-none absolute z-20 ${vertical ? "inset-x-0 top-1/2 -translate-y-1/2" : "inset-y-0 left-1/2 -translate-x-1/2"}`}>
         {vertical ? (
           <>
-            <div className="h-[2px] w-full bg-[linear-gradient(90deg,#ff2b4e,#ffb547,#ff2b4e)] shadow-[0_0_16px_#ff5a3c]" />
+            {/* okvir oko odabranog polja (battle) */}
+            <div className="absolute inset-x-1.5 top-1/2 h-[104px] -translate-y-1/2 rounded-xl border-2 border-accent/70 shadow-[0_0_22px_-4px_#ffb547,inset_0_0_18px_-6px_#ffb547]" />
+            <div className="h-[2px] w-full bg-[linear-gradient(90deg,transparent,#ff2b4e_15%,#ffb547_50%,#ff2b4e_85%,transparent)] opacity-60 shadow-[0_0_16px_#ff5a3c]" />
             <div className="absolute -left-1 top-1/2 h-0 w-0 -translate-y-1/2 border-y-[7px] border-l-[9px] border-y-transparent border-l-accent" />
             <div className="absolute -right-1 top-1/2 h-0 w-0 -translate-y-1/2 border-y-[7px] border-r-[9px] border-y-transparent border-r-accent" />
           </>

@@ -222,7 +222,7 @@ export function Navbar() {
             <span className="absolute inset-0 rounded-lg bg-[linear-gradient(135deg,#ff2b4e,#ffb547)] shadow-[0_0_20px_-2px_#ff2b4e]" />
             <span className="relative h-1 w-5 rounded-full bg-white/90 shadow-[0_0_8px_#fff]" />
           </span>
-          <span className="hidden font-display text-2xl font-extrabold min-[430px]:inline">garaža<span className="text-muted">.gg</span></span>
+          <span className="hidden font-display text-2xl font-extrabold min-[430px]:inline">Garaža<span className="text-muted">.gg</span></span>
         </Link>
         <nav className="hidden min-w-max flex-1 items-center gap-0.5 xl:flex 2xl:gap-1">
           <Suspense fallback={<StaticLinks />}>

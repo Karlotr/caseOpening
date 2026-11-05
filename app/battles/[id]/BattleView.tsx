@@ -111,6 +111,11 @@ export function BattleView() {
     timers.current = [];
   };
   const caseStrip = useRef<HTMLDivElement>(null);
+  const seatsBox = useRef<HTMLDivElement>(null);
+  const battleRef = useRef<Battle | null>(null);
+  useEffect(() => {
+    battleRef.current = battle;
+  }, [battle]);
   const spinRound = useCallback(
     (r: number) => {
       if (!battle) return;
@@ -134,19 +139,23 @@ export function BattleView() {
     [battle, cases, drops, items]
   );
 
-  const startPlayback = useCallback(() => {
+  const startPlayback = useCallback((from = 0) => {
     playId.current += 1;
     clearTimers();
     // makni trake prošle reprodukcije da se ne zavrti stara runda prije prve
     setStrips([]);
     setSpinning(false);
     setAnnounce(false);
-    setRevealed(0);
+    setRevealed(from);
     setPhase("rounds");
     // mobitel: zaglavlje je visoko — skrolaj do trake kutija kad reprodukcija krene
     // bez glatkog skrola: glatki skrol istovremeno s pokretanjem vrtnje je na mobitelu trzao
-    if (typeof window !== "undefined" && window.innerWidth < 768) caseStrip.current?.scrollIntoView({ behavior: "auto", block: "start" });
-    later(() => spinRound(0), 500);
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      // timovi / 4+ igrača: skrolaj do traka (vide se oba tima); inače do trake kutija
+      const target = battleRef.current && (battleRef.current.team_size > 1 || battleRef.current.seats > 3) ? seatsBox.current : caseStrip.current;
+      target?.scrollIntoView({ behavior: "auto", block: "start" });
+    }
+    later(() => spinRound(from), from > 0 ? 250 : 500);
      
   }, [spinRound]);
 
@@ -170,7 +179,8 @@ export function BattleView() {
     if (decided.current || !battle || battle.status !== "finished" || !drops.length || !cases.size || !items.size) return;
     decided.current = true;
     const age = Date.now() - new Date(battle.finished_at ?? battle.created_at).getTime();
-    if (age < 90_000) {
+    // dugi battleovi traju i nekoliko minuta — reprodukcija (ili nastavak) se računa iz vremena završetka
+    if (age < 15 * 60_000) {
       sfx.lightsOut();
       const me = user ? players.find((p) => p.user_id === user.id) : undefined;
       if (me) {
@@ -180,7 +190,28 @@ export function BattleView() {
         heldRef.current = true;
         deferCredit(payout);
       }
-      startPlayback();
+      // nakon osvježavanja stranice nastavi otprilike od runde koja se sad vrti (ne ispočetka)
+      let t = 500;
+      let from = 0;
+      for (; from < rounds; from++) {
+        const c = cases.get(battle.case_ids[from]);
+        const gm = goldThreshold(c);
+        const gold = drops.some((d) => d.round === from + 1 && (items.get(d.item_id)?.value ?? 0) >= gm);
+        const spin = battle.fast && !gold ? FAST_SPIN : 3600;
+        const len = 300 + spin + (gold ? 1300 + Math.max(2200, spin * 0.6) : 0) + (battle.fast && !gold ? FAST_PAUSE : ROUND_PAUSE);
+        if (t + len > age) break;
+        t += len;
+      }
+      if (from >= rounds) {
+        // sve runde su već prošle: jackpot rulet (ako još traje) ili odmah rezultat
+        setRevealed(rounds);
+        if (battle.jackpot && age < t + 7000) {
+          setPhase("roulette");
+          setRouletteKey((k) => k + 1);
+        } else {
+          setPhase("done");
+        }
+      } else startPlayback(from);
     } else {
       setRevealed(rounds);
       setPhase("done");
@@ -320,6 +351,8 @@ export function BattleView() {
   const isCreator = user?.id === battle.creator_id;
   const myWin = done && players.find((p) => p.user_id === user?.id)?.team === battle.winner_team;
   const teamMode = battle.team_size > 1;
+  // mobitel: kod timova i 4+ igrača osvojeni auti idu na dno, a trake svih igrača ostaju u fokusu
+  const dropsAtBottom = teamMode || battle.seats > 3;
   // dio nagrade po igraču (ista formula kao na serveru): ukupno / broj mjesta u pobjedničkom timu × udio ulaza
   const winnerSeats = players.filter((p) => p.team === battle.winner_team).length;
   const shareOf = (p?: BattlePlayer) =>
@@ -440,7 +473,7 @@ export function BattleView() {
           <div className="flex shrink-0 gap-1">
             <button type="button" onClick={toggleSpeed} aria-pressed={speed === 2} title="Ubrzaj reprodukciju" className={`rounded-lg border px-2.5 py-1.5 text-sm font-bold ${speed === 2 ? "border-accent2 bg-accent2/15 text-accent2" : "border-line text-muted hover:text-fg"}`}>{speed}×</button>
             <button type="button" onClick={skipToEnd} title="Preskoči na rezultat" className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-bold text-muted hover:text-fg">Preskoči</button>
-            {(revealed > 0 || phase === "roulette") && <button type="button" onClick={startPlayback} title="Vrati na početak" className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-bold text-muted hover:text-fg">Ispočetka</button>}
+            {(revealed > 0 || phase === "roulette") && <button type="button" onClick={() => startPlayback(0)} title="Vrati na početak" className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-bold text-muted hover:text-fg">Ispočetka</button>}
           </div>
         )}
         <div className="ml-auto shrink-0 self-center whitespace-nowrap px-3 font-display text-xl font-bold">
@@ -510,7 +543,7 @@ export function BattleView() {
                 Kreiraj isti · <Price amount={recreatePrice} gems={battle.currency === "gems"} />
               </button>
             )}
-            <button className="btn-ghost" onClick={() => { setReplay(true); startPlayback(); }}>Pogledaj ponovno</button>
+            <button className="btn-ghost" onClick={() => { setReplay(true); startPlayback(0); }}>Pogledaj ponovno</button>
             {user && <button className="btn-ghost" onClick={() => shareBattle(battle.id)}>Podijeli u chat</button>}
           </div>
         </div>
@@ -532,7 +565,7 @@ export function BattleView() {
       })()}
 
       {/* mobitel: mreža mjesta (2 ili 3 stupca) / timovi jedan ispod drugog; desktop: timovi u redu */}
-      <div className="pb-2 md:overflow-x-auto">
+      <div ref={seatsBox} className="scroll-mt-20 pb-2 md:overflow-x-auto">
         <div className={`grid gap-2 md:flex md:min-w-0 ${battle.team_size > 1 ? "grid-cols-1" : battle.seats % 3 === 0 ? "grid-cols-3" : "grid-cols-2"}`}>
           {teams.map((seats, ti) => {
             const won = done && battle.winner_team === ti;
@@ -594,13 +627,13 @@ export function BattleView() {
                               )}
                             </div>
                           ) : phase === "rounds" && strips[seat] ? (
-                            <div className="relative">
+                            <div className="relative mx-auto w-full md:max-w-[230px]">
                               <Reel vertical items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} goldMin={goldThreshold(cases.get(battle.case_ids[Math.min(revealed, rounds - 1)]))} winnerIndex={WIN} spinKey={spinKey} duration={(battle.fast ? FAST_SPIN : 3600) / speed} sound={seat === 0} goldSound onDone={onReelDone} />
                             </div>
                           ) : phase === "rounds" ? (
-                            <div className="h-[260px] rounded-2xl border border-line md:h-[336px] bg-[linear-gradient(180deg,#0c0c1c,#07070f)]" />
+                            <div className="mx-auto h-[260px] w-full rounded-2xl border border-line bg-[linear-gradient(180deg,#0c0c1c,#07070f)] md:h-[336px] md:max-w-[230px]" />
                           ) : null}
-                          <DropList className={teamMode ? "hidden md:block" : ""} drops={mine} items={items} />
+                          <DropList className={dropsAtBottom ? "hidden md:block" : ""} drops={mine} items={items} />
                         </div>
                       );
                     })}
@@ -612,11 +645,21 @@ export function BattleView() {
         </div>
       </div>
 
-      {/* mobitel, timski battle (2v2, 3v3…): osvojeni auti na dnu, da ne razdvajaju timove */}
-      {teamMode && drops.some((d) => d.round <= revealed) && (
+      {/* mobitel, timski battle (2v2, 3v3…) i 4+ igrača: osvojeni auti na dnu */}
+      {dropsAtBottom && drops.some((d) => d.round <= revealed) && (
         <div className="space-y-3 md:hidden">
           <h2 className="font-display text-xl font-bold">Osvojeno</h2>
-          {teams.map((seats, ti) => (
+          {!teamMode && (
+            <div className="grid grid-cols-3 gap-1.5">
+              {teams.flat().map((seat) => (
+                <div key={seat} className="min-w-0 space-y-1.5">
+                  <div className="truncate px-1 text-sm font-bold" style={{ color: TEAM_COLORS[seat % TEAM_COLORS.length] }}>{players.find((p) => p.seat === seat)?.name ?? `Igrač ${seat + 1}`}</div>
+                  <DropList drops={mineOf(seat)} items={items} />
+                </div>
+              ))}
+            </div>
+          )}
+          {teamMode && teams.map((seats, ti) => (
             <div key={ti} className="space-y-1.5">
               <div className="px-1 font-display text-base font-bold" style={{ color: TEAM_COLORS[ti % TEAM_COLORS.length] }}>Tim {ti + 1}</div>
               <div className="flex gap-1.5">

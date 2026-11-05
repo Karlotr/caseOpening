@@ -180,7 +180,7 @@ export default function CrashPage() {
     if (m >= 5) celebrate({ title: fmtM(m), subtitle: "Izašao si na vrijeme!", amount: pay, tier: m >= 20 ? 3 : 2 });
     else {
       sfx.win(m >= 2 ? 2 : 1);
-      toast(`Izašao si na ${fmtM(m)} · +${coins(pay)}`, "success");
+      toast(`${fmtM(m)}\n+${coins(pay)}`, "success");
     }
     refresh();
     load();
@@ -348,8 +348,9 @@ export default function CrashPage() {
                   </div>
                   {crashed && <div className="pop mt-1 font-display text-2xl font-extrabold uppercase tracking-[.3em] text-red-400">Crash!</div>}
                   {me?.cashout != null && (
-                    <div className="pop mt-2 inline-block rounded-full bg-emerald-500/20 px-4 py-1 font-display text-lg font-bold text-emerald-300 ring-1 ring-emerald-400/50">
-                      Izašao na {fmtM(me.cashout)} · +{coins(me.payout)}
+                    <div className="pop mt-2 inline-block rounded-2xl bg-emerald-500/20 px-5 py-1.5 font-display text-emerald-300 ring-1 ring-emerald-400/50">
+                      <div className="text-2xl font-black leading-tight tabular-nums">{fmtM(me.cashout)}</div>
+                      <div className="text-base font-bold tabular-nums">+{coins(me.payout)}</div>
                     </div>
                   )}
                 </>
@@ -359,7 +360,7 @@ export default function CrashPage() {
         </div>
 
         {/* KONTROLE */}
-        <div className="card space-y-3 p-4">
+        <div className={`card p-4 ${myLive ? "flex flex-col justify-center" : "space-y-3"}`}>
           {!user ? (
             <p className="text-muted">Prijavi se da bi igrao.</p>
           ) : myLive ? (
@@ -392,7 +393,11 @@ export default function CrashPage() {
               </div>
               {me ? (
                 me.cashout != null ? (
-                  <div className="rounded-xl bg-emerald-500/10 p-3 text-center font-semibold text-emerald-300">Izašao si na {fmtM(me.cashout)} · +{coins(me.payout)}</div>
+                  <div className="rounded-xl bg-emerald-500/10 p-3 text-center text-emerald-300">
+                    <div className="text-xs font-semibold uppercase tracking-widest text-emerald-300/70">Izašao si</div>
+                    <div className="font-display text-3xl font-black tabular-nums leading-tight">{fmtM(me.cashout)}</div>
+                    <div className="font-display text-lg font-bold tabular-nums">+{coins(me.payout)}</div>
+                  </div>
                 ) : crashed ? (
                   <div className="rounded-xl bg-red-500/10 p-3 text-center font-semibold text-red-300">Crash — izgubio si {coins(me.amount)}</div>
                 ) : (

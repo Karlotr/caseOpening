@@ -73,7 +73,7 @@ function Rulet() {
     const el = box.current;
     if (!el) return;
     const fit = () => {
-      const t = el.clientWidth < 640 ? 76 : 100;
+      const t = el.clientWidth < 640 ? 84 : 116;
       setTile(t);
       if (!busy) setOffset(SLOTS * 2 * t - el.clientWidth / 2 + t / 2);
     };
@@ -155,7 +155,7 @@ function Rulet() {
       {/* KOTAČ */}
       <div
         ref={box}
-        className="card relative h-48 overflow-hidden p-0 sm:h-60"
+        className="card relative h-36 overflow-hidden p-0 sm:h-44"
         style={{ boxShadow: lastColor ? `0 0 70px -18px ${STYLE[lastColor].glow}` : undefined, borderColor: lastColor ? `${STYLE[lastColor].glow}88` : undefined, transition: "box-shadow .4s, border-color .4s" }}
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_80%_at_50%_50%,#ffffff0c,transparent_70%)]" />
@@ -166,7 +166,7 @@ function Rulet() {
             return (
               <div key={i} className="shrink-0 px-1" style={{ width: tile }}>
                 <div
-                  className={`relative grid h-32 place-items-center overflow-hidden rounded-2xl font-display text-2xl font-black transition duration-500 sm:h-44 sm:text-3xl ${STYLE[c].tile} ${c === "gold" ? "text-amber-900" : "text-white/85"} ${landed != null && !win ? "opacity-35" : ""} ${win ? "rl-win" : ""}`}
+                  className={`relative grid aspect-square w-full place-items-center overflow-hidden rounded-2xl font-display text-2xl font-black transition duration-500 sm:text-3xl ${STYLE[c].tile} ${c === "gold" ? "text-amber-900" : "text-white/85"} ${landed != null && !win ? "opacity-35" : ""} ${win ? "rl-win" : ""}`}
                   style={{ boxShadow: `inset 0 2px 0 #ffffff40, inset 0 -6px 12px #00000055${win ? `, 0 0 40px ${STYLE[c].glow}` : ""}` }}
                 >
                   <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-[linear-gradient(180deg,#ffffff26,transparent)]" />

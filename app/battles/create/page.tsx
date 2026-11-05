@@ -78,6 +78,16 @@ export default function CreateBattle() {
   useEffect(() => {
     router.prefetch("/battles/0");
   }, [router]);
+  // povratak na stranicu (strelica natrag, iOS swipe, Next zadrži stanje stranice): gumb mora opet raditi
+  useEffect(() => {
+    const reset = () => {
+      creating.current = false;
+      setBusy(false);
+    };
+    reset();
+    window.addEventListener("pageshow", reset);
+    return () => window.removeEventListener("pageshow", reset);
+  }, []);
   const create = async () => {
     if (creating.current) return; // zaštita od duplog klika
     creating.current = true;
@@ -177,12 +187,9 @@ export default function CreateBattle() {
             const n = picked.filter((x) => x === c.id).length;
             return (
               <div key={c.id} data-anchor className="card p-3">
-                <CaseArt c={c} className="h-28" />
-                <div className="mt-2 flex items-center justify-between">
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold">{c.name}</div>
-                    <div className="text-xs text-accent"><Price amount={gems ? c.gem_price ?? 0 : c.price} gems={gems} /></div>
-                  </div>
+                <CaseArt c={c} label className="h-32" />
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <div className="inline-flex rounded-lg bg-black/40 px-2 py-0.5 font-display text-base font-black text-accent ring-1 ring-accent/30"><Price amount={gems ? c.gem_price ?? 0 : c.price} gems={gems} /></div>
                   <div className="flex items-center gap-1">
                     <button className="btn-ghost h-8 w-8 p-0" onClick={(e) => remove(c.id, e)} disabled={!n}>−</button>
                     <span className="w-5 text-center text-sm">{n}</span>

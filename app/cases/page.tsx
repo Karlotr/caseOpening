@@ -4,8 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { getCases } from "@/lib/data";
 import type { CaseType, CaseWithItems } from "@/lib/types";
 import { CaseCard } from "@/components/CaseCard";
+import { useFavorites } from "@/lib/favorites";
 
-const TABS: { k: CaseType | "all"; l: string }[] = [
+type Tab = CaseType | "all" | "fav";
+const TABS: { k: Tab; l: string }[] = [
+  { k: "fav", l: "★ Omiljene" },
   { k: "normal", l: "Kutije" },
   { k: "gem", l: "Gem kutije" },
   { k: "level", l: "Level kutije" },
@@ -14,7 +17,8 @@ const TABS: { k: CaseType | "all"; l: string }[] = [
 
 export default function CasesPage() {
   const [cases, setCases] = useState<CaseWithItems[]>([]);
-  const [tab, setTab] = useState<CaseType | "all">("normal");
+  const [tab, setTab] = useState<Tab>("normal");
+  const { fav } = useFavorites();
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<"asc" | "desc">("asc");
   useEffect(() => {
@@ -23,12 +27,12 @@ export default function CasesPage() {
   const list = useMemo(() => {
     const f = cases.filter(
       (c) =>
-        c.case_type === tab &&
+        (tab === "fav" ? fav.includes(c.id) : c.case_type === tab) &&
         (!q || c.name.toLowerCase().includes(q.toLowerCase()) || c.items.some((i) => `${i.brand} ${i.model}`.toLowerCase().includes(q.toLowerCase())))
     );
     const val = (c: CaseWithItems) => (c.case_type === "gem" ? c.gem_price ?? 0 : c.case_type === "level" ? c.min_level : c.price);
     return f.sort((a, b) => (sort === "asc" ? val(a) - val(b) : val(b) - val(a)));
-  }, [cases, tab, q, sort]);
+  }, [cases, tab, q, sort, fav]);
 
   return (
     <div className="space-y-5">
@@ -54,7 +58,7 @@ export default function CasesPage() {
           ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="card h-52 animate-pulse" />)
           : list.map((c) => <CaseCard key={c.id} c={c} />)}
       </div>
-      {cases.length > 0 && list.length === 0 && <p className="text-sm text-muted">Nema rezultata.</p>}
+      {cases.length > 0 && list.length === 0 && <p className="text-sm text-muted">{tab === "fav" ? "Još nemaš omiljenih kutija — klikni ☆ na kutiji." : "Nema rezultata."}</p>}
     </div>
   );
 }
