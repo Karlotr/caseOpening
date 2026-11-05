@@ -146,8 +146,8 @@ export function CaseCard({ c }: { c: CaseWithItems }) {
       </div>
       <div className="px-2 pb-1.5 pt-2.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="min-w-0 truncate text-sm text-muted">do {top ? `${top.brand} ${top.model}` : "—"}</span>
-          <span className="shrink-0 rounded-lg bg-black/30 px-2 py-1 font-display text-lg font-extrabold ring-1 ring-white/10">{price}</span>
+          <span className="hidden min-w-0 truncate text-sm text-muted sm:block">do {top ? `${top.brand} ${top.model}` : "—"}</span>
+          <span className="shrink-0 rounded-lg bg-black/30 px-2 py-1 font-display text-base font-extrabold ring-1 ring-white/10 sm:text-lg">{price}</span>
         </div>
       </div>
     </Link>

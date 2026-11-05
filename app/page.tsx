@@ -7,7 +7,6 @@ import type { CaseWithItems } from "@/lib/types";
 import { CaseCard } from "@/components/CaseCard";
 import { useFavorites } from "@/lib/favorites";
 import { DropTower } from "@/components/LiveDrops";
-import { CarImage } from "@/components/CarImage";
 
 type Mode = { href: string; t: string; d: string; c: string; span: string; art: React.ReactNode; badge?: string };
 
@@ -58,10 +57,34 @@ const IconArt = ({ d, c }: { d: React.ReactNode; c: string }) => (
   <svg viewBox="0 0 24 24" className="h-full w-full" fill="none" stroke={c} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{d}</svg>
 );
 
+// najjači sanduk (tier 4) sa sjajem, odsjajem i iskricama za glavnu pločicu "Kutije"
+function CaseHero() {
+  const src = "/cases/tier4.webp";
+  const mask = { WebkitMaskImage: `url(${src})`, maskImage: `url(${src})`, WebkitMaskSize: "contain", maskSize: "contain", WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat", WebkitMaskPosition: "center", maskPosition: "center" } as const;
+  return (
+    <div className="relative h-full w-full">
+      <div className="case-glow absolute inset-[4%_14%]" style={{ background: "radial-gradient(closest-side, #c084fc, #facc1555 55%, transparent)" }} />
+      <div className="case-float absolute inset-[4%_6%_8%]">
+        <div className="absolute inset-x-[16%] -bottom-[6%] h-[12%] rounded-[50%] bg-black/70 blur-[8px]" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="" draggable={false} decoding="async" className="relative h-full w-full select-none object-contain drop-shadow-[0_0_18px_#facc1566]" />
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" style={mask}>
+          <div className="case-sheen absolute inset-y-0 left-0 w-[30%]" />
+        </div>
+      </div>
+      <i className="case-spark" style={{ left: "12%", top: "18%", animationDelay: "0s" }} />
+      <i className="case-spark" style={{ left: "78%", top: "10%", animationDelay: ".8s" }} />
+      <i className="case-spark" style={{ left: "88%", top: "62%", animationDelay: "1.5s" }} />
+      <i className="case-spark" style={{ left: "30%", top: "78%", animationDelay: "2.1s" }} />
+      <i className="case-spark" style={{ left: "52%", top: "4%", animationDelay: "2.6s" }} />
+    </div>
+  );
+}
+
 const MODES: Mode[] = [
   {
     href: "/cases", t: "Kutije", d: "Od Fiće za 1,50 do kutija od 163.000. 50/50, 30/70 i hypercari.", c: "#ffb547", span: "col-span-2 row-span-2",
-    art: <CarImage item={{ id: 76, brand: "Ferrari", model: "F40", year: 1989, body: "super", rarity: "legendary" }} reflect className="h-full w-full" />,
+    art: <CaseHero />,
   },
   {
     href: "/battles", t: "Battles", d: "Case battles 1v1 do 3v3, Crazy i Jackpot.", c: "#ff2b4e", span: "",

@@ -6,7 +6,7 @@ import type { CaseType, CaseWithItems } from "@/lib/types";
 import { CaseCard } from "@/components/CaseCard";
 import { useFavorites } from "@/lib/favorites";
 
-type Tab = CaseType | "all" | "fav";
+type Tab = CaseType | "fav";
 const TABS: { k: Tab; l: string }[] = [
   { k: "fav", l: "★ Omiljene" },
   { k: "normal", l: "Kutije" },
@@ -25,33 +25,46 @@ export default function CasesPage() {
     getCases().then(setCases).catch(() => {});
   }, []);
   const list = useMemo(() => {
+    const ql = q.trim().toLowerCase();
     const f = cases.filter(
       (c) =>
         (tab === "fav" ? fav.includes(c.id) : c.case_type === tab) &&
-        (!q || c.name.toLowerCase().includes(q.toLowerCase()) || c.items.some((i) => `${i.brand} ${i.model}`.toLowerCase().includes(q.toLowerCase())))
+        (!ql || c.name.toLowerCase().includes(ql) || c.items.some((i) => `${i.brand} ${i.model}`.toLowerCase().includes(ql)))
     );
     const val = (c: CaseWithItems) => (c.case_type === "gem" ? c.gem_price ?? 0 : c.case_type === "level" ? c.min_level : c.price);
-    return f.sort((a, b) => (sort === "asc" ? val(a) - val(b) : val(b) - val(a)));
+    // omiljene uvijek prve, unutar toga po cijeni
+    return f.sort((a, b) => Number(fav.includes(b.id)) - Number(fav.includes(a.id)) || (sort === "asc" ? val(a) - val(b) : val(b) - val(a)));
   }, [cases, tab, q, sort, fav]);
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <h1 className="h1">Kutije</h1>
-        <div className="flex flex-wrap gap-2">
-          <input className="input w-56" placeholder="Traži kutiju ili auto (npr. Supra)" value={q} onChange={(e) => setQ(e.target.value)} />
-          <select className="input w-auto" value={sort} onChange={(e) => setSort(e.target.value as "asc" | "desc")}>
+        <div className="flex w-full gap-2 sm:w-auto">
+          <input className="input min-w-0 flex-1 sm:w-64 sm:flex-none" placeholder="Traži kutiju ili auto (npr. Supra)" value={q} onChange={(e) => setQ(e.target.value)} />
+          <select className="input w-auto shrink-0" value={sort} onChange={(e) => setSort(e.target.value as "asc" | "desc")} aria-label="Sortiraj">
             <option value="asc">Cijena ↑</option>
             <option value="desc">Cijena ↓</option>
           </select>
         </div>
       </div>
-      <div className="flex gap-1 overflow-x-auto">
-        {TABS.map((t) => (
-          <button key={t.k} onClick={() => setTab(t.k)} className={tab === t.k ? "btn-primary" : "btn-ghost"}>
-            {t.l}
-          </button>
-        ))}
+      <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {TABS.map((t) => {
+          const on = tab === t.k;
+          const n = t.k === "fav" ? fav.filter((id) => cases.some((c) => c.id === id)).length : 0;
+          return (
+            <button
+              key={t.k}
+              onClick={() => setTab(t.k)}
+              className={`shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-bold ring-1 transition sm:px-4 sm:py-2 ${
+                on ? "bg-[linear-gradient(100deg,#ff2b4e,#ff5a3c_45%,#ffb547)] text-white ring-white/20 shadow-[0_6px_20px_-8px_#ff2b4ecc]" : "bg-white/[.04] text-white/75 ring-white/10 hover:bg-white/[.08] hover:text-white"
+              }`}
+            >
+              {t.l}
+              {n > 0 && <span className={`ml-1.5 rounded-full px-1.5 text-[11px] ${on ? "bg-black/25" : "bg-amber-300/20 text-amber-200"}`}>{n}</span>}
+            </button>
+          );
+        })}
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {cases.length === 0
