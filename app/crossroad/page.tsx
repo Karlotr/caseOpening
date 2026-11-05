@@ -192,7 +192,7 @@ function Crossroad() {
     <div className="space-y-5">
       <div>
         <h1 className="h1">Crossroad</h1>
-        <p className="mt-2 max-w-2xl text-muted">Prijeđi autocestu traku po traku. Svaka traka diže multiplikator, a promet postaje sve opasniji. Izađi kad hoćeš, ili riskiraj do kraja.</p>
+        <p className="mt-1 max-w-2xl text-sm text-muted">Prijeđi autocestu traku po traku. Svaka traka diže multiplikator, a promet postaje sve opasniji. Izađi kad hoćeš, ili riskiraj do kraja.</p>
       </div>
 
       {st.history.length > 0 && (

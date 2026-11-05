@@ -215,7 +215,7 @@ export default function CrashPage() {
     <div className="space-y-5">
       <div>
         <h1 className="h1">Crash</h1>
-        <p className="mt-2 max-w-2xl text-muted">
+        <p className="mt-1 max-w-2xl text-sm text-muted">
           Svi igraju istu rundu. Uloži dok traje odbrojavanje, pa izađi prije nego što crasha — dobivaš ulog × multiplikator na kojem si izašao. Auto cashout je opcionalan.
         </p>
       </div>

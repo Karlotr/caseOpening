@@ -116,17 +116,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (h) holdTimer.current = setTimeout(() => setHold(null), SAFETY_RELEASE);
   }, []);
 
+  // holdWallet / deferCredit moraju biti STABILNE funkcije: Supabase pri osvježavanju tokena (npr. povratak na tab)
+  // postavi novi `user` objekt, a promjena identiteta je u BattleView pokretala cleanup koji je otpuštao zamrznuto stanje
+  // usred vrtnje — pa se dobitak vidio prije kraja battlea.
+  const userRef = useRef<User | null>(null);
+  const loadRef = useRef(loadProfile);
+  useEffect(() => {
+    userRef.current = user;
+    loadRef.current = loadProfile;
+  }, [user, loadProfile]);
+
   const holdWallet = useCallback(
     (h: Wallet | null) => {
       setHoldSafe(h);
-      if (!h) loadProfile(user);
+      if (!h) loadRef.current(userRef.current);
     },
-    [setHoldSafe, loadProfile, user]
+    [setHoldSafe]
   );
 
   const deferCredit = useCallback(
     (amount: number) => {
       // već zamrznuto prije isplate (npr. pri ulasku u battle) → ta vrijednost je točna, ne diraj
+      const user = userRef.current;
       if (holdRef.current || !user) return;
       const p = profileRef.current;
       // odmah zamrzni ono što je na ekranu, pa iz svježeg stanja oduzmi dobitak
@@ -141,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (data && holdRef.current) setHoldSafe({ ...holdRef.current, balance: Math.max(0, Number(data.balance) - amount) });
         });
     },
-    [supabase, user, setHoldSafe]
+    [supabase, setHoldSafe]
   );
 
   const shownProfile = useMemo(

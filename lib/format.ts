@@ -3,6 +3,17 @@ import type { Rarity } from "./types";
 export const coins = (n: number | string | null | undefined) =>
   Number(n ?? 0).toLocaleString("hr-HR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// skraćeni prikaz za uske prostore (navbar): 950 → 950, 70.508 → 70,5k, 1.250.000 → 1,25M
+export const compact = (n: number | string | null | undefined) => {
+  const v = Number(n ?? 0);
+  const a = Math.abs(v);
+  const f = (x: number, d: number) => x.toLocaleString("hr-HR", { maximumFractionDigits: d });
+  if (a < 1000) return f(v, a < 100 ? 2 : 0);
+  if (a < 1e6) return `${f(v / 1e3, a < 1e4 ? 2 : 1)}k`;
+  if (a < 1e9) return `${f(v / 1e6, 2)}M`;
+  return `${f(v / 1e9, 2)}B`;
+};
+
 export const RARITY: Record<Rarity, { label: string; color: string }> = {
   common: { label: "Obični", color: "#9ca3af" },
   uncommon: { label: "Neobični", color: "#3b82f6" },

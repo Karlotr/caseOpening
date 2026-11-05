@@ -128,7 +128,7 @@ export default function Home() {
 
       <section>
         <div className="mb-5 flex items-end justify-between">
-          <h2 className="font-display text-4xl font-extrabold">Kutije</h2>
+          <h2 className="font-display text-2xl font-extrabold sm:text-3xl">Kutije</h2>
           <Link href="/cases" className="font-semibold text-accent2 hover:underline">Sve kutije</Link>
         </div>
         {err && <div className="card p-4 text-red-300">{err}</div>}

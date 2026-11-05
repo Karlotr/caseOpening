@@ -16,7 +16,7 @@ export default function AffiliatePage() {
     <div className="space-y-5">
       <div>
         <h1 className="h1">Pozovi prijatelje</h1>
-        <p className="mt-2 max-w-2xl text-muted">Podijeli svoj link. Prijatelj dobiva 50 coina pri registraciji, a ti dobivaš postotak od svega što on odigra.</p>
+        <p className="mt-1 max-w-2xl text-sm text-muted">Podijeli svoj link. Prijatelj dobiva 50 coina pri registraciji, a ti dobivaš postotak od svega što on odigra.</p>
       </div>
       <RequireAuth what="pozivati prijatelje">
         <Affiliate />

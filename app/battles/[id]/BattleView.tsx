@@ -189,9 +189,17 @@ export function BattleView() {
       holdWallet(null);
     }
   }, [phase, holdWallet]);
-  useEffect(() => () => {
-    if (heldRef.current) holdWallet(null);
+  // samo pri napuštanju stranice (ne pri promjeni identiteta funkcije)
+  const holdWalletRef = useRef(holdWallet);
+  useEffect(() => {
+    holdWalletRef.current = holdWallet;
   }, [holdWallet]);
+  useEffect(
+    () => () => {
+      if (heldRef.current) holdWalletRef.current(null);
+    },
+    []
+  );
 
   const onRoundDone = useCallback(() => {
     setSpinning(false);

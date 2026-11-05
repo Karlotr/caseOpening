@@ -62,7 +62,7 @@ export default function BattlesPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="h1">Case Battles</h1>
-          <p className="mt-2 max-w-2xl text-muted">Svi otvaraju iste kutije. Klasično pobjeđuje tim s najvećom vrijednošću, u Crazy modu s najmanjom. Pobjednici dijele ukupnu vrijednost na jednake dijelove, sve u coinima. Jackpot pretvara vrijednost u šansu na završnom ruletu i može se uključiti uz Crazy.</p>
+          <p className="mt-1 max-w-2xl text-sm text-muted">Svi otvaraju iste kutije. Klasično pobjeđuje tim s najvećom vrijednošću, u Crazy modu s najmanjom. Pobjednici dijele ukupnu vrijednost na jednake dijelove, sve u coinima. Jackpot pretvara vrijednost u šansu na završnom ruletu i može se uključiti uz Crazy.</p>
         </div>
         <Link href="/battles/create" className="btn-primary px-6 py-3 text-lg">Novi battle</Link>
       </div>

@@ -8,22 +8,36 @@ import { CarImage } from "./CarImage";
 
 const GOLD_RANK = 4; // zamjensko pravilo (bez goldMin): legendarni i mitski su "zlatni"
 
-// Zlatni dijamant (tajna) — kao "gold" u CS kutijama: puls sjaja, odsjaj i iskrice.
-// Optimizirano: animira se samo transform/opacity (bez blur/filter animacija), a dok se traka vrti sve stoji.
-function GoldTile({ big = false }: { big?: boolean }) {
-  const d = big ? "h-24 w-24" : "h-12 w-12";
+// Zlatni drop (tajna) — dijamant iz public/diamond.webp sa zrakama, sjajem, odsjajem i iskricama.
+// Zlatnih je malo (dinamični prag, lib/gold.ts), pa si možemo priuštiti bogatije efekte.
+// Animira se samo transform/opacity, a dok se traka vrti sve stoji (.reel-moving).
+const BURST = Array.from({ length: 14 }, (_, i) => (i / 14) * Math.PI * 2);
+function GoldTile({ big = false, vertical = false }: { big?: boolean; vertical?: boolean }) {
+  const S = big ? 124 : vertical ? 60 : 76;
   return (
-    <div className={`gold-tile relative grid place-items-center ${big ? "h-28 w-28" : "h-14 w-14"}`}>
-      {/* aura: gradijent umjesto blur filtera */}
-      <div className="gold-aura absolute -inset-3 rounded-full bg-[radial-gradient(circle,#facc15aa_0%,#facc1544_35%,transparent_68%)]" />
-      <div className={`relative ${d} overflow-hidden bg-[linear-gradient(135deg,#fff7c2,#facc15_35%,#d97706_70%,#fde68a)]`} style={{ clipPath: "polygon(50% 0, 100% 38%, 50% 100%, 0 38%)" }}>
-        {/* "pulsiranje" svjetline kao bijeli sloj (opacity), ne filter */}
-        <span className="gold-glint absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,#fffbe6,transparent_70%)]" />
-        <span className="gold-shine absolute inset-y-0 -left-full w-full bg-[linear-gradient(100deg,transparent_30%,#ffffffcc_50%,transparent_70%)]" />
+    <div className={`gold-tile relative grid place-items-center ${big ? "gold-pop" : ""}`} style={{ width: S, height: S }}>
+      <div className={`gold-rays ${big ? "gold-rays-fast" : ""}`} />
+      <div className="gold-aura absolute -inset-[30%] rounded-full bg-[radial-gradient(circle,#facc15aa_0%,#f59e0b44_38%,transparent_68%)]" />
+      <div className="gold-float relative h-full w-full">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/diamond.webp" alt="" width={S} height={S} draggable={false} decoding="async" className="gold-img h-full w-full select-none" />
+        {/* odsjaj samo po obliku dijamanta (maska) */}
+        <span className="gold-shine-mask">
+          <span className="gold-shine-bar" />
+        </span>
       </div>
-      <span className={`absolute font-display font-black text-amber-900 ${big ? "text-4xl" : "text-xl"}`} style={{ marginTop: big ? -10 : -6 }}>?</span>
-      <i className="gold-spark" style={{ top: "6%", left: "78%", animationDelay: "0s" }} />
-      <i className="gold-spark" style={{ top: "74%", left: "8%", animationDelay: "1.1s" }} />
+      <i className="gold-spark" style={{ top: "2%", left: "80%", animationDelay: "0s" }} />
+      <i className="gold-spark" style={{ top: "70%", left: "4%", animationDelay: ".9s" }} />
+      <i className="gold-spark" style={{ top: "12%", left: "6%", animationDelay: "1.7s" }} />
+      {big && (
+        <>
+          <span className="gold-ring" />
+          <span className="gold-ring gold-ring-2" />
+          {BURST.map((a, i) => (
+            <i key={i} className="gold-burst" style={{ ["--bx" as string]: `${Math.cos(a) * (90 + (i % 3) * 18)}px`, ["--by" as string]: `${Math.sin(a) * (90 + (i % 3) * 18)}px`, animationDelay: `${(i % 4) * 25}ms` }} />
+          ))}
+        </>
+      )}
     </div>
   );
 }
@@ -223,16 +237,13 @@ export function Reel({
                 height: vertical ? tile : H,
                 borderRight: vertical ? undefined : "1px solid #ffffff0a",
                 borderBottom: vertical ? "1px solid #ffffff0a" : undefined,
-                background: hidden ? "radial-gradient(80% 70% at 50% 60%, #facc1555, transparent 72%), linear-gradient(180deg, transparent 60%, #facc151a)" : `radial-gradient(90% 70% at 50% 100%, ${c}${isWin ? "88" : "38"}, transparent 70%)`,
+                background: hidden ? "radial-gradient(75% 70% at 50% 50%, #facc1566, #f59e0b1f 55%, transparent 75%), linear-gradient(180deg, #facc150d, #facc1526)" : `radial-gradient(90% 70% at 50% 100%, ${c}${isWin ? "88" : "38"}, transparent 70%)`,
                 opacity: (landed || stage === "gold") && !isWin ? 0.25 : 1,
                 transition: "opacity .4s",
               }}
             >
               {hidden ? (
-                <>
-                  <GoldTile big={isWin && stage === "gold"} />
-                  {!(isWin && stage === "gold") && <div className="gold-label mt-1 font-display text-sm font-bold">Rijetko</div>}
-                </>
+                <GoldTile big={isWin && stage === "gold"} vertical={vertical} />
               ) : (
                 <>
                   <span className="absolute inset-x-0 bottom-0 h-[3px]" style={{ background: c }} />

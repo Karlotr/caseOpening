@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { coins } from "@/lib/format";
 
 // Animirani broj (npr. stanje ili vrijednost dobitka)
-export function CountUp({ value, duration = 900, className, from }: { value: number; duration?: number; className?: string; from?: number }) {
+export function CountUp({ value, duration = 900, className, from, format = coins }: { value: number; duration?: number; className?: string; from?: number; format?: (n: number) => string }) {
   const [shown, setShown] = useState(from ?? value);
   const [flash, setFlash] = useState<"up" | "down" | null>(null);
   const prev = useRef(from ?? value);
@@ -36,7 +36,7 @@ export function CountUp({ value, duration = 900, className, from }: { value: num
   }, [value, duration]);
   return (
     <span className={`${className ?? ""} transition-colors ${flash === "up" ? "!text-emerald-300" : flash === "down" ? "!text-red-300" : ""}`}>
-      {coins(shown)}
+      {format(shown)}
     </span>
   );
 }

@@ -7,7 +7,7 @@ import { CountUp } from "./CountUp";
 import { GameIcon } from "./GameIcon";
 import { isMuted, onMuteChange, setMuted, sfx } from "@/lib/sound";
 import { useAuth } from "./AuthProvider";
-import { levelProgress } from "@/lib/format";
+import { coins, compact, levelProgress } from "@/lib/format";
 
 export const NAV = [
   { href: "/cases", label: "Kutije" },
@@ -131,23 +131,23 @@ function UserBox() {
   const lp = profile ? levelProgress(profile.xp, profile.level) : { pct: 0 };
   return (
     <div className="relative flex shrink-0 items-center gap-1.5 sm:gap-3">
-      <Link href="/gems" className="hidden items-center gap-1.5 rounded-xl border border-emerald-400/20 xl:!hidden 2xl:!flex bg-emerald-400/[.06] px-3 py-1.5 font-display text-base font-bold text-emerald-300 transition hover:border-emerald-400/50 sm:flex" title="Gemovi">
-        <span className="gem" /> <CountUp value={profile?.gems ?? 0} />
+      <Link href="/gems" className="hidden items-center gap-1.5 rounded-xl border border-emerald-400/20 xl:!hidden 2xl:!flex bg-emerald-400/[.06] px-3 py-1.5 font-display text-base font-bold text-emerald-300 transition hover:border-emerald-400/50 sm:flex" title={`Gemovi: ${coins(profile?.gems ?? 0)}`}>
+        <span className="gem" /> <CountUp value={profile?.gems ?? 0} format={compact} />
       </Link>
       <div className="flex shrink-0 flex-col items-start gap-0.5 whitespace-nowrap rounded-xl border border-accent/40 bg-accent/10 px-2.5 py-1 font-display text-sm font-bold tabular-nums text-accent shadow-[0_0_24px_-8px_#ffb547] sm:flex-row sm:items-center sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-base xl:flex-col xl:items-start xl:gap-0.5 xl:py-1 2xl:flex-row 2xl:items-center 2xl:gap-1.5 2xl:py-1.5" title="Stanje (virtualni coini)">
         <span className="flex items-center gap-1.5 leading-none">
           <span className="coin" /> <CountUp value={profile?.balance ?? 0} />
         </span>
         {/* mobitel: gemovi ispod coina (zaseban gumb ne stane u traku) */}
-        <Link href="/gems" className="flex items-center gap-1 text-[11px] leading-none text-emerald-300 sm:hidden xl:flex 2xl:hidden" title="Gemovi">
-          <span className="gem" /> <CountUp value={profile?.gems ?? 0} />
+        <Link href="/gems" className="flex items-center gap-1 text-[11px] leading-none text-emerald-300 sm:hidden xl:flex 2xl:hidden" title={`Gemovi: ${coins(profile?.gems ?? 0)}`}>
+          <span className="gem" /> <CountUp value={profile?.gems ?? 0} format={compact} />
         </Link>
       </div>
       <button onClick={() => setOpen((o) => !o)} className="flex shrink-0 items-center gap-2 rounded-md px-1 py-1 hover:bg-white/5 sm:px-2" aria-label="Korisnički izbornik">
         <span className={`grid h-9 min-w-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#5ce1ff,#8b5cf6)] px-1.5 font-display font-black tabular-nums text-ink shadow-[0_0_18px_-4px_#5ce1ff] ${(profile?.level ?? 1) >= 100 ? "text-sm" : "text-lg"}`} title="Level">
           {profile?.level ?? 1}
         </span>
-        <span className="hidden flex-col items-start 2xl:flex">
+        <span className="hidden flex-col items-start min-[1700px]:flex">
           <span className="text-sm font-semibold leading-none">{profile?.username}</span>
           <span className="mt-1 h-1.5 w-20 overflow-hidden rounded bg-white/10">
             <span className="block h-full bg-accent transition-[width] duration-700" style={{ width: `${lp.pct}%` }} />

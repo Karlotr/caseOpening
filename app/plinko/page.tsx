@@ -16,7 +16,7 @@ type Risk = "low" | "medium" | "high";
 type Rows = 8 | 12 | 16;
 type Res = { balls: { bucket: number; mult: number; payout: number }[]; payout: number };
 type Cfg = { min_bet: number; max_bet: number; tables: Record<string, number[]> };
-type Ball = { id: number; pts: { x: number; y: number }[]; t0: number; bucket: number; rows: number; mult: number; payout: number; el: SVGCircleElement | null; seg: number };
+type Ball = { id: number; bet: number; pts: { x: number; y: number }[]; t0: number; bucket: number; rows: number; mult: number; payout: number; el: SVGCircleElement | null; seg: number; pegs: number[]; hist: [number, number][]; t1: SVGCircleElement | null; t2: SVGCircleElement | null };
 
 const RISKS: { k: Risk; l: string }[] = [
   { k: "low", l: "Nisko" },
@@ -61,6 +61,10 @@ function Plinko() {
   const [history, setHistory] = useState<{ m: number; b: number; rows: number; key: number }[]>([]);
   const balls = useRef<Map<number, Ball>>(new Map());
   const bucketEls = useRef<(SVGGElement | null)[]>([]);
+  const pegEls = useRef<Map<string, SVGCircleElement>>(new Map());
+  const board = useRef<HTMLDivElement>(null);
+  const [pops, setPops] = useState<{ id: number; x: number; y: number; text: string; color: string; big: boolean }[]>([]);
+  const [session, setSession] = useState({ net: 0, best: 0, n: 0 });
   const raf = useRef(0);
   const nextId = useRef(1);
   const lastTick = useRef(0);
@@ -89,6 +93,14 @@ function Plinko() {
       // pretinac odskoči
       bucketEls.current[b.bucket]?.animate([{ transform: "translateY(0)" }, { transform: "translateY(0.16px)" }, { transform: "translateY(0)" }], { duration: 260, easing: "ease-out" });
       sfx.coin();
+      const bx = b.pts[b.pts.length - 1].x;
+      const big = b.mult >= 5;
+      const color = bucketColor(b.bucket, b.rows);
+      setPops((ps) => [...ps.slice(-12), { id: b.id, x: bx, y: b.pts[b.pts.length - 1].y - 0.6, text: `${fmtMult(b.mult)}×`, color, big }]);
+      setTimeout(() => setPops((ps) => ps.filter((q) => q.id !== b.id)), 1100);
+      setSession((s) => ({ net: s.net + b.payout - b.bet, best: Math.max(s.best, b.mult), n: s.n + 1 }));
+      // dobar pogodak: ploča bljesne bojom pretinca
+      if (big) board.current?.animate([{ boxShadow: `0 0 0 0 ${color}00` }, { boxShadow: `0 0 70px 6px ${color}aa` }, { boxShadow: `0 0 0 0 ${color}00` }], { duration: 700, easing: "ease-out" });
       setHistory((h) => [{ m: b.mult, b: b.bucket, rows: b.rows, key: b.id }, ...h].slice(0, 14));
       if (shown.current != null) {
         shown.current += b.payout;
@@ -121,6 +133,11 @@ function Plinko() {
         seg++;
       }
       if (seg !== b.seg && seg > 0 && seg < n) {
+        // klin zasvijetli kad ga kuglica udari
+        pegEls.current.get(`${seg - 1}-${b.pegs[seg - 1]}`)?.animate(
+          [{ transform: "scale(1)", fill: "#e2e8f0" }, { transform: "scale(2.1)", fill: "#ffe08a", offset: 0.25 }, { transform: "scale(1)", fill: "#e2e8f0" }],
+          { duration: 320, easing: "ease-out" }
+        );
         // udarac u klin
         if (now - lastTick.current > 35) {
           sfx.tick();
@@ -146,6 +163,15 @@ function Plinko() {
       const y = A.y + (B.y - A.y) * t * t - hop;
       b.el?.setAttribute("cx", x.toFixed(3));
       b.el?.setAttribute("cy", y.toFixed(3));
+      // trag iza kuglice
+      b.hist.push([x, y]);
+      if (b.hist.length > 7) b.hist.shift();
+      const h1 = b.hist[Math.max(0, b.hist.length - 3)];
+      const h2 = b.hist[0];
+      b.t1?.setAttribute("cx", h1[0].toFixed(3));
+      b.t1?.setAttribute("cy", h1[1].toFixed(3));
+      b.t2?.setAttribute("cx", h2[0].toFixed(3));
+      b.t2?.setAttribute("cy", h2[1].toFixed(3));
     }
     if (balls.current.size) raf.current = requestAnimationFrame(() => loopRef.current());
     else {
@@ -178,14 +204,16 @@ function Plinko() {
       const dirs = Array.from({ length: rows }, (_, k) => (k < r.bucket ? 1 : 0)).sort(() => Math.random() - 0.5);
       const pts = [{ x: cx + (Math.random() - 0.5) * 0.12, y: -0.4 }];
       let R = 0;
+      const pegs: number[] = [];
       for (let k = 0; k < rows; k++) {
         pts.push({ x: cx + (R - k / 2), y: Y0 + k * ROW_H - PEG_R - BALL_R });
+        pegs.push(R + 1);
         R += dirs[k];
       }
       pts.push({ x: cx + (r.bucket - rows / 2), y: bucketY + 0.42 });
       const id = nextId.current++;
       ids.push(id);
-      balls.current.set(id, { id, pts, t0: performance.now() + i * 140, bucket: r.bucket, rows, mult: Number(r.mult), payout: Number(r.payout), el: null, seg: -1 });
+      balls.current.set(id, { id, pts, t0: performance.now() + i * 140, bucket: r.bucket, rows, mult: Number(r.mult), payout: Number(r.payout), bet, el: null, seg: -1, pegs, hist: [], t1: null, t2: null });
     });
     setBallIds((x) => [...x, ...ids]);
     if (!raf.current) raf.current = requestAnimationFrame(loop);
@@ -213,10 +241,11 @@ function Plinko() {
   const maxM = Math.max(...table);
 
   return (
-    <div className="space-y-5">
-      <div>
+    <div className="space-y-3">
+      {/* kompaktno zaglavlje — cijela ploča (i pretinci) mora stati u prozor */}
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <h1 className="h1">Plinko</h1>
-        <p className="mt-2 max-w-2xl text-muted">Pusti kuglicu kroz čunjeve. Rubovi plaćaju najviše, sredina najmanje. Biraš rizik i broj redova — do {fmtMult(maxM)}×.</p>
+        <p className="text-sm text-muted">Rubovi plaćaju najviše, sredina najmanje · do {fmtMult(maxM)}×</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -262,17 +291,23 @@ function Plinko() {
         </div>
 
         {/* PLOČA */}
-        <div className="card order-1 relative overflow-hidden p-3 sm:p-5 lg:order-2">
+        <div ref={board} className="card order-1 relative overflow-hidden p-3 sm:p-4 lg:order-2">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,#5ce1ff14,transparent_70%)]" />
           {/* zadnji rezultati */}
-          <div className="relative mb-2 flex h-7 gap-1.5 overflow-hidden">
+          {session.n > 0 && (
+            <div className="absolute right-3 top-3 z-10 text-right font-display tabular-nums sm:right-4 sm:top-4">
+              <div className={`text-lg font-black leading-none ${session.net >= 0 ? "text-emerald-300" : "text-red-300"}`}>{session.net >= 0 ? "+" : ""}{coins(session.net)}</div>
+              <div className="text-[11px] text-muted">sesija · najbolje {fmtMult(session.best)}×</div>
+            </div>
+          )}
+          <div className="relative mb-1 flex h-6 gap-1.5 overflow-hidden pr-28">
             {history.map((h) => (
               <span key={h.key} className="drop-in shrink-0 rounded-md px-2 py-1 font-display text-xs font-black tabular-nums text-ink" style={{ background: bucketColor(h.b, h.rows) }}>
                 {fmtMult(h.m)}×
               </span>
             ))}
           </div>
-          <svg viewBox={`0 -0.6 ${W} ${H + 0.6}`} className="relative mx-auto block w-full max-w-[720px]" style={{ aspectRatio: `${W} / ${H + 0.6}` }}>
+          <svg viewBox={`0 -0.6 ${W} ${H + 0.6}`} className="relative mx-auto block w-full max-w-[720px] lg:max-h-[calc(100dvh-16rem)]" style={{ aspectRatio: `${W} / ${H + 0.6}`, minHeight: 0 }}>
             <defs>
               <radialGradient id="plBall" cx="35%" cy="35%" r="65%">
                 <stop offset="0%" stopColor="#fff7c2" />
@@ -289,7 +324,19 @@ function Plinko() {
             </defs>
             {/* čunjevi */}
             {Array.from({ length: rows }, (_, k) =>
-              Array.from({ length: k + 3 }, (_, j) => <circle key={`${k}-${j}`} cx={cx + (j - (k + 2) / 2)} cy={Y0 + k * ROW_H} r={PEG_R} fill="#e2e8f0" opacity={0.85} />)
+              Array.from({ length: k + 3 }, (_, j) => <circle
+                  key={`${k}-${j}`}
+                  ref={(el) => {
+                    if (el) pegEls.current.set(`${k}-${j}`, el);
+                    else pegEls.current.delete(`${k}-${j}`);
+                  }}
+                  cx={cx + (j - (k + 2) / 2)}
+                  cy={Y0 + k * ROW_H}
+                  r={PEG_R}
+                  fill="#e2e8f0"
+                  opacity={0.85}
+                  style={{ transformBox: "fill-box", transformOrigin: "center" }}
+                />)
             )}
             {/* pretinci */}
             {table.map((m, b) => {
@@ -308,6 +355,12 @@ function Plinko() {
             })}
             {/* kuglice */}
             {ballIds.map((id) => (
+              <g key={`t${id}`}>
+                <circle ref={(el) => { const b = balls.current.get(id); if (b) b.t2 = el; }} cx={cx} cy={-0.4} r={BALL_R * 0.55} fill="#ffb547" opacity={0.18} />
+                <circle ref={(el) => { const b = balls.current.get(id); if (b) b.t1 = el; }} cx={cx} cy={-0.4} r={BALL_R * 0.8} fill="#ffb547" opacity={0.35} />
+              </g>
+            ))}
+            {ballIds.map((id) => (
               <circle
                 key={id}
                 ref={(el) => {
@@ -320,6 +373,19 @@ function Plinko() {
                 fill="url(#plBall)"
                 filter="url(#plGlow)"
               />
+            ))}
+            {/* iskočeni multiplikator nad pretincem */}
+            {pops.map((q) => (
+              <g key={q.id} className="pl-pop" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
+                {q.big &&
+                  Array.from({ length: 10 }, (_, i) => {
+                    const a = (i / 10) * Math.PI * 2;
+                    return <circle key={i} cx={q.x} cy={q.y + 0.6} r={0.07} fill={q.color} className="pl-spark" style={{ ["--dx" as string]: `${Math.cos(a) * 1.1}px`, ["--dy" as string]: `${Math.sin(a) * 1.1 - 0.4}px` }} />;
+                  })}
+                <text x={q.x} y={q.y} textAnchor="middle" fontSize={q.big ? 0.62 : 0.42} fontWeight={900} fill={q.color} stroke="#0b0b18" strokeWidth={0.08} paintOrder="stroke" style={{ fontFamily: "var(--font-display)" }}>
+                  {q.text}
+                </text>
+              </g>
             ))}
           </svg>
         </div>

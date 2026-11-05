@@ -125,7 +125,7 @@ export default function JackpotPage() {
     <div className="space-y-5">
       <div>
         <h1 className="h1">Jackpot</h1>
-        <p className="mt-2 max-w-2xl text-muted">Runde traju {Number(st.round_sec ?? 60)} s i igraju ih samo pravi igrači. Veći ulog znači veću šansu, a pobjednik uzima cijeli pot (−{Number(st.fee_pct ?? 5)}%). Ako u rundi bude samo jedan igrač, ulog mu se vraća.</p>
+        <p className="mt-1 max-w-2xl text-sm text-muted">Runde traju {Number(st.round_sec ?? 60)} s i igraju ih samo pravi igrači. Veći ulog znači veću šansu, a pobjednik uzima cijeli pot (−{Number(st.fee_pct ?? 5)}%). Ako u rundi bude samo jedan igrač, ulog mu se vraća.</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
