@@ -92,14 +92,6 @@ function ModeTile({ m, big = false }: { m: Mode; big?: boolean }) {
   );
 }
 
-// tragovi svjetla (duga ekspozicija) iza auta
-const TRAILS = [
-  { top: "58%", w: "46%", c: "#ff2b4e", d: "2.2s", delay: "0s" },
-  { top: "64%", w: "60%", c: "#ffb547", d: "2.8s", delay: ".5s" },
-  { top: "70%", w: "38%", c: "#ffe1a8", d: "1.9s", delay: "1.1s", rev: true },
-  { top: "75%", w: "52%", c: "#ff2b4e", d: "2.5s", delay: "1.6s" },
-  { top: "81%", w: "44%", c: "#5ce1ff", d: "3.1s", delay: ".8s", rev: true },
-];
 
 export default function Home() {
   const [cases, setCases] = useState<CaseWithItems[]>([]);
@@ -113,28 +105,7 @@ export default function Home() {
     <div className="space-y-14">
       <section className="grid gap-5 lg:grid-cols-[1fr_340px]">
         <div className="min-w-0 space-y-4">
-          {/* kratki naslov — igre su u fokusu */}
-          <div className="card relative overflow-hidden px-5 py-5 sm:px-7 sm:py-6">
-            <div className="pointer-events-none absolute inset-0">
-              <div className="absolute inset-0 bg-[radial-gradient(60%_120%_at_85%_50%,#ff2b4e26,transparent_70%)]" />
-              {TRAILS.slice(0, 3).map((t, i) => (
-                <span key={i} className={`trail ${t.rev ? "trail-rev" : ""}`} style={{ top: `${30 + i * 22}%`, width: t.w, ["--c" as string]: t.c, ["--d" as string]: t.d, ["--delay" as string]: t.delay }} />
-              ))}
-            </div>
-            <div className="relative flex flex-wrap items-center justify-between gap-4">
-              <div className="min-w-0">
-                <h1 className="headline-in font-display text-3xl font-extrabold leading-[.95] sm:text-4xl 2xl:text-5xl" style={{ fontVariationSettings: '"wdth" 75, "opsz" 96' }}>
-                  Od Fiće do Ferrarija 250 GTO
-                </h1>
-                <p className="mt-2 hidden max-w-xl text-muted sm:block">Kutije s pravim modelima i oldtajmerima, battleovi, crash i još šest igara. Samo virtualni coini.</p>
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <Link href="/cases" className="btn-primary px-6 py-3 text-base">Otvori kutiju</Link>
-                <Link href="/battles" className="btn-ghost px-5 py-3">Uđi u battle</Link>
-              </div>
-            </div>
-          </div>
-
+          <h1 className="sr-only">GARAŽA.gg — kutije s automobilima, battles, crash i druge igre</h1>
           {/* igre */}
           <div className="grid auto-rows-[136px] grid-cols-2 gap-3 sm:auto-rows-[160px] lg:grid-cols-4">
             {MODES.map((m, i) => (
