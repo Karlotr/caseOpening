@@ -23,57 +23,86 @@ export function caseTag(c: Pick<CaseWithItems, "name" | "case_type" | "min_level
 // stabilni "nasumični" broj iz sluga — svaka kutija dobije svoj uzorak
 const hashOf = (s: string) => [...s].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 2166136261);
 
-// Kutija kao pravi kofer: poklopac s ručkom i kopčama, uzorak u boji kutije, prozor s najskupljim autom i oznaka ideje
+// Kutija kao pravi kofer: poklopac s ručkom i kopčama, metalni sjaj, uzorak u boji kutije,
+// auto koji "izlazi" iz prozora, reflektori i pod; na hover se poklopac odškrine i iznutra zasvijetli.
 export function CaseArt({ c, className = "", big = false }: { c: CaseWithItems; className?: string; big?: boolean }) {
   const top = c.items[0];
   const h = hashOf(c.slug);
   const col = c.color;
   const angle = h % 180;
-  const kind = h % 3; // 0 pruge, 1 chevron, 2 točkice
+  const kind = h % 3; // 0 pruge, 1 rombovi, 2 točkice
   const pattern =
     kind === 0
-      ? `repeating-linear-gradient(${angle}deg, #ffffff14 0 6%, transparent 6% 14%)`
+      ? `repeating-linear-gradient(${angle}deg, #ffffff16 0 6%, transparent 6% 14%)`
       : kind === 1
         ? `repeating-linear-gradient(${45 + (angle % 30)}deg, #ffffff12 0 5%, transparent 5% 12%), repeating-linear-gradient(${-45 - (angle % 30)}deg, #ffffff10 0 5%, transparent 5% 12%)`
-        : `radial-gradient(circle, #ffffff1c 0 18%, transparent 20%) 0 0 / 14% 14%`;
+        : `radial-gradient(circle, #ffffff1e 0 18%, transparent 20%) 0 0 / 14% 14%`;
   const tag = caseTag(c);
   const gemCase = c.case_type === "gem";
+  const premium = c.price >= 1000 || (c.gem_price ?? 0) >= 500;
   return (
     <div
-      className={`@container relative overflow-hidden rounded-xl ${className}`}
-      style={{ background: `radial-gradient(80% 70% at 50% 35%, color-mix(in srgb, ${col} 35%, transparent), transparent 70%), linear-gradient(180deg, #17153a, #0b0b1a)` }}
+      className={`@container relative overflow-hidden rounded-xl [perspective:600px] ${className}`}
+      style={{ background: `radial-gradient(70% 60% at 50% 40%, color-mix(in srgb, ${col} 38%, transparent), transparent 72%), linear-gradient(180deg, #19173f, #0a0a18)` }}
     >
-      {/* tijelo kutije */}
-      <div
-        className="absolute left-[9%] right-[9%] top-[15%] bottom-[7%] rounded-[12%/16%] shadow-[0_10px_24px_-8px_#000c]"
-        style={{
-          background: `${pattern}, linear-gradient(160deg, color-mix(in srgb, ${col} 85%, #fff 15%), color-mix(in srgb, ${col} 70%, #000 30%) 55%, color-mix(in srgb, ${col} 45%, #000 55%))`,
-          boxShadow: `inset 0 1px 0 #ffffff55, inset 0 -3px 0 #00000055, 0 0 28px -6px ${col}`,
-        }}
-      >
-        {/* poklopac */}
-        <div className="absolute inset-x-0 top-0 h-[28%] rounded-t-[inherit] border-b border-black/40 bg-black/25 shadow-[inset_0_1px_0_#ffffff40]" />
-        {/* kopče */}
-        <span className="absolute left-[14%] top-[22%] h-[14%] w-[8%] rounded-[25%] bg-[linear-gradient(180deg,#f8fafc,#94a3b8)] shadow-[0_1px_2px_#0008]" />
-        <span className="absolute right-[14%] top-[22%] h-[14%] w-[8%] rounded-[25%] bg-[linear-gradient(180deg,#f8fafc,#94a3b8)] shadow-[0_1px_2px_#0008]" />
-        {/* prozor s autom */}
-        <div className="absolute inset-x-[10%] top-[36%] bottom-[10%] overflow-hidden rounded-[10%/16%] border border-white/15 bg-[linear-gradient(180deg,#0b0b1acc,#05050ccc)] shadow-[inset_0_2px_10px_#000c]">
-          <div className="absolute inset-x-0 bottom-0 h-1/2" style={{ background: `radial-gradient(60% 80% at 50% 100%, ${col}55, transparent 70%)` }} />
-          {top && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <CarImage item={top} reflect={big} className="h-[78%] w-[86%] transition-transform duration-500 group-hover:-translate-y-0.5 group-hover:scale-[1.06]" />
-            </div>
-          )}
-          {/* odsjaj stakla */}
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,#ffffff1f_0%,transparent_35%,transparent_70%,#ffffff0d_100%)]" />
+      {/* reflektori */}
+      <div className="case-beam pointer-events-none absolute -top-[10%] left-[18%] h-[90%] w-[22%] -rotate-[18deg]" style={{ background: `linear-gradient(180deg, color-mix(in srgb, ${col} 45%, #fff 20%), transparent 80%)` }} />
+      <div className="case-beam case-beam-2 pointer-events-none absolute -top-[10%] right-[18%] h-[90%] w-[22%] rotate-[18deg]" style={{ background: `linear-gradient(180deg, color-mix(in srgb, ${col} 45%, #fff 20%), transparent 80%)` }} />
+      {/* pod */}
+      <div className="pointer-events-none absolute bottom-[1%] left-1/2 h-[12%] w-[86%] -translate-x-1/2 rounded-[50%] blur-[2px]" style={{ background: `radial-gradient(closest-side, ${col}88, transparent)` }} />
+
+      <div className="case-body absolute left-[9%] right-[9%] top-[16%] bottom-[8%] transition-transform duration-500 group-hover:-translate-y-[3%] group-hover:scale-[1.03]">
+        {/* tijelo kutije */}
+        <div
+          className="absolute inset-0 overflow-hidden rounded-[12%/16%]"
+          style={{
+            background: `${pattern}, linear-gradient(160deg, color-mix(in srgb, ${col} 80%, #fff 20%), color-mix(in srgb, ${col} 72%, #000 28%) 52%, color-mix(in srgb, ${col} 42%, #000 58%))`,
+            boxShadow: `inset 0 1px 0 #ffffff66, inset 0 -4px 0 #00000066, inset 0 0 0 1px #ffffff22, 0 12px 26px -10px #000, 0 0 30px -6px ${col}`,
+          }}
+        >
+          {/* metalni odsjaj koji prelazi */}
+          <span className="case-sheen pointer-events-none absolute inset-y-0 -left-1/2 w-1/2" />
+          {/* zakovice */}
+          {["left-[4%] bottom-[6%]", "right-[4%] bottom-[6%]"].map((pos) => (
+            <span key={pos} className={`absolute ${pos} h-[5%] w-[3.5%] rounded-full bg-white/50 shadow-[inset_0_-1px_0_#0006]`} />
+          ))}
+          {/* prozor */}
+          <div className="absolute inset-x-[10%] top-[36%] bottom-[10%] overflow-hidden rounded-[10%/16%] border border-white/20 bg-[linear-gradient(180deg,#0b0b1ae6,#05050ce6)] shadow-[inset_0_3px_12px_#000d]">
+            <div className="absolute inset-x-0 bottom-0 h-2/3" style={{ background: `radial-gradient(60% 80% at 50% 100%, ${col}77, transparent 70%)` }} />
+            <div className="case-inner-glow pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{ background: `radial-gradient(60% 60% at 50% 30%, ${col}aa, transparent 70%)` }} />
+          </div>
         </div>
+        {/* poklopac (odškrine se na hover) */}
+        <div
+          className="absolute inset-x-0 top-0 h-[30%] origin-top rounded-t-[12%_50%] border-b border-black/50 transition-transform duration-500 group-hover:[transform:rotateX(28deg)_translateY(-6%)]"
+          style={{ background: `${pattern}, linear-gradient(180deg, color-mix(in srgb, ${col} 60%, #fff 25%), color-mix(in srgb, ${col} 55%, #000 45%))`, boxShadow: "inset 0 1px 0 #ffffff77, 0 3px 6px -2px #000a" }}
+        >
+          {/* kopče */}
+          <span className="absolute bottom-[-18%] left-[14%] h-[44%] w-[8%] rounded-[25%] bg-[linear-gradient(180deg,#f8fafc,#94a3b8_60%,#64748b)] shadow-[0_1px_2px_#000a]" />
+          <span className="absolute bottom-[-18%] right-[14%] h-[44%] w-[8%] rounded-[25%] bg-[linear-gradient(180deg,#f8fafc,#94a3b8_60%,#64748b)] shadow-[0_1px_2px_#000a]" />
+        </div>
+        {/* ručka */}
+        <div className="absolute left-1/2 top-[-12%] h-[13%] w-[28%] -translate-x-1/2 rounded-t-full border-[max(2px,1.3cqw)] border-b-0 border-white/75 shadow-[0_0_6px_#0008]" />
+        {/* auto "izlazi" iz prozora */}
+        {top && (
+          <div className="pointer-events-none absolute inset-x-[8%] top-[26%] bottom-[11%] flex items-end justify-center">
+            <CarImage item={top} reflect={big} className="h-[82%] w-[92%] drop-shadow-[0_6px_10px_#000c] transition-transform duration-500 group-hover:-translate-y-[6%] group-hover:scale-[1.08]" />
+          </div>
+        )}
       </div>
-      {/* ručka */}
-      <div className="absolute left-1/2 top-[7%] h-[11%] w-[26%] -translate-x-1/2 rounded-t-full border-[max(2px,1.2cqw)] border-b-0 border-white/70 shadow-[0_0_6px_#0008]" />
+
+      {premium && (
+        <>
+          <i className="case-spark" style={{ left: "16%", top: "30%", animationDelay: "0s" }} />
+          <i className="case-spark" style={{ left: "82%", top: "48%", animationDelay: ".9s" }} />
+          <i className="case-spark" style={{ left: "70%", top: "18%", animationDelay: "1.7s" }} />
+        </>
+      )}
+
       {/* oznaka ideje kutije */}
       {(tag || gemCase) && (
         <span
-          className="absolute right-[5%] top-[5%] rotate-[8deg] rounded-[0.35em] px-[0.45em] py-[0.15em] font-display font-black leading-none text-ink shadow-[0_2px_8px_#000a]"
+          className="absolute right-[5%] top-[5%] z-10 rotate-[8deg] rounded-[0.35em] px-[0.45em] py-[0.15em] font-display font-black leading-none text-ink shadow-[0_2px_10px_#000b,inset_0_1px_0_#fff8]"
           style={{ fontSize: "clamp(8px, 9cqw, 30px)", background: gemCase ? "linear-gradient(135deg,#a7f3d0,#10b981)" : "linear-gradient(135deg,#fff7c2,#facc15 55%,#f59e0b)" }}
         >
           {tag}

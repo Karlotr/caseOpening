@@ -26,7 +26,7 @@ export function ItemCard({
     <Comp
       onClick={onClick}
       aria-pressed={onClick ? !!selected : undefined}
-      className={`spot group relative flex flex-col overflow-hidden rounded-2xl border text-left transition duration-300 hover:-translate-y-0.5 ${rank >= 4 ? "sheen" : ""} ${
+      className={`spot group relative flex w-full min-w-0 flex-col overflow-hidden rounded-2xl border text-left transition duration-300 hover:-translate-y-0.5 ${rank >= 4 ? "sheen" : ""} ${
         selected ? "border-accent2 ring-2 ring-accent2/70" : "border-white/[.07] hover:border-white/20"
       } ${onClick ? "cursor-pointer" : ""}`}
       style={{
@@ -37,10 +37,10 @@ export function ItemCard({
       <span className="absolute inset-x-4 bottom-0 h-[2px] rounded-full" style={{ background: r.color, boxShadow: `0 0 12px ${r.color}` }} />
       <div className="relative z-[2] flex items-center justify-between px-3 pt-2.5 text-xs">
         <span className="font-semibold" style={{ color: r.color }}>{r.label}</span>
-        {chance !== undefined && <span className="tabular-nums text-muted">{(chance * 100).toFixed(chance < 0.001 ? 4 : 2)}%</span>}
+        {chance !== undefined && <span className="rounded-md bg-black/50 px-1.5 py-0.5 font-display font-bold tabular-nums text-emerald-300">{(chance * 100).toFixed(chance < 0.001 ? 4 : 2)}%</span>}
       </div>
       <div className="relative z-[2] grid place-items-center px-2 pt-1">
-        <CarImage item={item} className={`transition-transform duration-500 group-hover:scale-[1.06] ${size === "sm" ? "h-14 w-32" : "h-20 w-44"}`} />
+        <CarImage item={item} className={`transition-transform duration-500 group-hover:scale-[1.06] ${size === "sm" ? "h-14 w-full max-w-32" : "h-20 w-full max-w-44"}`} />
       </div>
       <div className="relative z-[2] px-3 pb-3 pt-1">
         <div className="truncate text-xs text-muted">{item.brand}, {item.year}</div>

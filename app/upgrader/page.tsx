@@ -219,19 +219,10 @@ function Upgrader() {
               Samo skuplji od uloga
             </label>
           </div>
-          <div className="grid max-h-[620px] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 lg:grid-cols-6">
+          <div className="grid max-h-[640px] grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2 overflow-y-auto overflow-x-hidden pr-1">
             {targets.map((i) => {
               const ch = chanceFor(i);
-              return (
-                <div key={i.id} className="relative">
-                  <ItemCard item={i} size="sm" selected={target?.id === i.id} onClick={() => { setTarget(i); setResult(null); }} />
-                  {ch > 0 && (
-                    <span className="pointer-events-none absolute right-1.5 top-1.5 rounded-md bg-black/70 px-1.5 py-0.5 font-display text-[11px] font-bold tabular-nums text-emerald-300">
-                      {(ch * 100).toFixed(ch < 0.01 ? 2 : 1)}%
-                    </span>
-                  )}
-                </div>
-              );
+              return <ItemCard key={i.id} item={i} size="sm" chance={ch > 0 ? ch : undefined} selected={target?.id === i.id} onClick={() => { setTarget(i); setResult(null); }} />;
             })}
             {targets.length === 0 && <div className="col-span-full p-6 text-center text-sm text-muted">Nema auta za ove filtere.</div>}
           </div>
