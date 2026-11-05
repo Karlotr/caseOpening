@@ -49,6 +49,13 @@ export function BattleView() {
   const [strips, setStrips] = useState<Item[][]>([]);
   const [spinKey, setSpinKey] = useState(0);
   const [rouletteKey, setRouletteKey] = useState(0);
+  const rouletteBox = useRef<HTMLDivElement>(null);
+  // kad krene jackpot rulet, dovedi ga na vrh ekrana (sticky ga dalje drži gore dok se skrola)
+  useEffect(() => {
+    if (!rouletteKey) return;
+    const el = rouletteBox.current;
+    if (el && el.getBoundingClientRect().top > 80) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [rouletteKey]);
   const [announce, setAnnounce] = useState(false);
   const decided = useRef(false);
 
@@ -442,9 +449,16 @@ export function BattleView() {
       {battle.status === "cancelled" && <div className="card p-4 text-muted">Ovaj battle je otkazan.</div>}
 
       {(phase === "roulette" || (done && battle.jackpot)) && (
-        <div className="pop space-y-2">
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-display text-3xl font-extrabold tracking-tight">Jackpot rulet</h2>
+        <div
+          ref={rouletteBox}
+          className={`pop scroll-mt-20 space-y-2 ${
+            phase === "roulette"
+              ? "sticky top-[4.5rem] z-40 -mx-2 rounded-2xl bg-[#090a14]/90 p-2 shadow-[0_20px_40px_-12px_rgba(0,0,0,.8)] ring-1 ring-emerald-400/30 backdrop-blur-xl"
+              : ""
+          }`}
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+            <h2 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Jackpot rulet</h2>
             <span className="text-sm text-muted">{isCrazy ? "Crazy: manja vrijednost znači veću šansu" : `Šansa = vrijednost / ${coins(grand)}`}</span>
           </div>
           <NameReel entries={entries} winner={battle.winner_team ?? 0} spinKey={rouletteKey} ticket={battle.jackpot_ticket} pot={grand} onDone={onRouletteDone} />
