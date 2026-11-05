@@ -63,7 +63,7 @@ function Links({ onClick, all = false }: { onClick?: () => void; all?: boolean }
             {/* desktop: ikona tek kad ima mjesta; mobilni izbornik: uvijek */}
             <GameIcon href={n.href} className={`h-4 w-4 ${active ? "text-accent" : "opacity-80"} ${all ? "" : "hidden xl:block"}`} />
             {n.label}
-            {active && <span className="absolute inset-x-3 -bottom-[14px] h-[2px] rounded-full bg-[linear-gradient(90deg,#ff2b4e,#ffb547)] shadow-[0_0_12px_#ff5a3c]" />}
+            {active && <span className={`absolute inset-x-3 h-[2px] rounded-full bg-[linear-gradient(90deg,#ff2b4e,#ffb547)] shadow-[0_0_12px_#ff5a3c] ${all ? "bottom-0.5" : "-bottom-[14px]"}`} />}
           </Link>
         );
       })}
@@ -217,7 +217,7 @@ export function Navbar() {
         <button className="-ml-1 grid h-10 w-10 shrink-0 place-items-center rounded-lg xl:hidden" onClick={() => setMobile((m) => !m)} aria-label="Izbornik" aria-expanded={mobile}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
         </button>
-        <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="GARAŽA.gg naslovna">
+        <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="Garaža.gg naslovna">
           <span className="relative grid h-8 w-8 place-items-center">
             <span className="absolute inset-0 rounded-lg bg-[linear-gradient(135deg,#ff2b4e,#ffb547)] shadow-[0_0_20px_-2px_#ff2b4e]" />
             <span className="relative h-1 w-5 rounded-full bg-white/90 shadow-[0_0_8px_#fff]" />

@@ -4,8 +4,7 @@ import { useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
-import { coins, errMsg } from "./format";
-import type { LevelUp } from "./types";
+import { errMsg } from "./format";
 
 // Poziv RPC funkcije + obrada grešaka i level-up obavijesti
 export function useRpc() {
@@ -18,10 +17,7 @@ export function useRpc() {
         toast(errMsg(error), "error");
         return null;
       }
-      const lv = data as LevelUp | null;
-      if (lv && typeof lv === "object" && "level_up" in lv && lv.level_up) {
-        setTimeout(() => toast(`🏁 Level up! Sada si level ${lv.level_up} (+${coins(lv.bonus ?? 0)} coina)`, "gold"), 600);
-      }
+      // obavijesti za level up su namjerno isključene (level se i dalje vidi u navbaru)
       if (!opts.silentRefresh) await refresh();
       return data as T;
     },

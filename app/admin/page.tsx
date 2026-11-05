@@ -101,8 +101,8 @@ export default function AdminPage() {
     );
   const cur = TABS.find((t) => t.k === tab)!;
   return (
-    <div className="grid gap-5 lg:grid-cols-[230px_minmax(0,1fr)]">
-      <aside className="lg:sticky lg:top-24 lg:self-start">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[230px_minmax(0,1fr)]">
+      <aside className="min-w-0 lg:sticky lg:top-24 lg:self-start">
         <div className="mb-3 hidden lg:block">
           <div className="font-display text-3xl font-extrabold">Admin</div>
           <div className="text-sm text-muted">Upravljanje stranicom</div>
@@ -221,7 +221,7 @@ function StatsTab({ tick }: { tick: number }) {
         <Kpi l="Odigrano u 24 h" v={coins(s.wagered_24h)} sub={`isplaćeno ${coins(s.payout_24h)}`} icon="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
         <Kpi l="Kuća u 24 h" v={`${house >= 0 ? "+" : ""}${coins(house)}`} sub={`nagrade ${coins(s.rewards_24h)} · kod igrača ${coins(s.total_balance)}`} tone={house >= 0 ? "good" : "bad"} icon="M3 10.5 12 3l9 7.5V21H3z" />
       </div>
-      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="card p-4">
           <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="font-display text-lg font-bold">Igre u zadnja 24 h</h2>
@@ -361,7 +361,7 @@ const LIMIT_GROUPS: [string, string[]][] = [
 
 function SettingsTab() {
   return (
-    <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
       <LimitsBox />
       <div className="space-y-4">
         <SettingsBox />
@@ -506,7 +506,7 @@ function UsersTab({ tick }: { tick: number }) {
   const counts = { all: users.length, admin: users.filter((u) => u.role === "admin").length, banned: users.filter((u) => u.banned).length };
 
   return (
-    <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_460px]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 2xl:grid-cols-[minmax(0,1fr)_460px]">
       <div className="min-w-0 space-y-3">
         <div className="flex flex-wrap gap-2">
           <div className="relative min-w-52 flex-1">

@@ -115,7 +115,7 @@ export default function Home() {
     <div className="space-y-14">
       <section className="grid gap-5 lg:grid-cols-[1fr_340px]">
         <div className="min-w-0 space-y-4">
-          <h1 className="sr-only">GARAŽA.gg — kutije s automobilima, battles, crash i druge igre</h1>
+          <h1 className="sr-only">Garaža.gg — kutije s automobilima, battles, crash i druge igre</h1>
           {/* igre */}
           <div className="grid auto-rows-[136px] grid-cols-2 gap-3 sm:auto-rows-[160px] lg:grid-cols-4">
             {MODES.map((m, i) => (

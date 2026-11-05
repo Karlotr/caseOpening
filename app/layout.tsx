@@ -22,7 +22,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "GARAŽA.gg — kutije, battles i oldtajmeri",
+  title: "Garaža.gg — kutije, battles i oldtajmeri",
   description: "Otvaraj kutije s automobilima, igraj case battles, upgrader, crash, crossroad, plinko, rulet i jackpot. Samo virtualni coini.",
 };
 
@@ -40,7 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <footer className="border-t border-white/5">
                 <div className="livery-band h-px opacity-60" />
                 <p className="py-6 text-center text-xs text-muted">
-                  GARAŽA.gg je hobi projekt. Coini, gemovi i automobili su virtualni i nemaju stvarnu vrijednost. Nema uplata ni isplata.{" "}
+                  Garaža.gg je hobi projekt. Coini, gemovi i automobili su virtualni i nemaju stvarnu vrijednost. Nema uplata ni isplata.{" "}
                   <a href="/autori-fotografija" className="underline hover:text-fg">Autori fotografija</a>
                 </p>
               </footer>

@@ -247,7 +247,7 @@ export function Reel({
               ) : (
                 <>
                   <span className="absolute inset-x-0 bottom-0 h-[3px]" style={{ background: c }} />
-                  <CarImage item={it} className={vertical ? "h-11 w-24" : lg ? "h-20 w-40" : "h-16 w-32"} />
+                  <CarImage item={it} eager className={vertical ? "h-11 w-24" : lg ? "h-20 w-40" : "h-16 w-32"} />
                   <div className="mt-0.5 w-full truncate px-2 text-center text-[11px] text-muted">{it.brand}</div>
                   <div className={`w-full truncate px-2 text-center font-semibold leading-tight ${isWin ? "text-[15px]" : "text-[13px]"}`}>{it.model}</div>
                   <span className={`plate mt-1 ${lg ? "text-base" : "text-[13px]"} ${isWin ? "scale-125 transition-transform" : ""}`}>{coins(it.value)}</span>

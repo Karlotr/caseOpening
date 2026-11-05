@@ -187,7 +187,7 @@ function Rulet() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
           {history.map((c, i) => (
-            <span key={history.length - i} className={`drop-in h-7 w-7 shrink-0 rounded-lg ${STYLE[c].chip} ${i === 0 ? "ring-2 ring-white/70" : ""}`} />
+            <span key={history.length - i} className={`drop-in h-7 w-7 shrink-0 rounded-lg ${STYLE[c].chip}`} style={i === 0 ? { boxShadow: "inset 0 0 0 2px #fff, 0 0 10px #fff6" } : undefined} />
           ))}
           {history.length === 0 && <span className="text-sm text-muted">Još nema vrtnji.</span>}
         </div>
@@ -212,9 +212,14 @@ function Rulet() {
               className={`relative overflow-hidden rounded-2xl bg-gradient-to-b px-3 py-3 text-left transition hover:-translate-y-0.5 hover:brightness-110 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50 ${STYLE[c].btn} ${pick === c && busy ? "ring-2 ring-white" : ""}`}
               style={{ boxShadow: `0 10px 30px -12px ${STYLE[c].glow}` }}
             >
-              <div className={`font-display text-lg font-black leading-none sm:text-xl ${c === "gold" ? "text-amber-950" : "text-white"}`}>{STYLE[c].label}</div>
-              <div className={`mt-1 text-xs font-bold tabular-nums ${c === "gold" ? "text-amber-900" : "text-white/75"}`}>
-                {STYLE[c].mult}× · +{coins(bet * STYLE[c].mult)}
+              {/* koso: multiplikator */}
+              <span className={`absolute -right-6 top-1 w-16 rotate-45 py-px text-center font-display text-[9px] font-black shadow-[0_2px_6px_#0006] sm:-right-7 sm:top-2.5 sm:w-24 sm:py-0.5 sm:text-xs ${c === "gold" ? "bg-amber-950 text-amber-200" : "bg-white text-ink"}`}>
+                {STYLE[c].mult}×
+              </span>
+              <div className={`truncate pr-3 font-display text-[15px] font-black leading-none sm:pr-6 sm:text-xl ${c === "gold" ? "text-amber-950" : "text-white"}`}>{STYLE[c].label}</div>
+              {/* mogući dobitak — fiksna visina i tabularne znamenke da se ništa ne pomiče */}
+              <div className={`mt-1 h-4 truncate pr-5 text-xs font-bold leading-4 tabular-nums ${c === "gold" ? "text-amber-900" : "text-white/75"}`}>
+                {coins(bet * STYLE[c].mult)}
               </div>
             </button>
           ))}

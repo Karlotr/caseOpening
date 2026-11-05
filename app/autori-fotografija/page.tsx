@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LOCAL_PHOTOS } from "@/lib/carPhoto";
 
-export const metadata: Metadata = { title: "Autori fotografija · GARAŽA.gg" };
+export const metadata: Metadata = { title: "Autori fotografija · Garaža.gg" };
 
 // Fotografije su s Wikimedia Commonsa pod slobodnim licencama koje traže navođenje autora.
 export default function CreditsPage() {

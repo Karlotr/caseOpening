@@ -44,6 +44,8 @@ function Upgrader() {
 
   const input = extra || 0;
   const chance = target && input > 0 ? Math.min((input / target.value) * 0.95, 0.8) : 0;
+  // ulog ≥ vrijednost auta: nema smisla upgradeati (već ga "imaš"), pa ne pokazujemo zbunjujućih 80%
+  const overTarget = !!target && input >= target.value;
   // filteri i sortiranje popisa ciljeva (svi auti)
   const [rar, setRar] = useState<Rarity | "all">("all");
   const [cat, setCat] = useState("all");
@@ -150,7 +152,7 @@ function Upgrader() {
                   </>
                 ) : (
                   <>
-                    <div className="font-display text-4xl font-bold">{(chance * 100).toFixed(2)}%</div>
+                    <div className="font-display text-4xl font-bold">{overTarget ? "100" : (chance * 100).toFixed(2)}%</div>
                     <div className="text-xs text-muted">šansa</div>
                   </>
                 )}
@@ -159,7 +161,7 @@ function Upgrader() {
             </div>
           </div>
           <button className="btn-primary mt-3 w-full" disabled={!target || input <= 0 || busy || input >= (target?.value ?? 0)} onClick={go}>
-            {busy ? "Vrti se..." : "Upgradeaj"}
+            {busy ? "Vrti se..." : overTarget ? "Ulog je veći od auta" : "Upgradeaj"}
           </button>
         </div>
 

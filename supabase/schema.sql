@@ -538,7 +538,7 @@ begin
   return jsonb_build_object('items', results, 'instant_drop', instant) || lvl;
 end $$;
 
--- ---------- GARAŽA UKINUTA: auti koji su još u garažama prodaju se po vrijednosti (jednokratno) ----------
+-- ---------- Garaža UKINUTA: auti koji su još u garažama prodaju se po vrijednosti (jednokratno) ----------
 with owned as (
   update public.inventory inv set status = 'sold'
     from public.items i
@@ -549,7 +549,7 @@ update public.profiles p set balance = p.balance + t.v
   from (select user_id, sum(value) v from owned group by user_id) t
  where p.id = t.user_id;
 
--- ---------- GARAŽA (sažetak za navigaciju) ----------
+-- ---------- Garaža (sažetak za navigaciju) ----------
 create or replace function public.garage_summary()
 returns jsonb language sql stable security definer set search_path = public as $$
   select jsonb_build_object('count', count(*), 'value', coalesce(sum(i.value), 0))

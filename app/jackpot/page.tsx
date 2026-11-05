@@ -23,7 +23,7 @@ export default function JackpotPage() {
   const { user, refresh, isAdmin } = useAuth();
   const toast = useToast();
   const celebrate = useCelebrate();
-  const now = useNow(250);
+  const now = useNow(100);
   const [st, setSt] = useState<State | null>(null);
   const [skew, setSkew] = useState(0);
   const [bet, setBet] = useState(5);
@@ -35,13 +35,21 @@ export default function JackpotPage() {
     drawRef.current = draw;
   }, [draw]);
 
+  const skewRef = useRef<number | null>(null);
   const load = useCallback(async () => {
+    const t0 = Date.now();
     const { data } = await createClient().rpc("jackpot_state");
+    const t1 = Date.now();
     if (!data) return;
     const s = data as State;
     s.pot = Number(s.pot);
     s.players = s.players.map((p) => ({ ...p, bet: Number(p.bet) }));
-    setSkew(new Date(s.now).getTime() - Date.now());
+    // izglađena razlika sata (inače odbrojavanje skače naprijed-natrag)
+    const est = new Date(s.now).getTime() - (t0 + t1) / 2;
+    const prev = skewRef.current;
+    const sk = prev == null || Math.abs(est - prev) > 400 ? est : prev + (est - prev) * 0.1;
+    skewRef.current = sk;
+    setSkew(sk);
     setSt(s);
     const lastId = s.last?.id ?? null;
     if (seenLast.current === undefined) {
@@ -134,7 +142,7 @@ export default function JackpotPage() {
             <div className="relative h-36 w-36 shrink-0">
               <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
                 <circle cx="60" cy="60" r={R} fill="none" stroke="var(--color-line)" strokeWidth="8" />
-                <circle cx="60" cy="60" r={R} fill="none" stroke={left < 10_000 ? "#ef4444" : "#f5821f"} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${progress * C} ${C}`} />
+                <circle cx="60" cy="60" r={R} fill="none" stroke={left < 10_000 ? "#ef4444" : "#f5821f"} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${progress * C} ${C}`} style={{ transition: progress > 0.02 ? "stroke-dasharray .12s linear, stroke .3s" : "none" }} />
               </svg>
               <div className="absolute inset-0 grid place-items-center text-center">
                 <div>
@@ -149,7 +157,7 @@ export default function JackpotPage() {
                 <CountUp value={st.pot} />
               </div>
               <div className="mt-1 text-sm text-muted">
-                {st.players.length} {st.players.length === 1 ? "igrač" : "igrača"} · izvlačenje za {fmtLeft(left)}
+                {st.players.length} {st.players.length === 1 ? "igrač" : "igrača"} · izvlačenje za {fmtLeft(Math.ceil(left / 1000) * 1000)}
                 {me && <> · tvoja šansa <b className="text-emerald-300">{myChance.toFixed(1).replace(".", ",")}%</b></>}
               </div>
             </div>

@@ -95,7 +95,7 @@ function Rewards() {
     <div className="space-y-5">
       {/* LEVEL */}
       <section className="card flex flex-wrap items-center gap-5 p-5">
-        <div className="grid h-20 w-20 place-items-center rounded-xl bg-accent2 font-display text-5xl font-black text-ink">{profile.level}</div>
+        <div className={`grid h-20 w-20 shrink-0 place-items-center rounded-xl bg-accent2 font-display font-black tabular-nums leading-none text-ink ${profile.level >= 100 ? "text-3xl" : "text-5xl"}`}>{profile.level}</div>
         <div className="min-w-60 flex-1">
           <div className="flex justify-between text-sm">
             <span className="font-display font-semibold">Level {profile.level}</span>

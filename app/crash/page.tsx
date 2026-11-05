@@ -54,14 +54,22 @@ export default function CrashPage() {
   const [crashSeen, setCrashSeen] = useState<{ id: number; at: number; from: number } | null>(null);
   const stRef = useRef<State | null>(null);
 
+  const skewRef = useRef<number | null>(null);
   const load = useCallback(async () => {
+    const t0 = Date.now();
     const { data, error } = await createClient().rpc("crash_state");
+    const t1 = Date.now();
     if (error || !data) return;
     const s = data as State;
     s.bets = s.bets.map((b) => ({ ...b, amount: Number(b.amount), payout: Number(b.payout), cashout: b.cashout == null ? null : Number(b.cashout) }));
     s.history = s.history.map(Number);
     s.crash_point = s.crash_point == null ? null : Number(s.crash_point);
-    const sk = new Date(s.now).getTime() - Date.now();
+    // razlika sata server–klijent: mjereno na sredini zahtjeva i izglađeno, inače svaki odgovor
+    // (s drukčijim kašnjenjem mreže) pomakne sat pa multiplikator i odbrojavanje "trzaju"
+    const est = new Date(s.now).getTime() - (t0 + t1) / 2;
+    const prevSk = skewRef.current;
+    const sk = prevSk == null || Math.abs(est - prevSk) > 400 ? est : prevSk + (est - prevSk) * 0.08;
+    skewRef.current = sk;
     const prev = stRef.current;
     if (s.phase === "crashed" && s.crash_point && (!prev || prev.id !== s.id || prev.phase !== "crashed")) {
       // gdje je prikaz bio kad je stigla vijest o crashu (prikaz kasni DISPLAY_LAG za serverom)

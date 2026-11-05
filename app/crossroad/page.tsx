@@ -52,6 +52,7 @@ function Crossroad() {
   const [diff, setDiff] = useState<Diff>("medium");
   const [view, setView] = useState<View>({ difficulty: "medium", lane: 0, status: "idle", bet: 1 });
   const [busy, setBusy] = useState(false);
+  const [moving, setMoving] = useState(false); // auto kreće u sljedeću traku odmah na klik (ne čeka server)
   const [shake, setShake] = useState(0);
   const [boost, setBoost] = useState<{ key: number; lane: number; text: string } | null>(null); // efekt prijeđene trake
   const road = useRef<HTMLDivElement>(null);
@@ -115,8 +116,10 @@ function Crossroad() {
   const step = useCallback(async () => {
     if (busy || view.status !== "active") return;
     setBusy(true);
+    setMoving(true);
     const { data, error } = await createClient().rpc("crossroad_step");
     if (error) {
+      setMoving(false);
       setBusy(false);
       return toast(errMsg(error), "error");
     }
@@ -128,6 +131,7 @@ function Crossroad() {
       sfx.coin();
       setBoost({ key: Date.now(), lane: r.lane, text: `${fmtM(r.mult)}` });
       setView((v) => ({ ...v, lane: r.lane, status: r.status === "cashed" ? "cashed" : "active" }));
+      setMoving(false);
       setSt(s);
       if (r.status === "cashed") {
         setTimeout(() => celebrate({ title: fmtM(r.mult), subtitle: "Prešao si cijelu autocestu!", amount: r.payout, tier: 3 }), 400);
@@ -135,8 +139,9 @@ function Crossroad() {
       }
       setBusy(false);
     } else {
-      // auto krene u traku, pa ga pokupi kamion
+      // auto je već krenuo u traku — kamion ga odmah pokupi
       setView((v) => ({ ...v, lane: v.lane + 1, status: "active", hitLane: v.lane + 1 }));
+      setMoving(false);
       setTimeout(() => {
         setView((v) => ({ ...v, status: "crashed" }));
         setShake((x) => x + 1);
@@ -145,7 +150,7 @@ function Crossroad() {
         setSt(s);
         setBusy(false);
         refresh();
-      }, 380);
+      }, 200);
     }
   }, [busy, view.status, toast, celebrate, refresh]);
 
@@ -184,7 +189,8 @@ function Crossroad() {
 
   const total = CURB * 2 + lanes * laneW;
   // auto drži na ~35% širine ceste
-  const carX = view.lane === 0 ? CURB / 2 : CURB + (view.lane - 0.5) * laneW;
+  const carLane = view.lane + (moving ? 1 : 0);
+  const carX = carLane === 0 ? CURB / 2 : CURB + (carLane - 0.5) * laneW;
   const offset = Math.max(0, Math.min(total - roadW, carX - roadW * 0.35));
   const crashed = view.status === "crashed";
   const won = view.status === "cashed";
@@ -237,7 +243,7 @@ function Crossroad() {
                 {/* bljesak kad je traka upravo prijeđena */}
                 {boost && boost.lane === n && <span key={boost.key} className="cr-sweep" />}
                 {/* promet (samo ispred tebe) */}
-                {ahead && !crashed && (
+                {ahead && !crashed && n <= view.lane + 7 && (
                   <span className={`cr-traffic ${up ? "cr-up" : ""}`} style={{ animationDuration: `${dur}s`, animationDelay: `${delay}s`, ["--tc" as string]: tc }}>
                     <TopCar color={tc} />
                   </span>
@@ -282,7 +288,8 @@ function Crossroad() {
           </div>
 
           {/* tvoj auto */}
-          <div className={`absolute top-1/2 z-20 transition-[left] duration-300 ease-out ${crashed ? "cr-hit" : ""}`} style={{ left: carX - 29, marginTop: 40 }}>
+          <div className="absolute left-0 top-1/2 z-20 transition-transform duration-300 ease-out will-change-transform" style={{ transform: `translateX(${carX - 29}px)`, marginTop: 40 }}>
+            <div className={crashed ? "cr-hit" : ""}>
             {!crashed && view.status !== "idle" && <span className="cr-headlights" />}
             <TopCar color={crashed ? "#64748b" : "#ffffff"} me />
             {boost && !crashed && (
@@ -290,22 +297,23 @@ function Crossroad() {
                 {boost.text}
               </span>
             )}
+            </div>
           </div>
         </div>
 
         {/* gornji info */}
         <div className="pointer-events-none absolute left-3 top-3 z-30 flex items-center gap-2">
-          <span className="rounded-lg bg-black/60 px-2.5 py-1 font-display text-sm font-bold backdrop-blur" style={{ color: dcol }}>
+          <span className="rounded-lg bg-black/60 px-2.5 py-1 font-display text-sm font-bold " style={{ color: dcol }}>
             {DIFFS.find((d) => d.k === (active ? view.difficulty : diff))!.l}
           </span>
           {view.status !== "idle" && (
-            <span className="rounded-lg bg-black/60 px-2.5 py-1 font-display text-sm font-bold tabular-nums backdrop-blur">
+            <span className="rounded-lg bg-black/60 px-2.5 py-1 font-display text-sm font-bold tabular-nums ">
               Traka {Math.min(view.lane, lanes)}/{lanes}
             </span>
           )}
         </div>
         {active && view.lane > 0 && (
-          <div key={`m${view.lane}`} className="cr-pop pointer-events-none absolute right-3 top-3 z-30 rounded-xl bg-black/60 px-3 py-1.5 text-right font-display tabular-nums backdrop-blur">
+          <div key={`m${view.lane}`} className="cr-pop pointer-events-none absolute right-3 top-3 z-30 rounded-xl bg-black/60 px-3 py-1.5 text-right font-display tabular-nums ">
             <div className="text-2xl font-black leading-none text-emerald-300">{fmtM(curMult)}</div>
             <div className="text-xs font-bold text-white/80">+{coins(view.bet * curMult)}</div>
           </div>
@@ -318,7 +326,7 @@ function Crossroad() {
         )}
         {(crashed || won) && (
           <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center">
-            <div className={`pop rounded-2xl px-6 py-3 text-center backdrop-blur ${crashed ? "bg-red-950/70 ring-1 ring-red-500/50" : "bg-emerald-950/70 ring-1 ring-emerald-400/50"}`}>
+            <div className={`pop rounded-2xl px-6 py-3 text-center ${crashed ? "bg-red-950/70 ring-1 ring-red-500/50" : "bg-emerald-950/70 ring-1 ring-emerald-400/50"}`}>
               <div className={`font-display text-3xl font-black uppercase tracking-widest ${crashed ? "text-red-400" : "text-emerald-300"}`}>{crashed ? "Bum!" : "Isplaćeno"}</div>
               <div className="font-display text-lg font-bold tabular-nums">{crashed ? `−${coins(view.bet)}` : `+${coins(view.bet * curMult)} · ${fmtM(curMult)}`}</div>
             </div>

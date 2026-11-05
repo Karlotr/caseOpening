@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* =====================================================================
-   GARAŽA.gg — "Ponoćna duga ekspozicija"
+   Garaža.gg — "Ponoćna duga ekspozicija"
    Noćna autocesta snimljena dugom ekspozicijom: crvena stop-svjetla (akcija),
    natrijeva svjetla (novac/vrijednost), ksenon (navigacija/info) na ljubičasto-plavoj noći.
    ===================================================================== */
@@ -325,7 +325,7 @@ body {
 .cr-traffic.cr-up svg { transform: rotate(180deg); }
 @keyframes crDown { from { transform: translateY(-110px); } to { transform: translateY(340px); } }
 @keyframes crUp { from { transform: translateY(340px); } to { transform: translateY(-110px); } }
-.cr-truck { position: absolute; left: 50%; top: 0; margin-left: -17px; z-index: 25; animation: crTruck .42s cubic-bezier(.4,0,1,1) forwards; }
+.cr-truck { position: absolute; left: 50%; top: 0; margin-left: -17px; z-index: 25; animation: crTruck .26s cubic-bezier(.4,0,1,1) forwards; will-change: transform; }
 @keyframes crTruck { from { transform: translateY(-120px); } to { transform: translateY(360px); } }
 .cr-hit { animation: crHit .6s ease-out forwards; }
 @keyframes crHit { 0% { transform: none; } 40% { transform: translate(6px, 30px) rotate(160deg) scale(1.1); } 100% { transform: translate(8px, 44px) rotate(200deg); opacity: .7; } }
@@ -360,7 +360,7 @@ body {
 
 /* Crossroad: efekti */
 .cr-lane-safe { background: linear-gradient(180deg, #12261f, #0f1d1a); }
-.cr-lamp { position: absolute; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 999px; background: #ffe7a3; box-shadow: 0 0 10px 3px #ffb54788, 0 0 40px 10px #ffb5471f; opacity: .7; }
+.cr-lamp { position: absolute; left: 50%; width: 26px; height: 26px; margin-left: -13px; border-radius: 999px; background: radial-gradient(circle, #ffe7a3 0 12%, #ffb54755 22%, transparent 65%); opacity: .8; }
 .cr-sweep { position: absolute; inset: 0; z-index: 2; background: linear-gradient(180deg, transparent, #34d39966, transparent); animation: crSweep .55s ease-out forwards; pointer-events: none; }
 @keyframes crSweep { from { transform: translateY(-100%); opacity: 1; } to { transform: translateY(100%); opacity: 0; } }
 .cr-pop { animation: crPop .45s cubic-bezier(.2,1.6,.4,1); }
@@ -388,3 +388,9 @@ body {
   animation: caseSpark 2.6s ease-in-out infinite; }
 @keyframes caseSpark { 0%,100% { opacity: 0; transform: scale(.3); } 18% { opacity: 1; transform: scale(1.3) rotate(45deg); } 36% { opacity: 0; transform: scale(.5); } }
 @media (prefers-reduced-motion: reduce) { .case-sheen, .case-beam, .case-spark { animation: none; } }
+
+.case-slot { animation: caseSlot 2.4s ease-in-out infinite; }
+@keyframes caseSlot { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+.case-crate-sheen { animation: crateSheen 5s ease-in-out infinite; }
+@keyframes crateSheen { 0%, 60% { transform: translateX(0); opacity: 0; } 70% { opacity: .18; } 90%, 100% { transform: translateX(150px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .case-slot, .case-crate-sheen { animation: none; } }

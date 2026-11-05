@@ -15,6 +15,7 @@ import { useToast } from "@/components/Toast";
 import { CaseArt } from "@/components/CaseCard";
 import { ItemCard } from "@/components/ItemCard";
 import { Reel } from "@/components/Reel";
+import { preloadCars } from "@/components/CarImage";
 import { NameReel, type Entry } from "@/components/NameReel";
 import { CountUp } from "@/components/CountUp";
 import { useChat } from "@/components/Chat";
@@ -115,17 +116,20 @@ export function BattleView() {
       if (!battle) return;
       const c = cases.get(battle.case_ids[r]);
       if (!c) return;
-      setStrips(
-        Array.from({ length: battle.seats }, (_, seat) => {
-          const strip = Array.from({ length: 40 }, () => randomFromCase(c));
-          const d = drops.find((x) => x.round === r + 1 && x.seat === seat);
-          if (d && items.get(d.item_id)) strip[WIN] = items.get(d.item_id)!;
-          return strip;
-        })
-      );
+      const next = Array.from({ length: battle.seats }, (_, seat) => {
+        const strip = Array.from({ length: 40 }, () => randomFromCase(c));
+        const d = drops.find((x) => x.round === r + 1 && x.seat === seat);
+        if (d && items.get(d.item_id)) strip[WIN] = items.get(d.item_id)!;
+        return strip;
+      });
+      setStrips(next);
       reelsDone.current = 0;
       setSpinning(true);
-      setSpinKey((k) => k + 1);
+      // vrtnja kreće tek kad su slike u traci učitane i traka iscrtana (inače na mobitelu "zapne" pa trzne)
+      const id = playId.current;
+      preloadCars(next.flat(), 700).then(() =>
+        requestAnimationFrame(() => requestAnimationFrame(() => id === playId.current && setSpinKey((k) => k + 1)))
+      );
     },
     [battle, cases, drops, items]
   );
@@ -140,7 +144,8 @@ export function BattleView() {
     setRevealed(0);
     setPhase("rounds");
     // mobitel: zaglavlje je visoko — skrolaj do trake kutija kad reprodukcija krene
-    if (typeof window !== "undefined" && window.innerWidth < 768) caseStrip.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // bez glatkog skrola: glatki skrol istovremeno s pokretanjem vrtnje je na mobitelu trzao
+    if (typeof window !== "undefined" && window.innerWidth < 768) caseStrip.current?.scrollIntoView({ behavior: "auto", block: "start" });
     later(() => spinRound(0), 500);
      
   }, [spinRound]);
@@ -511,6 +516,21 @@ export function BattleView() {
         </div>
       )}
 
+      {/* kutija koja se upravo otvara: ime i cijena iznad traka */}
+      {phase === "rounds" && (() => {
+        const ci = Math.min(revealed, rounds - 1);
+        const cc = cases.get(battle.case_ids[ci]);
+        return cc ? (
+          <div className="flex items-center justify-center gap-2 font-display">
+            <span className="text-sm text-muted">Kutija {ci + 1}/{rounds}</span>
+            <span className="truncate text-lg font-bold">{cc.name}</span>
+            <span className="rounded-lg bg-black/40 px-2 py-0.5 text-base font-black ring-1 ring-white/10">
+              <Price amount={battle.currency === "gems" ? cc.gem_price ?? 0 : cc.price} gems={battle.currency === "gems"} />
+            </span>
+          </div>
+        ) : null;
+      })()}
+
       {/* mobitel: mreža mjesta (2 ili 3 stupca) / timovi jedan ispod drugog; desktop: timovi u redu */}
       <div className="pb-2 md:overflow-x-auto">
         <div className={`grid gap-2 md:flex md:min-w-0 ${battle.team_size > 1 ? "grid-cols-1" : battle.seats % 3 === 0 ? "grid-cols-3" : "grid-cols-2"}`}>
@@ -554,7 +574,7 @@ export function BattleView() {
                               </div>
                               {done && p && (
                                 <div className={`mt-1 text-xs font-semibold tabular-nums ${won ? "text-emerald-300" : "text-muted"}`} title="Dio nagrade iz ovog battlea">
-                                  {won ? <>Dio pobjede: +{coins(shareOf(p))}</> : "Dio pobjede: 0"}
+                                  {won ? <>+{coins(shareOf(p))}</> : coins(0)}
                                 </div>
                               )}
                             </div>
