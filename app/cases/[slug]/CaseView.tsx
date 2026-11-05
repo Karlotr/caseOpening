@@ -131,7 +131,7 @@ export function CaseView() {
         () =>
           celebrate({
             title: best.value / (c.price || 1) >= 20 ? "Ogroman drop!" : "Zlatni drop!",
-            subtitle: lastCost ? `${ratio.toFixed(2)}× uloga` : c?.name,
+            subtitle: c?.name,
             items: won,
             amount: total,
             tier: goldTier(best.value, c),

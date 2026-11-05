@@ -7,6 +7,7 @@ import { sfx } from "@/lib/sound";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { BetInput } from "@/components/BetInput";
+import { NumberField } from "@/components/NumberField";
 import { useCelebrate } from "@/components/WinOverlay";
 
 // Multiplayer Crash (kao jackpot): runde se vrte jedna za drugom za sve igrače.
@@ -357,7 +358,7 @@ export default function CrashPage() {
                 </button>
                 {autoOn && (
                   <div className="mt-2 flex gap-1">
-                    <input type="number" step="0.1" min={1.01} max={1000} className="input min-w-0" value={auto} disabled={!!me} onChange={(e) => setAuto(Number(e.target.value))} aria-label="Auto cashout multiplikator" />
+                    <NumberField className="input min-w-0" value={auto} disabled={!!me} onChange={setAuto} aria-label="Auto cashout multiplikator" />
                     {[1.5, 2, 5, 10].map((v) => (
                       <button key={v} className={`btn-ghost shrink-0 px-2.5 ${auto === v ? "border-emerald-400 text-emerald-300" : ""}`} disabled={!!me} onClick={() => setAuto(v)}>{v}x</button>
                     ))}

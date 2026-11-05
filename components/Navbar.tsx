@@ -117,8 +117,11 @@ function StaticLinks() {
   );
 }
 
+// stalna boja ikone po imenu (isto ime = ista boja)
+const nameHue = (n?: string | null) => [...(n ?? "")].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);
+
 function UserBox() {
-  const { user, profile, isAdmin, loading, signOut } = useAuth();
+  const { user, profile, isAdmin, isTester, loading, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   if (loading) return <div className="h-9 w-40 animate-pulse rounded-md bg-white/5" />;
   if (!user)
@@ -144,8 +147,21 @@ function UserBox() {
         </Link>
       </div>
       <button onClick={() => setOpen((o) => !o)} className="flex shrink-0 items-center gap-2 rounded-md px-1 py-1 hover:bg-white/5 sm:px-2" aria-label="Korisnički izbornik">
-        <span className={`grid h-9 min-w-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#5ce1ff,#8b5cf6)] px-1.5 font-display font-black tabular-nums text-ink shadow-[0_0_18px_-4px_#5ce1ff] ${(profile?.level ?? 1) >= 100 ? "text-sm" : "text-lg"}`} title="Level">
-          {profile?.level ?? 1}
+        {/* okrugla ikona s početnim slovom imena + level kao značka */}
+        <span className="relative shrink-0">
+          <span
+            className="grid h-9 w-9 place-items-center rounded-full font-display text-base font-black uppercase text-ink ring-2 ring-white/15"
+            style={{ background: `linear-gradient(135deg, hsl(${nameHue(profile?.username)} 85% 72%), hsl(${(nameHue(profile?.username) + 40) % 360} 80% 58%))` }}
+            title={profile?.username}
+          >
+            {(profile?.username ?? "?").trim().charAt(0) || "?"}
+          </span>
+          <span
+            className="absolute -bottom-1.5 -right-2 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[linear-gradient(135deg,#5ce1ff,#8b5cf6)] px-1 font-display text-[10px] font-black tabular-nums leading-none text-ink ring-2 ring-[#090a14]"
+            title="Level"
+          >
+            {profile?.level ?? 1}
+          </span>
         </span>
         <span className="hidden flex-col items-start min-[1700px]:flex">
           <span className="text-sm font-semibold leading-none">{profile?.username}</span>
@@ -161,6 +177,7 @@ function UserBox() {
           <Link href="/affiliate" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Pozovi prijatelje</Link>
           <Link href="/nova-lozinka" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-white/5">Promijeni lozinku</Link>
           {isAdmin && <Link href="/admin" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm font-semibold text-accent2 hover:bg-white/5">Admin panel</Link>}
+          {!isAdmin && isTester && <Link href="/admin" onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm font-semibold text-amber-300 hover:bg-white/5">Tester panel</Link>}
           <button onClick={() => { setOpen(false); signOut(); }} className="block w-full rounded px-3 py-2 text-left text-sm text-red-400 hover:bg-white/5">
             Odjava
           </button>

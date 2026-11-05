@@ -48,7 +48,7 @@ const ACTION: Record<string, string> = {
   adjust: "Promjena stanja", set_balance: "Postavljeno stanje", controls: "Kontrole", level: "Level", affiliate: "Affiliate",
   give_item: "Dodan auto", reset_cooldowns: "Reset nagrada", chat_style: "Izgled u chatu", chat_delete: "Obrisana poruka",
   chat_clear: "Očišćen chat", setting: "Postavka", limit: "Limit", trigger_rain: "Kiša pokrenuta", jackpot_draw_now: "Jackpot izvučen ranije",
-  item_photo: "Fotografija auta",
+  item_photo: "Fotografija auta", tester_add: "Tester: dodao sebi",
 };
 const KEY: Record<string, string> = {
   balance: "stanje", balance_old: "prije", gems: "gemovi", gems_old: "gemovi prije", reason: "razlog", luck: "sreća", banned: "blokiran",
@@ -76,7 +76,7 @@ function Icon({ d, className = "" }: { d: string; className?: string }) {
 }
 
 export default function AdminPage() {
-  const { isAdmin, loading } = useAuth();
+  const { isAdmin, isTester, loading } = useAuth();
   const [tab, setTab] = useState<Tab>("users");
   // osvježavanje: gumb + automatski svakih 10 s
   const [tick, setTick] = useState(0);
@@ -91,6 +91,7 @@ export default function AdminPage() {
     return () => clearInterval(t);
   }, [auto]);
   if (loading) return <div className="card h-40 animate-pulse" />;
+  if (!isAdmin && isTester) return <TesterPanel />;
   if (!isAdmin)
     return (
       <div className="card p-10 text-center">
@@ -146,6 +147,55 @@ export default function AdminPage() {
         {tab === "settings" && <SettingsTab />}
         {tab === "photos" && <PhotosTab />}
         {tab === "log" && <LogTab tick={tick} />}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- TESTER (ograničeni panel) ---------------- */
+
+function TesterPanel() {
+  const { profile, refresh } = useAuth();
+  const toast = useToast();
+  const [cur, setCur] = useState<"balance" | "gems">("balance");
+  const [val, setVal] = useState("");
+  const [busy, setBusy] = useState(false);
+  const n = Number(val.replace(",", "."));
+  const valid = val.trim() !== "" && Number.isFinite(n) && n > 0 && n <= 1_000_000;
+  const add = async (amount = n) => {
+    if (busy || !(amount > 0)) return;
+    setBusy(true);
+    const { error } = await sb().rpc("tester_add_self", { p_balance: cur === "balance" ? amount : 0, p_gems: cur === "gems" ? amount : 0 });
+    setBusy(false);
+    if (error) return toast(errMsg(error), "error");
+    toast(`Dodano ${coins(amount)} ${cur === "gems" ? "gemova" : "coina"}.`, "success");
+    setVal("");
+    refresh();
+  };
+  return (
+    <div className="mx-auto max-w-lg space-y-4">
+      <div>
+        <h1 className="h1">Tester panel</h1>
+        <p className="mt-1 text-sm text-muted">Kao tester možeš samo sebi dodati coine ili gemove za testiranje. Svaka promjena se bilježi u admin logu.</p>
+      </div>
+      <div className="card space-y-3 p-4">
+        <div className="grid grid-cols-2 gap-2">
+          {(["balance", "gems"] as const).map((c) => (
+            <button key={c} onClick={() => setCur(c)} className={`rounded-xl border p-3 text-left transition ${cur === c ? (c === "gems" ? "border-emerald-400/60 bg-emerald-400/10" : "border-accent/60 bg-accent/10") : "border-line hover:border-white/20"}`}>
+              <div className="text-xs text-muted">{c === "gems" ? "Gemovi" : "Coini"}</div>
+              <div className={`font-display text-xl font-extrabold tabular-nums ${c === "gems" ? "text-emerald-300" : "text-accent"}`}>
+                <span className={c === "gems" ? "gem" : "coin"} /> {coins(c === "gems" ? profile?.gems : profile?.balance)}
+              </div>
+            </button>
+          ))}
+        </div>
+        <input className="input text-lg tabular-nums" inputMode="decimal" placeholder="Iznos (do 1.000.000)" value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => e.key === "Enter" && valid && add()} aria-label="Iznos" />
+        <div className="flex flex-wrap gap-1.5">
+          {[1000, 10000, 100000, 1000000].map((v) => (
+            <button key={v} disabled={busy} onClick={() => add(v)} className="rounded-md border border-emerald-400/30 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-300 hover:bg-emerald-400/10">+{coins(v)}</button>
+          ))}
+        </div>
+        <button className="btn-primary w-full" disabled={!valid || busy} onClick={() => add()}>{busy ? "Dodajem…" : "Dodaj sebi"}</button>
       </div>
     </div>
   );
@@ -449,6 +499,7 @@ function UsersTab({ tick }: { tick: number }) {
                 <span className="flex items-center gap-1.5">
                   <span className="truncate font-semibold">{u.username}</span>
                   {u.role === "admin" && <span className="rounded bg-accent2/20 px-1.5 text-[11px] font-bold text-accent2">admin</span>}
+                  {u.role === "tester" && <span className="rounded bg-amber-400/20 px-1.5 text-[11px] font-bold text-amber-300">tester</span>}
                   {u.banned && <span className="rounded bg-red-500/20 px-1.5 text-[11px] font-bold text-red-300">blokiran</span>}
                   {Number(u.luck) !== 1 && <span className={`rounded px-1.5 text-[11px] font-bold ${Number(u.luck) > 1 ? "bg-emerald-400/15 text-emerald-300" : "bg-red-500/15 text-red-300"}`}>{Number(u.luck).toFixed(2)}×</span>}
                 </span>
@@ -530,6 +581,7 @@ function UserEditor({ u, onChanged, tick, onClose }: { u: U; onChanged: () => vo
             <div className="flex items-center gap-1.5">
               <span className="truncate font-display text-xl font-extrabold sm:text-2xl">{u.username}</span>
               {u.role === "admin" && <span className="rounded bg-accent2/20 px-1.5 text-xs font-bold text-accent2">admin</span>}
+              {u.role === "tester" && <span className="rounded bg-amber-400/20 px-1.5 text-xs font-bold text-amber-300">tester</span>}
               {u.banned && <span className="rounded bg-red-500/20 px-1.5 text-xs font-bold text-red-300">blokiran</span>}
             </div>
             <div className="truncate text-xs text-muted">{u.email} · od {dt(u.created_at)}</div>
@@ -571,6 +623,7 @@ function UserEditor({ u, onChanged, tick, onClose }: { u: U; onChanged: () => vo
                 </button>
                 <select className="input" value={role} onChange={(e) => setRole(e.target.value)} aria-label="Uloga">
                   <option value="user">Korisnik</option>
+                  <option value="tester">Tester</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>

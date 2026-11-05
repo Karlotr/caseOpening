@@ -10,10 +10,9 @@ import { CountUp } from "./CountUp";
 const fmtPct = (x: number) => `${(x * 100).toFixed(x < 0.001 ? 4 : x < 0.01 ? 3 : 2).replace(".", ",")} %`;
 const oneIn = (p: number) => (p > 0 ? Math.max(1, Math.round(1 / p)).toLocaleString("hr-HR") : "∞");
 
-// Scena otkrivanja nakon otvaranja kutije: kartice se okreću jedna po jedna, vrijednost se broji, profit je jasan.
+// Scena otkrivanja nakon otvaranja kutije: kartice se okreću jedna po jedna, vrijednost se broji (bez usporedbe s cijenom kutije).
 export function RevealStage({
   items,
-  cost,
   demo,
   againLabel,
   onAgain,
@@ -29,8 +28,6 @@ export function RevealStage({
   const [shown, setShown] = useState(0);
   const total = items.reduce((s, i) => s + i.value, 0);
   const visibleTotal = items.slice(0, shown).reduce((s, i) => s + i.value, 0);
-  const ratio = cost > 0 ? total / cost : null;
-  const profit = cost > 0 ? total - cost : null;
   const allShown = shown >= items.length;
 
   useEffect(() => {
@@ -59,14 +56,6 @@ export function RevealStage({
             <CountUp value={visibleTotal} duration={500} />
           </div>
         </div>
-        {ratio !== null && allShown && !demo && (
-          <div className={`pop rounded-lg px-3 py-2 text-right ${profit! >= 0 ? "bg-emerald-400/15 text-emerald-300" : "bg-panel2 text-muted"}`}>
-            <div className="font-display text-3xl font-black leading-none">{ratio.toFixed(2).replace(".", ",")}×</div>
-            <div className="text-sm font-semibold">
-              {profit! >= 0 ? `+${coins(profit)} profit` : `${coins(profit)} u odnosu na cijenu`}
-            </div>
-          </div>
-        )}
       </div>
 
       <div className={`relative mt-4 grid gap-3 ${items.length === 1 ? "grid-cols-1 sm:max-w-sm" : items.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"}`} style={{ perspective: 900 }}>

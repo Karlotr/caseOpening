@@ -64,7 +64,6 @@ function Plinko() {
   const pegEls = useRef<Map<string, SVGCircleElement>>(new Map());
   const board = useRef<HTMLDivElement>(null);
   const [pops, setPops] = useState<{ id: number; x: number; y: number; text: string; color: string; big: boolean }[]>([]);
-  const [session, setSession] = useState({ net: 0, best: 0, n: 0 });
   const raf = useRef(0);
   const nextId = useRef(1);
   const lastTick = useRef(0);
@@ -98,7 +97,6 @@ function Plinko() {
       const color = bucketColor(b.bucket, b.rows);
       setPops((ps) => [...ps.slice(-12), { id: b.id, x: bx, y: b.pts[b.pts.length - 1].y - 0.6, text: `${fmtMult(b.mult)}×`, color, big }]);
       setTimeout(() => setPops((ps) => ps.filter((q) => q.id !== b.id)), 1100);
-      setSession((s) => ({ net: s.net + b.payout - b.bet, best: Math.max(s.best, b.mult), n: s.n + 1 }));
       // dobar pogodak: ploča bljesne bojom pretinca
       if (big) board.current?.animate([{ boxShadow: `0 0 0 0 ${color}00` }, { boxShadow: `0 0 70px 6px ${color}aa` }, { boxShadow: `0 0 0 0 ${color}00` }], { duration: 700, easing: "ease-out" });
       setHistory((h) => [{ m: b.mult, b: b.bucket, rows: b.rows, key: b.id }, ...h].slice(0, 14));
@@ -294,13 +292,7 @@ function Plinko() {
         <div ref={board} className="card order-1 relative overflow-hidden p-3 sm:p-4 lg:order-2">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,#5ce1ff14,transparent_70%)]" />
           {/* zadnji rezultati */}
-          {session.n > 0 && (
-            <div className="absolute right-3 top-3 z-10 text-right font-display tabular-nums sm:right-4 sm:top-4">
-              <div className={`text-lg font-black leading-none ${session.net >= 0 ? "text-emerald-300" : "text-red-300"}`}>{session.net >= 0 ? "+" : ""}{coins(session.net)}</div>
-              <div className="text-[11px] text-muted">sesija · najbolje {fmtMult(session.best)}×</div>
-            </div>
-          )}
-          <div className="relative mb-1 flex h-6 gap-1.5 overflow-hidden pr-28">
+          <div className="relative mb-1 flex h-6 gap-1.5 overflow-hidden">
             {history.map((h) => (
               <span key={h.key} className="drop-in shrink-0 rounded-md px-2 py-1 font-display text-xs font-black tabular-nums text-ink" style={{ background: bucketColor(h.b, h.rows) }}>
                 {fmtMult(h.m)}×

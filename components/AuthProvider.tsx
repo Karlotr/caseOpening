@@ -9,6 +9,7 @@ type Ctx = {
   user: User | null;
   profile: Profile | null;
   isAdmin: boolean;
+  isTester: boolean; // ograničeni admin panel: smije samo sebi dodati coine/gemove
   loading: boolean;
   refresh: () => Promise<void>;
   // privremeno "zamrzni" prikaz stanja i garaže (npr. dok se vrti battle, da se rezultat ne vidi unaprijed)
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isTester, setIsTester] = useState(false);
   const [hold, setHold] = useState<Wallet | null>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const holdRef = useRef<Wallet | null>(null);
@@ -50,14 +52,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!u) {
         setProfile(null);
         setIsAdmin(false);
+        setIsTester(false);
         return;
       }
-      const [{ data }, { data: adm }] = await Promise.all([
+      const [{ data }, { data: role, error: roleErr }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", u.id).maybeSingle(),
-        supabase.rpc("am_i_admin"),
+        supabase.rpc("my_role"),
       ]);
       setProfile(data ? toProfile(data) : null);
-      setIsAdmin(adm === true);
+      if (roleErr) {
+        // baza još bez migracije (nema my_role) → staro ponašanje
+        const { data: adm } = await supabase.rpc("am_i_admin");
+        setIsAdmin(adm === true);
+        setIsTester(false);
+      } else {
+        setIsAdmin(role === "admin");
+        setIsTester(role === "tester");
+      }
     },
     [supabase]
   );
@@ -161,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <AuthCtx value={{ user, profile: shownProfile, isAdmin, loading, refresh, holdWallet, deferCredit, signOut }}>{children}</AuthCtx>
+    <AuthCtx value={{ user, profile: shownProfile, isAdmin, isTester, loading, refresh, holdWallet, deferCredit, signOut }}>{children}</AuthCtx>
   );
 }
 

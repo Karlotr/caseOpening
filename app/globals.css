@@ -248,7 +248,7 @@ body {
 @keyframes crash-boom { from { r: 8; opacity: 1 } to { r: 60; opacity: 0 } }
 .crash-boom { animation: crash-boom .7s ease-out forwards; }
 
-/* Zlatni drop u kutijama — samo transform/opacity (GPU), pauzirano dok se traka vrti */
+/* Zlatni drop u kutijama — samo transform/opacity (GPU); zlatnih je malo pa efekti rade i dok se traka vrti */
 .gold-rays {
   position: absolute; inset: -60%; pointer-events: none; border-radius: 999px;
   background: repeating-conic-gradient(from 0deg, #facc1538 0deg 9deg, transparent 9deg 30deg);
@@ -291,10 +291,15 @@ body {
   animation: goldBurst .85s cubic-bezier(.15,.7,.3,1) forwards;
 }
 @keyframes goldBurst { 0% { transform: translate(0, 0) scale(1.4); opacity: 1; } 100% { transform: translate(var(--bx), var(--by)) scale(.3); opacity: 0; } }
-/* dok traka leti efekti se ionako ne vide — zaustavi ih (glavna ušteda) */
-.reel-moving .gold-rays, .reel-moving .gold-aura, .reel-moving .gold-float, .reel-moving .gold-shine-bar, .reel-moving .gold-spark { animation-play-state: paused; }
+/* zlatni obrub pločice — vidi se i dok se traka vrti (samo opacity animacija) */
+.gold-cell::before, .gold-cell::after {
+  content: ""; position: absolute; inset: 4px; border-radius: 14px; pointer-events: none; z-index: 1;
+  border: 2px solid #facc15; box-shadow: 0 0 16px #facc1577, inset 0 0 18px #facc1544;
+}
+.gold-cell::after { border-color: #fff3b0; box-shadow: 0 0 28px #facc15cc, inset 0 0 26px #facc1588; opacity: 0; animation: goldCell 1.4s ease-in-out infinite; }
+@keyframes goldCell { 0%,100% { opacity: 0; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .gold-rays, .gold-aura, .gold-float, .gold-shine-bar, .gold-spark, .gold-burst, .gold-ring { animation: none; }
+  .gold-rays, .gold-aura, .gold-float, .gold-shine-bar, .gold-spark, .gold-burst, .gold-ring, .gold-cell::after { animation: none; }
 }
 
 .crash-stars {

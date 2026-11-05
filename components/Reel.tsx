@@ -10,7 +10,7 @@ const GOLD_RANK = 4; // zamjensko pravilo (bez goldMin): legendarni i mitski su 
 
 // Zlatni drop (tajna) — dijamant iz public/diamond.webp sa zrakama, sjajem, odsjajem i iskricama.
 // Zlatnih je malo (dinamični prag, lib/gold.ts), pa si možemo priuštiti bogatije efekte.
-// Animira se samo transform/opacity, a dok se traka vrti sve stoji (.reel-moving).
+// Animira se samo transform/opacity; efekti rade i dok se traka vrti (zlatni obrub, zrake, sjaj).
 const BURST = Array.from({ length: 14 }, (_, i) => (i / 14) * Math.PI * 2);
 function GoldTile({ big = false, vertical = false }: { big?: boolean; vertical?: boolean }) {
   const S = big ? 124 : vertical ? 60 : 76;
@@ -231,7 +231,7 @@ export function Reel({
           return (
             <div
               key={i}
-              className={`relative flex shrink-0 flex-col items-center justify-center ${isWin ? "landed z-10" : ""}`}
+              className={`relative flex shrink-0 flex-col items-center justify-center ${isWin ? "landed z-10" : ""} ${hidden ? "gold-cell" : ""}`}
               style={{
                 width: vertical ? "100%" : tile,
                 height: vertical ? tile : H,
