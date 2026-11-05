@@ -75,37 +75,35 @@ export function NameReel({
     // ne staj točno na rub segmenta
     let frac = inWinner ? ticket! : s.start + s.size * (0.15 + Math.random() * 0.7);
 
-    // NAPETOST (samo prikaz — pobjednik je uvijek isti, pokazivač uvijek završi u njegovom polju):
-    // - pravi near-miss: listić je stvarno blizu ruba → završno puzanje do njega
-    // - povremeni "glumljeni": točka se pomakne blizu ruba pobjedničkog polja (i dalje unutar njega)
+    // NAPETOST (samo prikaz — pobjednik je uvijek isti): jedna glatka vrtnja, bez zastajanja i guranja.
+    // Mijenja se samo GDJE unutar pobjedničkog polja traka stane:
+    // - ako je listić bliže jednom rubu, točka se privuče još bliže tom rubu (tik do tuđeg polja)
+    // - povremeno (FAKE_NEAR) i kad listić nije blizu ruba
     const segPx = s.size * L;
     const startPx = s.start * L;
     const endPx = (s.start + s.size) * L;
-    const multi = entries.length > 1 && s.size < 0.97;
-    const edge = Math.min(frac * L - startPx, endPx - frac * L);
-    let mode: "none" | "creep" | "rollback" = "none";
-    if (multi && edge < Math.max(14, segPx * 0.1)) mode = "creep";
-    else if (multi && segPx > 50 && Math.random() < FAKE_NEAR) {
-      const nearEnd = Math.random() < 0.6;
-      const px = 4 + Math.random() * Math.min(10, segPx * 0.08);
-      frac = nearEnd ? (endPx - px) / L : (startPx + px) / L;
-      mode = nearEnd && Math.random() < 0.4 ? "rollback" : "creep";
+    let nearEdge = false;
+    if (entries.length > 1 && s.size < 0.97 && segPx > 24) {
+      const x = frac * L;
+      const dStart = x - startPx;
+      const dEnd = endPx - x;
+      const toEnd = dEnd <= dStart;
+      const d = Math.min(dStart, dEnd);
+      const tik = 3 + Math.random() * Math.min(9, segPx * 0.06); // "bas bas tik" — par piksela od ruba
+      let nd = d;
+      if (d < segPx * 0.3) nd = Math.max(tik, d * 0.15); // listić blizu ruba → još bliže
+      else if (Math.random() < FAKE_NEAR) nd = tik + Math.random() * 6;
+      if (nd !== d) {
+        frac = (toEnd ? endPx - nd : startPx + nd) / L;
+        nearEdge = true;
+      }
     }
     const base = TARGET_LAP * L - w / 2;
     const target = base + frac * L;
-    // faza 1 (glavna vrtnja) → faza 2 (puzanje / povratak)
-    const phases: { to: number; ms: number; ease: string; wait?: number }[] =
-      mode === "none"
-        ? [{ to: target, ms: duration, ease: EASE }]
-        : mode === "creep"
-          ? [
-              { to: target - (32 + Math.random() * 26), ms: duration - 500, ease: EASE },
-              { to: target, ms: 1100, ease: "cubic-bezier(0.3,0.1,0.3,1)" },
-            ]
-          : [
-              { to: base + endPx + 6 + Math.random() * 9, ms: duration - 400, ease: EASE },
-              { to: target, ms: 520, ease: "cubic-bezier(0.45,0,0.25,1)", wait: 320 },
-            ];
+    // tik do ruba: isti glatki pokret, samo nešto dulji i mekši rep usporavanja
+    const phases: { to: number; ms: number; ease: string; wait?: number }[] = [
+      nearEdge ? { to: target, ms: duration + 700, ease: "cubic-bezier(0.1,0.62,0.04,1)" } : { to: target, ms: duration, ease: EASE },
+    ];
     const totalMs = phases.reduce((a, ph) => a + ph.ms + (ph.wait ?? 0), 0);
 
     setLanded(false);
