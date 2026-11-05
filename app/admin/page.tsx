@@ -268,7 +268,7 @@ const LIMIT_GROUPS: [string, string[]][] = [
   ["Kutije i battle", ["case_max_open", "battle_max_cases"]],
   ["Jackpot", ["jackpot_round_sec", "jackpot_min_bet", "jackpot_max_bet", "jackpot_fee_pct"]],
   ["Rulet i Crash", ["rulet_min_bet", "rulet_max_bet", "crash_min_bet", "crash_max_bet", "crash_bet_sec"]],
-  ["Crossroad", ["crossroad_min_bet", "crossroad_max_bet"]],
+  ["Crossroad i Plinko", ["crossroad_min_bet", "crossroad_max_bet", "plinko_min_bet", "plinko_max_bet"]],
 ];
 
 function SettingsTab() {

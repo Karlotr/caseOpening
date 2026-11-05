@@ -5,6 +5,7 @@ const PATHS: Record<string, React.ReactNode> = {
   "/upgrader": <path d="M12 20V5M5 12l7-7 7 7M5 21h14" />,
   "/crash": <path d="M3 20h18M4 18c6 0 10-4 13-12M17 6h3v3" />,
   "/crossroad": <><path d="M4 3v18M20 3v18M12 4v3M12 10.5v3M12 17v3" /></>,
+  "/plinko": <><circle cx="12" cy="4" r="1.6" /><circle cx="8" cy="9" r="1.2" /><circle cx="16" cy="9" r="1.2" /><circle cx="4" cy="14" r="1.2" /><circle cx="12" cy="14" r="1.2" /><circle cx="20" cy="14" r="1.2" /><path d="M3 20h18" /></>,
   "/rulet": <><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="3" /><path d="M12 3.5v5.5M12 15v5.5M3.5 12H9M15 12h5.5" /></>,
   "/jackpot": <><circle cx="12" cy="12" r="8" /><path d="M12 4v8l6 5" /></>,
   "/rewards": <><rect x="4" y="9" width="16" height="11" rx="2" /><path d="M12 9v11M4 13h16M12 9c-3 0-5-1-5-3s3-2 5 3c2-5 5-5 5-3s-2 3-5 3" /></>,

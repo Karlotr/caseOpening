@@ -44,6 +44,15 @@ const JackpotArt = () => (
     ))}
   </svg>
 );
+const PlinkoArt = () => (
+  <svg viewBox="0 0 60 44" className="h-full w-full" aria-hidden>
+    {[0, 1, 2, 3].map((k) => Array.from({ length: k + 3 }, (_, j) => <circle key={`${k}${j}`} cx={30 + (j - (k + 2) / 2) * 9} cy={6 + k * 8} r="1.6" fill="#e2e8f0" opacity=".85" />))}
+    {[0, 1, 2, 3, 4, 5].map((b) => (
+      <rect key={b} x={30 + (b - 2.5) * 9 - 4} y="37" width="8" height="5" rx="1.5" fill={`hsl(${48 - 58 * (Math.abs(b - 2.5) / 2.5)} 92% 56%)`} />
+    ))}
+    <circle className="home-plinko-ball" cx="30" cy="2" r="2.8" fill="#ffb547" style={{ filter: "drop-shadow(0 0 3px #ffb547)" }} />
+  </svg>
+);
 const IconArt = ({ d, c }: { d: React.ReactNode; c: string }) => (
   <svg viewBox="0 0 24 24" className="h-full w-full" fill="none" stroke={c} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{d}</svg>
 );
@@ -54,15 +63,16 @@ const MODES: Mode[] = [
     art: <CarImage item={{ id: 76, brand: "Ferrari", model: "F40", year: 1989, body: "super", rarity: "legendary" }} reflect className="h-full w-full" />,
   },
   {
-    href: "/battles", t: "Case Battles", d: "1v1 do 3v3, Crazy i Jackpot. Pobjednik nosi sve.", c: "#ff2b4e", span: "col-span-2",
+    href: "/battles", t: "Battles", d: "Case battles 1v1 do 3v3, Crazy i Jackpot.", c: "#ff2b4e", span: "",
     art: (
-      <div className="flex h-full items-center justify-center gap-3 font-display text-4xl font-black" aria-hidden>
-        <span className="h-12 w-12 rounded-xl bg-[#ff2b4e]/80 shadow-[0_0_24px_#ff2b4e]" />
-        <span className="text-white/80">VS</span>
-        <span className="h-12 w-12 rounded-xl bg-[#5ce1ff]/80 shadow-[0_0_24px_#5ce1ff]" />
-      </div>
+      <svg viewBox="0 0 100 50" className="h-full w-full" aria-hidden>
+        <rect x="4" y="10" width="30" height="30" rx="7" fill="#ff2b4e" opacity=".85" style={{ filter: "drop-shadow(0 0 6px #ff2b4e)" }} />
+        <text x="50" y="33" textAnchor="middle" fontSize="18" fontWeight="900" fill="#ffffffcc" style={{ fontFamily: "var(--font-display)" }}>VS</text>
+        <rect x="66" y="10" width="30" height="30" rx="7" fill="#5ce1ff" opacity=".85" style={{ filter: "drop-shadow(0 0 6px #5ce1ff)" }} />
+      </svg>
     ),
   },
+  { href: "/plinko", t: "Plinko", d: "Kuglica kroz čunjeve, do 970×.", c: "#facc15", span: "", art: <PlinkoArt />, badge: "Novo" },
   { href: "/crash", t: "Crash", d: "Svi u istoj rundi. Izađi prije crasha.", c: "#5ce1ff", span: "", art: <CrashArt /> },
   { href: "/crossroad", t: "Crossroad", d: "Prijeđi autocestu traku po traku.", c: "#34d399", span: "", art: <RoadArt />, badge: "Novo" },
   { href: "/upgrader", t: "Upgrader", d: "Daj Golfa, uzmi Porschea.", c: "#8b5cf6", span: "", art: <IconArt c="#a78bfa" d={<path d="M12 20V5M5 12l7-7 7 7M5 21h14" />} /> },

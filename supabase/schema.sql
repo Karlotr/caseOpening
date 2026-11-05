@@ -2459,3 +2459,74 @@ grant execute on function public.crossroad_step() to authenticated;
 grant execute on function public.crossroad_cashout() to authenticated;
 revoke all on function public._crossroad_end(public.crossroad_games, text, numeric) from public, anon, authenticated;
 revoke all on function public._crossroad_json(public.crossroad_games) from public, anon, authenticated;
+
+-- ---------- PLINKO (4% house edge) ----------
+-- Server izvuče samo PRETINAC: zbroj {redovi} nasumičnih 0/1 (binomna razdioba, isto kao loptica 50/50 na svakom klinu).
+-- Putanju do tog pretinca složi klijent (samo prikaz). Multiplikatori su skalirani na ~96% povrata.
+insert into public.site_limits (key, value, min_value, max_value, label, sort) values
+  ('plinko_min_bet', 0.1, 0.1, 1000, 'Plinko najmanji ulog', 14),
+  ('plinko_max_bet', 10000, 1, 1000000, 'Plinko najveći ulog', 15)
+on conflict (key) do update set min_value = excluded.min_value, max_value = excluded.max_value, label = excluded.label, sort = excluded.sort;
+
+create or replace function public._plinko_table(p_rows int, p_risk text)
+returns jsonb language sql immutable as $$
+  select case p_rows::text || '_' || p_risk
+    when '8_low' then '[5.43, 2.04, 1.07, 0.97, 0.48, 0.97, 1.07, 2.04, 5.43]'::jsonb
+    when '8_medium' then '[12.6, 2.91, 1.26, 0.68, 0.39, 0.68, 1.26, 2.91, 12.6]'::jsonb
+    when '8_high' then '[28.1, 3.88, 1.45, 0.29, 0.19, 0.29, 1.45, 3.88, 28.1]'::jsonb
+    when '12_low' then '[9.7, 2.91, 1.55, 1.36, 1.07, 0.97, 0.48, 0.97, 1.07, 1.36, 1.55, 2.91, 9.7]'::jsonb
+    when '12_medium' then '[32.0, 10.7, 3.88, 1.94, 1.07, 0.58, 0.29, 0.58, 1.07, 1.94, 3.88, 10.7, 32.0]'::jsonb
+    when '12_high' then '[165, 23.2, 7.85, 1.94, 0.68, 0.19, 0.19, 0.19, 0.68, 1.94, 7.85, 23.2, 165]'::jsonb
+    when '16_low' then '[15.5, 8.73, 1.94, 1.36, 1.36, 1.16, 1.07, 0.97, 0.48, 0.97, 1.07, 1.16, 1.36, 1.36, 1.94, 8.73, 15.5]'::jsonb
+    when '16_medium' then '[107, 39.8, 9.7, 4.85, 2.91, 1.45, 0.97, 0.48, 0.29, 0.48, 0.97, 1.45, 2.91, 4.85, 9.7, 39.8, 107]'::jsonb
+    when '16_high' then '[970, 126, 25.2, 8.73, 3.88, 1.94, 0.19, 0.19, 0.19, 0.19, 0.19, 1.94, 3.88, 8.73, 25.2, 126, 970]'::jsonb
+  end;
+$$;
+
+create or replace function public.plinko_config()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'min_bet', public._limit('plinko_min_bet', 0.1), 'max_bet', public._limit('plinko_max_bet', 10000),
+    'tables', (select jsonb_object_agg(r::text || '_' || k, public._plinko_table(r, k))
+                 from unnest(array[8, 12, 16]) r, unnest(array['low','medium','high']) k));
+$$;
+
+-- p_count loptica odjednom (1–10), svaka s istim ulogom
+create or replace function public.plinko_drop(p_bet numeric, p_rows int, p_risk text, p_count int default 1)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := public._uid();
+  amt numeric := round(coalesce(p_bet, 0), 2);
+  n int := greatest(1, least(10, coalesce(p_count, 1)));
+  tbl jsonb;
+  b int;
+  i int;
+  m numeric;
+  pay numeric;
+  total numeric := 0;
+  balls jsonb := '[]'::jsonb;
+  lvl jsonb;
+begin
+  if p_rows not in (8, 12, 16) then raise exception 'Broj redova mora biti 8, 12 ili 16.'; end if;
+  if p_risk not in ('low','medium','high') then raise exception 'Neispravan rizik.'; end if;
+  if amt < public._limit('plinko_min_bet', 0.1) or amt > public._limit('plinko_max_bet', 10000) then
+    raise exception 'Ulog mora biti % – %.', public._limit('plinko_min_bet', 0.1), public._limit('plinko_max_bet', 10000);
+  end if;
+  tbl := public._plinko_table(p_rows, p_risk);
+  perform public._charge(uid, amt * n);
+  for i in 1..n loop
+    select count(*) filter (where random() < 0.5)::int into b from generate_series(1, p_rows);
+    m := (tbl->>b)::numeric;
+    pay := round(amt * m, 2);
+    total := total + pay;
+    balls := balls || jsonb_build_object('bucket', b, 'mult', m, 'payout', pay);
+  end loop;
+  if total > 0 then update public.profiles set balance = balance + total where id = uid; end if;
+  lvl := public._apply_wager(uid, amt * n);
+  insert into public.game_log (user_id, game, wager, payout, details)
+  values (uid, 'plinko', amt * n, total, jsonb_build_object('rows', p_rows, 'risk', p_risk, 'balls', balls));
+  return jsonb_build_object('balls', balls, 'payout', total) || lvl;
+end $$;
+
+grant execute on function public.plinko_config() to anon, authenticated;
+grant execute on function public.plinko_drop(numeric, int, text, int) to authenticated;

@@ -23,7 +23,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "GARAŽA.gg — kutije, battles i oldtajmeri",
-  description: "Otvaraj kutije s automobilima, igraj case battles, upgrader, crash, crossroad, rulet i jackpot. Samo virtualni coini.",
+  description: "Otvaraj kutije s automobilima, igraj case battles, upgrader, crash, crossroad, plinko, rulet i jackpot. Samo virtualni coini.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

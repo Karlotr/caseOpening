@@ -15,6 +15,7 @@ export const NAV = [
   { href: "/upgrader", label: "Upgrader" },
   { href: "/crash", label: "Crash" },
   { href: "/crossroad", label: "Crossroad" },
+  { href: "/plinko", label: "Plinko" },
   { href: "/rulet", label: "Rulet" },
   { href: "/jackpot", label: "Jackpot" },
   { href: "/rewards", label: "Nagrade", more: true },
