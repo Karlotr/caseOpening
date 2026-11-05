@@ -10,6 +10,8 @@ import { RARITY, coins } from "@/lib/format";
 import { useRpc } from "@/lib/useGame";
 import { rarityRank, sfx } from "@/lib/sound";
 import { useAuth } from "@/components/AuthProvider";
+import { fmtLeft, useNow } from "@/lib/useNow";
+import { levelWait, useLevelClaims } from "@/lib/useLevelClaims";
 import { useToast } from "@/components/Toast";
 import { CaseArt } from "@/components/CaseCard";
 import { ItemCard } from "@/components/ItemCard";
@@ -23,6 +25,8 @@ type OpenResult = { items: Item[]; instant_drop: number | null };
 export function CaseView() {
   const { slug } = useParams<{ slug: string }>();
   const { user, profile, holdWallet } = useAuth();
+  const { claims: levelClaims, reload: reloadLevelClaims } = useLevelClaims();
+  const now = useNow();
   const rpc = useRpc();
   const toast = useToast();
   const celebrate = useCelebrate();
@@ -115,6 +119,7 @@ export function CaseView() {
     setShowWon(true);
     const real = !!won[0]?.inventory_id;
     if (!real) return;
+    if (c?.case_type === "level") reloadLevelClaims();
     holdWallet(null);
     const total = won.reduce((s, w) => s + w.value, 0);
     const ratio = lastCost ? total / lastCost : 1;
@@ -174,7 +179,9 @@ export function CaseView() {
       <><span className="coin" /> {coins(c.price * count)}</>
     );
   const levelLocked = c.case_type === "level" && (profile?.level ?? 0) < c.min_level;
-  const canOpen = !!user && c.case_type !== "daily" && !levelLocked;
+  // level kutija već otvorena u zadnja 24 h (ne dok se upravo vrti / prikazuje dobitak)
+  const levelWaitMs = c.case_type === "level" && !levelLocked && !spinning && !showWon ? levelWait(levelClaims, c.id, now) : 0;
+  const canOpen = !!user && c.case_type !== "daily" && !levelLocked && levelWaitMs <= 0;
 
   return (
     <div className="space-y-6">
@@ -230,7 +237,7 @@ export function CaseView() {
               <Link href="/login" className="btn-primary py-3 text-lg">Prijavi se za otvaranje</Link>
             ) : (
               <button className={`btn-primary min-w-56 py-3 text-lg ${!spinning && canOpen && !showWon ? "glow-pulse" : ""}`} onClick={open} disabled={!canOpen || spinning}>
-                {spinning ? "Vrti se…" : levelLocked ? `Potreban level ${c.min_level}` : <>Otvori za {costLabel}</>}
+                {spinning ? "Vrti se…" : levelLocked ? `Potreban level ${c.min_level}` : levelWaitMs > 0 ? <>✓ Preuzeto · ponovno za {fmtLeft(levelWaitMs)}</> : <>Otvori za {costLabel}</>}
               </button>
             )}
             <button className="btn-ghost" onClick={demo} disabled={spinning}>Besplatna demo vrtnja</button>

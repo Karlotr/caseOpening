@@ -267,7 +267,7 @@ const SETTING_LABELS: Record<string, [string, string]> = {
 const LIMIT_GROUPS: [string, string[]][] = [
   ["Kutije i battle", ["case_max_open", "battle_max_cases"]],
   ["Jackpot", ["jackpot_round_sec", "jackpot_min_bet", "jackpot_max_bet", "jackpot_fee_pct"]],
-  ["Trinity i Slide", ["trinity_min_bet", "trinity_max_bet", "slide_min_bet", "slide_max_bet"]],
+  ["Rulet i Crash", ["rulet_min_bet", "rulet_max_bet", "crash_min_bet", "crash_max_bet"]],
 ];
 
 function SettingsTab() {

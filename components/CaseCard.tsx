@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CaseWithItems } from "@/lib/types";
 import { coins } from "@/lib/format";
 import { CarImage } from "./CarImage";
+import { LevelCaseStatus } from "./LevelCaseStatus";
 
 // Kutija kao izložbeni salon: reflektor u boji kutije, sjajni pod, najskuplji auto s odrazom
 export function CaseArt({ c, className = "", big = false }: { c: CaseWithItems; className?: string; big?: boolean }) {
@@ -34,7 +35,10 @@ export function CaseCard({ c }: { c: CaseWithItems }) {
   const top = c.items[0];
   return (
     <Link href={`/cases/${c.slug}`} className="spot group card relative overflow-hidden p-2 transition duration-300 hover:-translate-y-1 hover:border-white/20 hover:shadow-[0_24px_60px_-24px_var(--g)]" style={{ ["--g" as string]: c.color }}>
-      <CaseArt c={c} className="aspect-[4/3]" />
+      <div className="relative">
+        <CaseArt c={c} className="aspect-[4/3]" />
+        {c.case_type === "level" && <LevelCaseStatus caseId={c.id} minLevel={c.min_level} />}
+      </div>
       <div className="px-2 pb-1.5 pt-3">
         <div className="font-display text-[22px] font-extrabold leading-[1]">{c.name}</div>
         <div className="mt-2 flex items-center justify-between gap-2">

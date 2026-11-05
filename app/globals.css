@@ -241,3 +241,41 @@ body {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .trail { display: none; }
 }
+
+/* Crash */
+@keyframes crash-shake { 0%,100% { transform: translate(0,0) } 20% { transform: translate(-6px,3px) } 40% { transform: translate(5px,-4px) } 60% { transform: translate(-4px,2px) } 80% { transform: translate(3px,-1px) } }
+.crash-shake { animation: crash-shake .45s ease-out; }
+@keyframes crash-boom { from { r: 8; opacity: 1 } to { r: 60; opacity: 0 } }
+.crash-boom { animation: crash-boom .7s ease-out forwards; }
+
+/* "Rijetko" zlatna pločica u kutijama */
+.gold-rays {
+  translate: -50% -50%;
+  background: repeating-conic-gradient(from 0deg, #facc1540 0deg 8deg, transparent 8deg 24deg);
+  -webkit-mask: radial-gradient(circle, #000 18%, transparent 62%);
+          mask: radial-gradient(circle, #000 18%, transparent 62%);
+  animation: goldRays 9s linear infinite;
+}
+@keyframes goldRays { to { rotate: 360deg; } }
+.gold-aura { animation: goldAura 1.8s ease-in-out infinite; }
+@keyframes goldAura { 0%,100% { opacity: .55; scale: .92; } 50% { opacity: 1; scale: 1.12; } }
+.gold-gem { animation: goldGem 1.8s ease-in-out infinite; }
+@keyframes goldGem { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.25) drop-shadow(0 0 10px #fde68a); } }
+.gold-shine { animation: goldShine 2.4s ease-in-out infinite; }
+@keyframes goldShine { 0%, 55% { transform: translateX(0); } 85%, 100% { transform: translateX(200%); } }
+.gold-spark {
+  position: absolute; width: 7px; height: 7px; pointer-events: none;
+  background: radial-gradient(circle, #fff 0 18%, #fde68a 30%, transparent 70%);
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  animation: goldSpark 2.6s ease-in-out infinite; opacity: 0;
+}
+@keyframes goldSpark { 0%,100% { opacity: 0; scale: .3; } 15% { opacity: 1; scale: 1.3; } 35% { opacity: 0; scale: .5; } }
+.gold-label {
+  background: linear-gradient(90deg, #f59e0b, #fff7c2, #facc15, #f59e0b);
+  background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: goldLabel 2.2s linear infinite; filter: drop-shadow(0 0 6px #facc1588);
+}
+@keyframes goldLabel { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .gold-rays, .gold-aura, .gold-gem, .gold-shine, .gold-spark, .gold-label { animation: none; }
+}

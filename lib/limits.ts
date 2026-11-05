@@ -11,10 +11,10 @@ export const DEFAULT_LIMITS: Limits = {
   jackpot_min_bet: 1,
   jackpot_max_bet: 10000,
   jackpot_fee_pct: 5,
-  trinity_min_bet: 0.1,
-  trinity_max_bet: 10000,
-  slide_min_bet: 0.1,
-  slide_max_bet: 10000,
+  rulet_min_bet: 0.1,
+  rulet_max_bet: 10000,
+  crash_min_bet: 0.1,
+  crash_max_bet: 10000,
 };
 export type LimitRow = { key: string; value: number; min_value: number; max_value: number; label: string; sort: number };
 

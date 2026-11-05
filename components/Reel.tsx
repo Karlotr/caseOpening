@@ -8,19 +8,30 @@ import { CarImage } from "./CarImage";
 
 const GOLD_RANK = 4; // legendarni i mitski auti se u traci skrivaju iza zlatnog dijamanta
 
-// Zlatni dijamant (tajna) — kao "gold" u CS kutijama
+// Zlatni dijamant (tajna) — kao "gold" u CS kutijama: zrake, pulsiranje, odsjaj i iskrice
 function GoldTile({ big = false }: { big?: boolean }) {
+  const d = big ? "h-24 w-24" : "h-12 w-12";
   return (
-    <div className={`relative grid place-items-center ${big ? "h-28 w-28" : "h-14 w-14"}`}>
-      <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,#facc1588,transparent_65%)] blur-md" />
-      <div
-        className={`relative ${big ? "h-24 w-24" : "h-12 w-12"} bg-[linear-gradient(135deg,#fff7c2,#facc15_35%,#d97706_70%,#fde68a)] shadow-[0_0_24px_#facc15]`}
-        style={{ clipPath: "polygon(50% 0, 100% 38%, 50% 100%, 0 38%)" }}
-      />
+    <div className={`gold-tile relative grid place-items-center ${big ? "h-28 w-28" : "h-14 w-14"}`}>
+      {/* rotirajuće zlatne zrake */}
+      <div className="gold-rays pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[260%] rounded-full" />
+      <div className="gold-aura absolute inset-0 rounded-full bg-[radial-gradient(circle,#facc15aa,transparent_65%)] blur-md" />
+      <div className={`gold-gem relative ${d} overflow-hidden bg-[linear-gradient(135deg,#fff7c2,#facc15_35%,#d97706_70%,#fde68a)] shadow-[0_0_24px_#facc15]`} style={{ clipPath: "polygon(50% 0, 100% 38%, 50% 100%, 0 38%)" }}>
+        {/* odsjaj koji prelazi preko dijamanta */}
+        <span className="gold-shine absolute inset-y-0 -left-full w-full bg-[linear-gradient(100deg,transparent_30%,#ffffffcc_50%,transparent_70%)]" />
+      </div>
       <span className={`absolute font-display font-black text-amber-900 ${big ? "text-4xl" : "text-xl"}`} style={{ marginTop: big ? -10 : -6 }}>?</span>
+      {/* iskrice */}
+      <i className="gold-spark" style={{ top: "6%", left: "78%", animationDelay: "0s" }} />
+      <i className="gold-spark" style={{ top: "70%", left: "8%", animationDelay: ".7s" }} />
+      <i className="gold-spark" style={{ top: "18%", left: "4%", animationDelay: "1.3s" }} />
+      <i className="gold-spark" style={{ top: "82%", left: "84%", animationDelay: "1.9s" }} />
     </div>
   );
 }
+
+const SPIN_EASE = "cubic-bezier(0.08, 0.6, 0.12, 1)";
+const SETTLE_EASE = "cubic-bezier(0.45, 0, 0.2, 1)"; // kratko poravnanje na sredinu nakon zaustavljanja
 
 type Stage = "idle" | "spin" | "gold" | "spin2" | "done";
 
@@ -54,6 +65,7 @@ export function Reel({
   const [offset, setOffset] = useState(0);
   const [animate, setAnimate] = useState(false);
   const [dur, setDur] = useState(duration);
+  const [ease, setEase] = useState(SPIN_EASE);
   const [stage, setStage] = useState<Stage>("idle");
   const [strip, setStrip] = useState<Item[]>(items);
   const lg = size === "lg" && !vertical;
@@ -90,6 +102,7 @@ export function Reel({
 
     const run = (len: number, onLand: () => void, goldSpin = false) => {
       let lastIdx = -1;
+      setEase(SPIN_EASE);
       const t0 = performance.now();
       const watch = () => {
         if (!track.current) return;
@@ -102,16 +115,27 @@ export function Reel({
         }
         if (performance.now() - t0 < len + 100) raf = requestAnimationFrame(watch);
       };
+      // traka stane negdje na kartici (napetost), pa se glatko poravna točno na sredinu.
+      // Ukupno trajanje ostaje `len` (battle tajming se ne mijenja).
+      const settle = Math.min(420, len * 0.25);
+      const center = winnerIndex * tile - size / 2 + tile / 2;
       setAnimate(false);
       setOffset(0);
-      setDur(len);
+      setDur(len - settle);
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
           setAnimate(true);
-          setOffset(winnerIndex * tile - size / 2 + tile / 2 + (Math.random() - 0.5) * tile * 0.7);
+          setOffset(center + (Math.random() - 0.5) * tile * 0.7);
           if (sound) sfx.spin();
           raf = requestAnimationFrame(watch);
         })
+      );
+      timers.push(
+        setTimeout(() => {
+          setEase(SETTLE_EASE);
+          setDur(settle);
+          setOffset(center);
+        }, len - settle + 30)
       );
       timers.push(setTimeout(onLand, len + 80));
     };
@@ -174,7 +198,7 @@ export function Reel({
         className={vertical ? "flex flex-col" : "flex"}
         style={{
           transform: vertical ? `translateY(${-offset}px)` : `translateX(${-offset}px)`,
-          transition: animate ? `transform ${dur}ms cubic-bezier(0.08, 0.6, 0.12, 1)` : "none",
+          transition: animate ? `transform ${dur}ms ${ease}` : "none",
         }}
       >
         {strip.map((it, i) => {
@@ -190,7 +214,7 @@ export function Reel({
                 height: vertical ? tile : H,
                 borderRight: vertical ? undefined : "1px solid #ffffff0a",
                 borderBottom: vertical ? "1px solid #ffffff0a" : undefined,
-                background: hidden ? "radial-gradient(80% 70% at 50% 60%, #facc1533, transparent 70%)" : `radial-gradient(90% 70% at 50% 100%, ${c}${isWin ? "88" : "38"}, transparent 70%)`,
+                background: hidden ? "radial-gradient(80% 70% at 50% 60%, #facc1555, transparent 72%), linear-gradient(180deg, transparent 60%, #facc151a)" : `radial-gradient(90% 70% at 50% 100%, ${c}${isWin ? "88" : "38"}, transparent 70%)`,
                 opacity: (landed || stage === "gold") && !isWin ? 0.25 : 1,
                 transition: "opacity .4s",
               }}
@@ -198,7 +222,7 @@ export function Reel({
               {hidden ? (
                 <>
                   <GoldTile big={isWin && stage === "gold"} />
-                  {!(isWin && stage === "gold") && <div className="mt-1 font-display text-sm font-bold text-amber-300">Rijetko</div>}
+                  {!(isWin && stage === "gold") && <div className="gold-label mt-1 font-display text-sm font-bold">Rijetko</div>}
                 </>
               ) : (
                 <>

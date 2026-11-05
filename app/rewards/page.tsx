@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { getCases, randomFromCase } from "@/lib/data";
 import type { CaseWithItems, Item } from "@/lib/types";
 import { coins, levelProgress, xpForLevel } from "@/lib/format";
 import { useRpc } from "@/lib/useGame";
 import { fmtLeft, useNow } from "@/lib/useNow";
+import { levelWait, useLevelClaims } from "@/lib/useLevelClaims";
 import { useAuth } from "@/components/AuthProvider";
 import { RequireAuth } from "@/components/RequireAuth";
 import { CaseArt } from "@/components/CaseCard";
+import { ClaimedStamp } from "@/components/ClaimedStamp";
 import { Reel } from "@/components/Reel";
 import { ItemCard } from "@/components/ItemCard";
 import { useCelebrate } from "@/components/WinOverlay";
@@ -41,21 +43,16 @@ function Rewards() {
   const rpc = useRpc();
   const now = useNow();
   const [cases, setCases] = useState<CaseWithItems[]>([]);
-  const [claims, setClaims] = useState<Record<number, string>>({});
   const [strip, setStrip] = useState<Item[]>([]);
   const [spinKey, setSpinKey] = useState(0);
   const [dailyWon, setDailyWon] = useState<Item | null>(null);
   const [spinning, setSpinning] = useState(false);
 
-  const loadClaims = useCallback(async () => {
-    const { data } = await createClient().from("level_case_claims").select("case_id, claimed_at");
-    setClaims(Object.fromEntries((data ?? []).map((r) => [r.case_id, r.claimed_at])));
-  }, []);
+  const { claims } = useLevelClaims();
   useEffect(() => {
     getCases().then(setCases);
-    loadClaims();
     createClient().rpc("get_settings").then(({ data }) => data && setSettings(data as Record<string, boolean>));
-  }, [loadClaims]);
+  }, []);
 
   if (!profile) return null;
   const daily = cases.filter((c) => c.case_type === "daily").sort((a, b) => (a.streak_min ?? 0) - (b.streak_min ?? 0));
@@ -172,13 +169,24 @@ function Rewards() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {levelCases.map((c) => {
             const locked = profile.level < c.min_level;
-            const last = claims[c.id];
-            const wait = now && last ? new Date(last).getTime() + DAY - now : 0;
+            const wait = levelWait(claims, c.id, now);
+            const claimed = !locked && wait > 0;
+            const ready = !locked && !claimed;
             return (
-              <Link key={c.id} href={`/cases/${c.slug}`} className={`card p-3 transition hover:border-white/25 ${locked ? "opacity-50" : ""}`}>
-                <CaseArt c={c} className="h-24" />
+              <Link
+                key={c.id}
+                href={`/cases/${c.slug}`}
+                className={`card relative p-3 transition ${locked ? "opacity-50" : claimed ? "border-white/5 opacity-75 hover:opacity-90" : "border-emerald-400/50 shadow-[0_0_28px_-10px_#34d399] hover:border-emerald-300"}`}
+              >
+                <div className="relative">
+                  <CaseArt c={c} className={`h-24 transition ${claimed ? "grayscale brightness-50" : ""}`} />
+                  {claimed && <ClaimedStamp />}
+                  {ready && <span className="absolute right-1.5 top-1.5 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink shadow-[0_0_12px_#34d399]">Novo</span>}
+                </div>
                 <div className="mt-2 font-display text-sm font-semibold">{c.name}</div>
-                <div className="text-xs text-muted">{locked ? `🔒 Level ${c.min_level} (još ${coins(xpForLevel(c.min_level) - profile.xp)} XP)` : wait > 0 ? `Za ${fmtLeft(wait)}` : <span className="text-emerald-400">Dostupno!</span>}</div>
+                <div className="text-xs text-muted tabular-nums">
+                  {locked ? `🔒 Level ${c.min_level} (još ${coins(xpForLevel(c.min_level) - profile.xp)} XP)` : claimed ? <>Ponovno za <b className="text-fg">{fmtLeft(wait)}</b></> : <span className="font-semibold text-emerald-400">Dostupno!</span>}
+                </div>
               </Link>
             );
           })}

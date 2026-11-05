@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { CountUp } from "./CountUp";
 import { isMuted, onMuteChange, setMuted, sfx } from "@/lib/sound";
 import { useAuth } from "./AuthProvider";
@@ -12,8 +12,8 @@ export const NAV = [
   { href: "/cases", label: "Kutije" },
   { href: "/battles", label: "Battles" },
   { href: "/upgrader", label: "Upgrader" },
-  { href: "/slide", label: "Slide" },
-  { href: "/trinity", label: "Trinity" },
+  { href: "/crash", label: "Crash" },
+  { href: "/rulet", label: "Rulet" },
   { href: "/jackpot", label: "Jackpot" },
   { href: "/rewards", label: "Nagrade", more: true },
   { href: "/gems", label: "Gemovi", more: true },
@@ -24,6 +24,23 @@ export const NAV = [
 function Links({ onClick, all = false }: { onClick?: () => void; all?: boolean }) {
   const path = usePathname();
   const [more, setMore] = useState(false);
+  const moreBox = useRef<HTMLDivElement>(null);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // zatvori klikom izvan izbornika ili Escapeom (ne odmah na izlazak miša — tada se ne može doći do stavki)
+  useEffect(() => {
+    if (!more) return;
+    const onDown = (e: PointerEvent) => {
+      if (!moreBox.current?.contains(e.target as Node)) setMore(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMore(false);
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [more]);
+  useEffect(() => () => { if (leaveTimer.current) clearTimeout(leaveTimer.current); }, []);
   const extra = NAV.filter((n) => n.more);
   const extraActive = extra.some((n) => path === n.href || path.startsWith(n.href + "/"));
   return (
@@ -46,7 +63,14 @@ function Links({ onClick, all = false }: { onClick?: () => void; all?: boolean }
         );
       })}
       {!all && (
-        <div className="relative" onMouseLeave={() => setMore(false)}>
+        <div
+          ref={moreBox}
+          className="relative"
+          onMouseEnter={() => leaveTimer.current && clearTimeout(leaveTimer.current)}
+          onMouseLeave={() => {
+            leaveTimer.current = setTimeout(() => setMore(false), 250);
+          }}
+        >
           <button
             type="button"
             onClick={() => setMore((m) => !m)}
@@ -57,12 +81,15 @@ function Links({ onClick, all = false }: { onClick?: () => void; all?: boolean }
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`transition ${more ? "rotate-180" : ""}`} aria-hidden><path d="m6 9 6 6 6-6" /></svg>
           </button>
           {more && (
-            <div className="absolute left-0 top-full z-[55] mt-1 w-44 rounded-2xl border border-white/10 bg-[#14142c] p-1.5 shadow-[0_24px_60px_-12px_rgba(0,0,0,.85)]">
+            // pt-2 umjesto mt-1: nema rupe između gumba i izbornika u kojoj bi miš "izašao"
+            <div className="absolute left-0 top-full z-[55] w-44 pt-2">
+            <div className="rounded-2xl border border-white/10 bg-[#14142c] p-1.5 shadow-[0_24px_60px_-12px_rgba(0,0,0,.85)]">
               {extra.map((n) => (
                 <Link key={n.href} href={n.href} onClick={() => setMore(false)} className={`block rounded px-3 py-2 font-display text-[15px] font-bold hover:bg-white/5 ${path.startsWith(n.href) ? "text-fg" : "text-muted"}`}>
                   {n.label}
                 </Link>
               ))}
+            </div>
             </div>
           )}
         </div>

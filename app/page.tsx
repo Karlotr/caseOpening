@@ -11,8 +11,8 @@ import { CarImage } from "@/components/CarImage";
 const ICON: Record<string, React.ReactNode> = {
   battles: <path d="M5 5l14 14M19 5L5 19M3 9l6-6M15 21l6-6" />,
   upgrader: <path d="M12 20V5M5 12l7-7 7 7M5 21h14" />,
-  slide: <path d="M4 12h12M12 6l6 6-6 6M3 6v12" />,
-  trinity: <><circle cx="6" cy="12" r="2.5" /><circle cx="12" cy="12" r="2.5" /><circle cx="18" cy="12" r="2.5" /></>,
+  crash: <path d="M3 20h18M4 18c6 0 10-4 13-12M17 6h3v3" />,
+  rulet: <><circle cx="6" cy="12" r="2.5" /><circle cx="12" cy="12" r="2.5" /><circle cx="18" cy="12" r="2.5" /></>,
   jackpot: <><circle cx="12" cy="12" r="8" /><path d="M12 4v8l6 5" /></>,
   rewards: <><rect x="4" y="9" width="16" height="11" rx="2" /><path d="M12 9v11M4 13h16M12 9c-3 0-5-1-5-3s3-2 5 3c2-5 5-5 5-3s-2 3-5 3" /></>,
 };
@@ -20,8 +20,8 @@ const ICON: Record<string, React.ReactNode> = {
 const MODES = [
   { href: "/battles", k: "battles", t: "Case Battles", d: "1v1 do 6-way, Crazy i Jackpot, sponzorirani i privatni.", c: "#ff2b4e" },
   { href: "/upgrader", k: "upgrader", t: "Upgrader", d: "Daj Golfa, uzmi Porschea. Ti biraš šansu.", c: "#8b5cf6" },
-  { href: "/slide", k: "slide", t: "Slide", d: "Odaberi multiplikator i pusti traku.", c: "#5ce1ff" },
-  { href: "/trinity", k: "trinity", t: "Trinity", d: "Crvena, crna ili zlatna 14×.", c: "#ff5a3c" },
+  { href: "/crash", k: "crash", t: "Crash", d: "Postavi cash-out i gledaj kako raste do crasha.", c: "#5ce1ff" },
+  { href: "/rulet", k: "rulet", t: "Rulet", d: "Crvena, crna ili zlatna 14×.", c: "#ff5a3c" },
   { href: "/jackpot", k: "jackpot", t: "Jackpot", d: "Svake minute nova runda s pravim igračima.", c: "#34d399" },
   { href: "/rewards", k: "rewards", t: "Nagrade", d: "Dnevna kutija, level kutije i kiša coina u chatu.", c: "#ffb547" },
 ];

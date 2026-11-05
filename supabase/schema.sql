@@ -205,11 +205,23 @@ insert into public.site_limits (key, value, min_value, max_value, label, sort) v
   ('jackpot_min_bet', 1, 0.1, 1000, 'Jackpot najmanji ulog', 4),
   ('jackpot_max_bet', 10000, 1, 1000000, 'Jackpot najveći ulog', 5),
   ('jackpot_fee_pct', 5, 0, 20, 'Jackpot provizija kuće (%)', 6),
-  ('trinity_min_bet', 0.1, 0.1, 1000, 'Trinity najmanji ulog', 7),
-  ('trinity_max_bet', 10000, 1, 1000000, 'Trinity najveći ulog', 8),
-  ('slide_min_bet', 0.1, 0.1, 1000, 'Slide najmanji ulog', 9),
-  ('slide_max_bet', 10000, 1, 1000000, 'Slide najveći ulog', 10)
+  ('rulet_min_bet', 0.1, 0.1, 1000, 'Rulet najmanji ulog', 7),
+  ('rulet_max_bet', 10000, 1, 1000000, 'Rulet najveći ulog', 8),
+  ('crash_min_bet', 0.1, 0.1, 1000, 'Crash najmanji ulog', 9),
+  ('crash_max_bet', 10000, 1, 1000000, 'Crash najveći ulog', 10)
 on conflict (key) do update set min_value = excluded.min_value, max_value = excluded.max_value, label = excluded.label, sort = excluded.sort;
+
+-- ---------- PREIMENOVANJE: Trinity → Rulet, Slide → Crash (jednokratno, sigurno za ponovno pokretanje) ----------
+-- zadrži vrijednosti koje je admin već postavio na starim ključevima
+update public.site_limits n set value = o.value
+  from public.site_limits o
+ where (o.key, n.key) in (('trinity_min_bet','rulet_min_bet'), ('trinity_max_bet','rulet_max_bet'),
+                          ('slide_min_bet','crash_min_bet'), ('slide_max_bet','crash_max_bet'));
+delete from public.site_limits where key in ('trinity_min_bet', 'trinity_max_bet', 'slide_min_bet', 'slide_max_bet');
+update public.game_log set game = 'rulet' where game = 'trinity';
+update public.game_log set game = 'crash' where game = 'slide';
+drop function if exists public.play_trinity(numeric, text);
+drop function if exists public.play_slide(numeric, numeric);
 
 create or replace function public._limit(p_key text, p_default numeric)
 returns numeric language sql stable security definer set search_path = public as $$
@@ -606,8 +618,8 @@ begin
                             'item', public._item_json(p_target_item)) || lvl;
 end $$;
 
--- ---------- SLIDE (multiplikator, 4% house edge) ----------
-create or replace function public.play_slide(p_bet numeric, p_target numeric)
+-- ---------- CRASH (multiplikator, 4% house edge) ----------
+create or replace function public.play_crash(p_bet numeric, p_target numeric)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   uid uuid := public._uid();
@@ -617,8 +629,8 @@ declare
   payout numeric := 0;
   lvl jsonb;
 begin
-  if p_bet < public._limit('slide_min_bet', 0.1) or p_bet > public._limit('slide_max_bet', 10000) then
-    raise exception 'Ulog mora biti % – %.', public._limit('slide_min_bet', 0.1), public._limit('slide_max_bet', 10000);
+  if p_bet < public._limit('crash_min_bet', 0.1) or p_bet > public._limit('crash_max_bet', 10000) then
+    raise exception 'Ulog mora biti % – %.', public._limit('crash_min_bet', 0.1), public._limit('crash_max_bet', 10000);
   end if;
   if p_target < 1.01 or p_target > 1000 then raise exception 'Cilj mora biti 1.01x–1000x.'; end if;
   perform public._charge(uid, p_bet);
@@ -631,13 +643,13 @@ begin
   end if;
   lvl := public._apply_wager(uid, p_bet);
   insert into public.game_log (user_id, game, wager, payout, details)
-  values (uid, 'slide', p_bet, payout, jsonb_build_object('target', p_target, 'result', m));
+  values (uid, 'crash', p_bet, payout, jsonb_build_object('target', p_target, 'result', m));
   return jsonb_build_object('result', m, 'won', won, 'payout', payout) || lvl;
 end $$;
 
--- ---------- TRINITY (30 polja: 14 crvena x2, 14 crna x2, 2 zlatna x14) ----------
+-- ---------- RULET (30 polja: 14 crvena x2, 14 crna x2, 2 zlatna x14) ----------
 -- polje 0 i 15 = zlatna, ostala neparna = crvena, parna = crna
-create or replace function public.play_trinity(p_bet numeric, p_color text)
+create or replace function public.play_rulet(p_bet numeric, p_color text)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   uid uuid := public._uid();
@@ -648,8 +660,8 @@ declare
   lvl jsonb;
 begin
   if p_color not in ('red','black','gold') then raise exception 'Neispravna boja.'; end if;
-  if p_bet < public._limit('trinity_min_bet', 0.1) or p_bet > public._limit('trinity_max_bet', 10000) then
-    raise exception 'Ulog mora biti % – %.', public._limit('trinity_min_bet', 0.1), public._limit('trinity_max_bet', 10000);
+  if p_bet < public._limit('rulet_min_bet', 0.1) or p_bet > public._limit('rulet_max_bet', 10000) then
+    raise exception 'Ulog mora biti % – %.', public._limit('rulet_min_bet', 0.1), public._limit('rulet_max_bet', 10000);
   end if;
   perform public._charge(uid, p_bet);
   slot := floor(random()::numeric * 30)::int;
@@ -661,7 +673,7 @@ begin
   end if;
   lvl := public._apply_wager(uid, p_bet);
   insert into public.game_log (user_id, game, wager, payout, details)
-  values (uid, 'trinity', p_bet, payout, jsonb_build_object('pick', p_color, 'slot', slot, 'color', color));
+  values (uid, 'rulet', p_bet, payout, jsonb_build_object('pick', p_color, 'slot', slot, 'color', color));
   return jsonb_build_object('slot', slot, 'color', color, 'won', color = p_color, 'payout', payout) || lvl;
 end $$;
 
@@ -1071,8 +1083,8 @@ grant execute on function public._uid() to authenticated;
 grant execute on function public.open_case(text, int) to authenticated;
 grant execute on function public.sell_items(bigint[]) to authenticated;
 grant execute on function public.upgrade_items(bigint[], int, numeric) to authenticated;
-grant execute on function public.play_slide(numeric, numeric) to authenticated;
-grant execute on function public.play_trinity(numeric, text) to authenticated;
+grant execute on function public.play_crash(numeric, numeric) to authenticated;
+grant execute on function public.play_rulet(numeric, text) to authenticated;
 grant execute on function public.play_jackpot(numeric) to authenticated;
 grant execute on function public.claim_daily() to authenticated;
 grant execute on function public.claim_reward(text) to authenticated;
