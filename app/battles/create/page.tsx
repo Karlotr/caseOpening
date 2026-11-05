@@ -12,10 +12,12 @@ import { CaseArt } from "@/components/CaseCard";
 import { StakePicker } from "@/components/StakePicker";
 import { Price } from "@/components/Price";
 import { RequireAuth } from "@/components/RequireAuth";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function CreateBattle() {
   const router = useRouter();
   const rpc = useRpc();
+  const { refresh } = useAuth();
   const limits = useLimits();
   const [cases, setCases] = useState<CaseWithItems[]>([]);
   const [mode, setMode] = useState<string>("1v1");
@@ -71,11 +73,24 @@ export default function CreateBattle() {
     });
   };
 
+  const creating = useRef(false);
+  // stranica battlea se učita unaprijed, da prijelaz nakon kreiranja bude trenutan
+  useEffect(() => {
+    router.prefetch("/battles/0");
+  }, [router]);
   const create = async () => {
+    if (creating.current) return; // zaštita od duplog klika
+    creating.current = true;
     setBusy(true);
-    const id = await rpc<string>("create_battle", { p_mode: mode, p_case_ids: picked, p_crazy: crazy, p_jackpot: jackpot, p_stake: stake, p_sponsored: sponsored, p_private: priv, p_fast: fast });
+    // stanje se osvježava u pozadini (ne čeka se prije prelaska na battle)
+    const id = await rpc<string>("create_battle", { p_mode: mode, p_case_ids: picked, p_crazy: crazy, p_jackpot: jackpot, p_stake: stake, p_sponsored: sponsored, p_private: priv, p_fast: fast }, { silentRefresh: true });
+    if (id) {
+      refresh();
+      router.push(`/battles/${id}`); // gumb ostaje u "Kreiram…" dok se battle ne otvori
+      return;
+    }
+    creating.current = false;
     setBusy(false);
-    if (id) router.push(`/battles/${id}`);
   };
 
   return (
@@ -146,8 +161,13 @@ export default function CreateBattle() {
                 Ulaz po igraču: <Price amount={cost} gems={gems} className="font-display text-lg text-fg" />
                 {sponsored && <> · sponzorstvo: <Price amount={cost * (m.seats - 1)} gems={gems} className="font-display text-lg text-emerald-300" /></>}
               </div>
-              <button className="btn-primary w-full whitespace-nowrap px-6 py-3 text-lg tabular-nums sm:w-auto" disabled={!picked.length || busy} onClick={create}>
-                {busy ? "Kreiram…" : `Kreiraj battle za ${coins(cost * stake + (sponsored ? cost * (m.seats - 1) : 0))}${gems ? " gemova" : ""}`}
+              <button className="btn-primary w-full whitespace-nowrap px-6 py-3 text-lg tabular-nums sm:w-auto" disabled={!picked.length || busy} aria-busy={busy} onClick={create}>
+                {busy ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink/30 border-t-ink" aria-hidden />
+                    Kreiram battle…
+                  </span>
+                ) : `Kreiraj battle za ${coins(cost * stake + (sponsored ? cost * (m.seats - 1) : 0))}${gems ? " gemova" : ""}`}
               </button>
             </div>
           </div>
