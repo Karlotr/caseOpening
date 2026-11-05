@@ -20,7 +20,7 @@ const ICON: Record<string, React.ReactNode> = {
 const MODES = [
   { href: "/battles", k: "battles", t: "Case Battles", d: "1v1 do 6-way, Crazy i Jackpot, sponzorirani i privatni.", c: "#ff2b4e" },
   { href: "/upgrader", k: "upgrader", t: "Upgrader", d: "Daj Golfa, uzmi Porschea. Ti biraš šansu.", c: "#8b5cf6" },
-  { href: "/crash", k: "crash", t: "Crash", d: "Postavi cash-out i gledaj kako raste do crasha.", c: "#5ce1ff" },
+  { href: "/crash", k: "crash", t: "Crash", d: "Svi u istoj rundi — izađi prije nego što crasha.", c: "#5ce1ff" },
   { href: "/rulet", k: "rulet", t: "Rulet", d: "Crvena, crna ili zlatna 14×.", c: "#ff5a3c" },
   { href: "/jackpot", k: "jackpot", t: "Jackpot", d: "Svake minute nova runda s pravim igračima.", c: "#34d399" },
   { href: "/rewards", k: "rewards", t: "Nagrade", d: "Dnevna kutija, level kutije i kiša coina u chatu.", c: "#ffb547" },

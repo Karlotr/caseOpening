@@ -12,11 +12,17 @@ export const RARITY: Record<Rarity, { label: string; color: string }> = {
   mythic: { label: "Mitski", color: "#facc15" },
 };
 
-// XP potreban za level L (mora odgovarati level_for_xp u SQL-u)
-export const xpForLevel = (level: number) => 25 * (level - 1) ** 2;
+// XP potreban za level L (mora odgovarati xp_for_level / level_for_xp u SQL-u)
+// do 100: 25·(L−1)²; nakon 100 svaki level je 3× skuplji; max 500
+export const MAX_LEVEL = 500;
+export const xpForLevel = (level: number) => {
+  const l = Math.max(1, Math.min(MAX_LEVEL, level));
+  return l <= 100 ? 25 * (l - 1) ** 2 : 245025 + 75 * ((l - 1) ** 2 - 99 ** 2);
+};
 
 export const levelProgress = (xp: number, level: number) => {
   const a = xpForLevel(level);
+  if (level >= MAX_LEVEL) return { pct: 100, next: a, current: a };
   const b = xpForLevel(level + 1);
   return { pct: Math.max(0, Math.min(100, ((xp - a) / (b - a)) * 100)), next: b, current: a };
 };

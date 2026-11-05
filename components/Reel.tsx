@@ -8,24 +8,22 @@ import { CarImage } from "./CarImage";
 
 const GOLD_RANK = 4; // legendarni i mitski auti se u traci skrivaju iza zlatnog dijamanta
 
-// Zlatni dijamant (tajna) — kao "gold" u CS kutijama: zrake, pulsiranje, odsjaj i iskrice
+// Zlatni dijamant (tajna) — kao "gold" u CS kutijama: puls sjaja, odsjaj i iskrice.
+// Optimizirano: animira se samo transform/opacity (bez blur/filter animacija), a dok se traka vrti sve stoji.
 function GoldTile({ big = false }: { big?: boolean }) {
   const d = big ? "h-24 w-24" : "h-12 w-12";
   return (
     <div className={`gold-tile relative grid place-items-center ${big ? "h-28 w-28" : "h-14 w-14"}`}>
-      {/* rotirajuće zlatne zrake */}
-      <div className="gold-rays pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[260%] rounded-full" />
-      <div className="gold-aura absolute inset-0 rounded-full bg-[radial-gradient(circle,#facc15aa,transparent_65%)] blur-md" />
-      <div className={`gold-gem relative ${d} overflow-hidden bg-[linear-gradient(135deg,#fff7c2,#facc15_35%,#d97706_70%,#fde68a)] shadow-[0_0_24px_#facc15]`} style={{ clipPath: "polygon(50% 0, 100% 38%, 50% 100%, 0 38%)" }}>
-        {/* odsjaj koji prelazi preko dijamanta */}
+      {/* aura: gradijent umjesto blur filtera */}
+      <div className="gold-aura absolute -inset-3 rounded-full bg-[radial-gradient(circle,#facc15aa_0%,#facc1544_35%,transparent_68%)]" />
+      <div className={`relative ${d} overflow-hidden bg-[linear-gradient(135deg,#fff7c2,#facc15_35%,#d97706_70%,#fde68a)]`} style={{ clipPath: "polygon(50% 0, 100% 38%, 50% 100%, 0 38%)" }}>
+        {/* "pulsiranje" svjetline kao bijeli sloj (opacity), ne filter */}
+        <span className="gold-glint absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,#fffbe6,transparent_70%)]" />
         <span className="gold-shine absolute inset-y-0 -left-full w-full bg-[linear-gradient(100deg,transparent_30%,#ffffffcc_50%,transparent_70%)]" />
       </div>
       <span className={`absolute font-display font-black text-amber-900 ${big ? "text-4xl" : "text-xl"}`} style={{ marginTop: big ? -10 : -6 }}>?</span>
-      {/* iskrice */}
       <i className="gold-spark" style={{ top: "6%", left: "78%", animationDelay: "0s" }} />
-      <i className="gold-spark" style={{ top: "70%", left: "8%", animationDelay: ".7s" }} />
-      <i className="gold-spark" style={{ top: "18%", left: "4%", animationDelay: "1.3s" }} />
-      <i className="gold-spark" style={{ top: "82%", left: "84%", animationDelay: "1.9s" }} />
+      <i className="gold-spark" style={{ top: "74%", left: "8%", animationDelay: "1.1s" }} />
     </div>
   );
 }
@@ -190,12 +188,12 @@ export function Reel({
   return (
     <div
       ref={box}
-      className={`reel relative w-full min-w-0 overflow-hidden rounded-2xl border bg-[linear-gradient(180deg,#0c0c1c,#07070f)] transition-colors duration-500 ${vertical ? "h-[260px] md:h-[336px]" : ""} ${stage === "spin2" ? "bg-[radial-gradient(circle,#facc1522,transparent_70%)]" : ""}`}
+      className={`reel relative w-full min-w-0 overflow-hidden rounded-2xl border [contain:layout_paint] ${stage === "spin" || stage === "spin2" ? "reel-moving" : ""} bg-[linear-gradient(180deg,#0c0c1c,#07070f)] transition-colors duration-500 ${vertical ? "h-[260px] md:h-[336px]" : ""} ${stage === "spin2" ? "bg-[radial-gradient(circle,#facc1522,transparent_70%)]" : ""}`}
       style={{ height: vertical ? undefined : H, borderColor: glow ?? "var(--color-line)", boxShadow: glow ? `0 0 30px ${glow}55, inset 0 0 40px ${glow}22` : undefined }}
     >
       <div
         ref={track}
-        className={vertical ? "flex flex-col" : "flex"}
+        className={`${vertical ? "flex flex-col" : "flex"} ${animate ? "will-change-transform" : ""}`}
         style={{
           transform: vertical ? `translateY(${-offset}px)` : `translateX(${-offset}px)`,
           transition: animate ? `transform ${dur}ms ${ease}` : "none",

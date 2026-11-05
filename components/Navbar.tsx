@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { CountUp } from "./CountUp";
+import { GameIcon } from "./GameIcon";
 import { isMuted, onMuteChange, setMuted, sfx } from "@/lib/sound";
 import { useAuth } from "./AuthProvider";
 import { levelProgress } from "@/lib/format";
@@ -53,10 +54,12 @@ function Links({ onClick, all = false }: { onClick?: () => void; all?: boolean }
             href={n.href}
             onClick={onClick}
             aria-current={active ? "page" : undefined}
-            className={`relative whitespace-nowrap rounded-lg px-2 py-2 font-display text-[15px] font-bold transition 2xl:px-3 2xl:text-[16px] ${
+            className={`relative flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-2 font-display text-[15px] font-bold transition 2xl:px-3 2xl:text-[16px] ${
               active ? "text-fg" : "text-muted hover:bg-white/[.05] hover:text-fg"
             }`}
           >
+            {/* desktop: ikona tek kad ima mjesta; mobilni izbornik: uvijek */}
+            <GameIcon href={n.href} className={`h-4 w-4 ${active ? "text-accent" : "opacity-80"} ${all ? "" : "hidden min-[1380px]:block"}`} />
             {n.label}
             {active && <span className="absolute inset-x-3 -bottom-[14px] h-[2px] rounded-full bg-[linear-gradient(90deg,#ff2b4e,#ffb547)] shadow-[0_0_12px_#ff5a3c]" />}
           </Link>
@@ -85,7 +88,8 @@ function Links({ onClick, all = false }: { onClick?: () => void; all?: boolean }
             <div className="absolute left-0 top-full z-[55] w-44 pt-2">
             <div className="rounded-2xl border border-white/10 bg-[#14142c] p-1.5 shadow-[0_24px_60px_-12px_rgba(0,0,0,.85)]">
               {extra.map((n) => (
-                <Link key={n.href} href={n.href} onClick={() => setMore(false)} className={`block rounded px-3 py-2 font-display text-[15px] font-bold hover:bg-white/5 ${path.startsWith(n.href) ? "text-fg" : "text-muted"}`}>
+                <Link key={n.href} href={n.href} onClick={() => setMore(false)} className={`flex items-center gap-2 rounded px-3 py-2 font-display text-[15px] font-bold hover:bg-white/5 ${path.startsWith(n.href) ? "text-fg" : "text-muted"}`}>
+                  <GameIcon href={n.href} />
                   {n.label}
                 </Link>
               ))}
@@ -102,7 +106,8 @@ function StaticLinks() {
   return (
     <>
       {NAV.filter((n) => !n.more).map((n) => (
-        <Link key={n.href} href={n.href} className="px-2 py-2 font-display text-[15px] font-bold text-muted">
+        <Link key={n.href} href={n.href} className="flex items-center gap-1.5 px-2 py-2 font-display text-[15px] font-bold text-muted">
+          <GameIcon href={n.href} className="hidden h-4 w-4 opacity-80 min-[1380px]:block" />
           {n.label}
         </Link>
       ))}

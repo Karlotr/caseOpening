@@ -267,7 +267,7 @@ const SETTING_LABELS: Record<string, [string, string]> = {
 const LIMIT_GROUPS: [string, string[]][] = [
   ["Kutije i battle", ["case_max_open", "battle_max_cases"]],
   ["Jackpot", ["jackpot_round_sec", "jackpot_min_bet", "jackpot_max_bet", "jackpot_fee_pct"]],
-  ["Rulet i Crash", ["rulet_min_bet", "rulet_max_bet", "crash_min_bet", "crash_max_bet"]],
+  ["Rulet i Crash", ["rulet_min_bet", "rulet_max_bet", "crash_min_bet", "crash_max_bet", "crash_bet_sec"]],
 ];
 
 function SettingsTab() {
@@ -578,7 +578,7 @@ function UserEditor({ u, onChanged, tick, onClose }: { u: U; onChanged: () => vo
             </Block>
             <Block title="Level i nagrade">
               <div className="flex flex-wrap gap-2">
-                <input className="input w-24" type="number" min={1} max={100} value={level} onChange={(e) => setLevel(e.target.value)} aria-label="Level" />
+                <input className="input w-24" type="number" min={1} max={500} value={level} onChange={(e) => setLevel(e.target.value)} aria-label="Level" />
                 <button className="btn-ghost" onClick={() => call("admin_set_level", { p_user: u.id, p_level: Number(level) }, "Level je postavljen.")}>Postavi</button>
                 <button className="btn-ghost ml-auto" onClick={() => call("admin_reset_cooldowns", { p_user: u.id }, "Nagrade su ponovno dostupne.")}>Resetiraj nagrade</button>
               </div>
