@@ -269,7 +269,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .gold-aura, .gold-glint, .gold-shine, .gold-spark { animation: none; }
 }
-}
 
 .crash-stars {
   background-image: radial-gradient(1px 1px at 20% 30%, #ffffff55 50%, transparent 51%), radial-gradient(1px 1px at 70% 60%, #ffffff40 50%, transparent 51%),
