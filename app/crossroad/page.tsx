@@ -53,6 +53,7 @@ function Crossroad() {
   const [view, setView] = useState<View>({ difficulty: "medium", lane: 0, status: "idle", bet: 1 });
   const [busy, setBusy] = useState(false);
   const [shake, setShake] = useState(0);
+  const [boost, setBoost] = useState<{ key: number; lane: number; text: string } | null>(null); // efekt prijeđene trake
   const road = useRef<HTMLDivElement>(null);
   const [roadW, setRoadW] = useState(800);
   const [laneW, setLaneW] = useState(100);
@@ -124,6 +125,8 @@ function Crossroad() {
     const r = { ...d.result, bet: Number(d.result.bet), payout: Number(d.result.payout), mult: Number(d.result.mult) };
     if (d.ok) {
       sfx.tick();
+      sfx.coin();
+      setBoost({ key: Date.now(), lane: r.lane, text: `${fmtM(r.mult)}` });
       setView((v) => ({ ...v, lane: r.lane, status: r.status === "cashed" ? "cashed" : "active" }));
       setSt(s);
       if (r.status === "cashed") {
@@ -227,7 +230,12 @@ function Crossroad() {
             const tc = TRAFFIC[Math.floor(rnd(n, 3) * TRAFFIC.length)];
             const up = rnd(n, 4) > 0.5;
             return (
-              <div key={n} className="cr-lane relative h-full shrink-0 overflow-hidden" style={{ width: laneW }}>
+              <div key={n} className={`cr-lane relative h-full shrink-0 overflow-hidden ${passed ? "cr-lane-safe" : ""}`} style={{ width: laneW }}>
+                {/* ulična svjetla */}
+                <span className="cr-lamp top-1" />
+                <span className="cr-lamp bottom-1" />
+                {/* bljesak kad je traka upravo prijeđena */}
+                {boost && boost.lane === n && <span key={boost.key} className="cr-sweep" />}
                 {/* promet (samo ispred tebe) */}
                 {ahead && !crashed && (
                   <span className={`cr-traffic ${up ? "cr-up" : ""}`} style={{ animationDuration: `${dur}s`, animationDelay: `${delay}s`, ["--tc" as string]: tc }}>
@@ -248,14 +256,22 @@ function Crossroad() {
                       isHit
                         ? "border-red-500 bg-red-500/25 text-red-200"
                         : passed
-                          ? "border-emerald-400/70 bg-emerald-500/15 text-emerald-200"
+                          ? `border-emerald-400/70 bg-emerald-500/15 text-emerald-200 ${boost && boost.lane === n ? "cr-pop" : ""}`
                           : n === view.lane + 1 && active
-                            ? "cr-next border-white/70 bg-white/10 text-white"
+                            ? "cr-next scale-110 border-amber-300 bg-amber-300/15 text-amber-100"
                             : "border-white/15 bg-black/30 text-white/60"
                     }`}
                   >
                     {fmtM(mults[i] ?? 1)}
                   </span>
+                  {boost && boost.lane === n && (
+                    <span key={`c${boost.key}`} className="pointer-events-none absolute inset-0">
+                      {Array.from({ length: 8 }, (_, k) => {
+                        const a = (k / 8) * Math.PI * 2;
+                        return <span key={k} className="cr-coin coin" style={{ ["--cx" as string]: `${Math.cos(a) * 46}px`, ["--cy" as string]: `${Math.sin(a) * 46}px` }} />;
+                      })}
+                    </span>
+                  )}
                 </div>
               </div>
             );
@@ -267,7 +283,13 @@ function Crossroad() {
 
           {/* tvoj auto */}
           <div className={`absolute top-1/2 z-20 transition-[left] duration-300 ease-out ${crashed ? "cr-hit" : ""}`} style={{ left: carX - 29, marginTop: 40 }}>
+            {!crashed && view.status !== "idle" && <span className="cr-headlights" />}
             <TopCar color={crashed ? "#64748b" : "#ffffff"} me />
+            {boost && !crashed && (
+              <span key={`t${boost.key}`} className="cr-float pointer-events-none absolute -top-9 left-1/2 whitespace-nowrap font-display text-lg font-black tabular-nums text-emerald-300">
+                {boost.text}
+              </span>
+            )}
           </div>
         </div>
 
@@ -282,6 +304,18 @@ function Crossroad() {
             </span>
           )}
         </div>
+        {active && view.lane > 0 && (
+          <div key={`m${view.lane}`} className="cr-pop pointer-events-none absolute right-3 top-3 z-30 rounded-xl bg-black/60 px-3 py-1.5 text-right font-display tabular-nums backdrop-blur">
+            <div className="text-2xl font-black leading-none text-emerald-300">{fmtM(curMult)}</div>
+            <div className="text-xs font-bold text-white/80">+{coins(view.bet * curMult)}</div>
+          </div>
+        )}
+        {/* napredak */}
+        {view.status !== "idle" && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 h-1.5 bg-black/40">
+            <div className={`h-full transition-[width] duration-300 ${crashed ? "bg-red-500" : "bg-[linear-gradient(90deg,#34d399,#facc15)]"}`} style={{ width: `${(Math.min(view.lane, lanes) / lanes) * 100}%` }} />
+          </div>
+        )}
         {(crashed || won) && (
           <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center">
             <div className={`pop rounded-2xl px-6 py-3 text-center backdrop-blur ${crashed ? "bg-red-950/70 ring-1 ring-red-500/50" : "bg-emerald-950/70 ring-1 ring-emerald-400/50"}`}>
@@ -320,7 +354,7 @@ function Crossroad() {
         </div>
         {active ? (
           <div className="grid grid-cols-2 gap-2">
-            <button className="btn-ghost h-14 flex-col gap-0 text-base" disabled={busy || view.lane < 1} onClick={cashout}>
+            <button className={`btn-ghost h-14 flex-col gap-0 text-base ${view.lane >= 1 ? "cr-cash border-emerald-400/60" : ""}`} disabled={busy || view.lane < 1} onClick={cashout}>
               <span className="text-xs font-semibold uppercase tracking-wide text-muted">Cashout</span>
               <span className="font-display font-black tabular-nums text-emerald-300">{view.lane < 1 ? "—" : `+${coins(view.bet * curMult)}`}</span>
             </button>

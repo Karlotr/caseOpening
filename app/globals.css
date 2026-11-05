@@ -350,3 +350,26 @@ body {
 .pl-spark { animation: plSpark .8s ease-out forwards; }
 @keyframes plSpark { from { transform: translate(0, 0); opacity: 1; } to { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pl-pop, .pl-spark { animation-duration: .01s; } }
+
+/* Rulet */
+.rl-win { animation: rlWin .7s cubic-bezier(.2,1.5,.4,1) both; z-index: 5; }
+@keyframes rlWin { 0% { transform: scale(1); } 45% { transform: scale(1.12); } 100% { transform: scale(1.06); } }
+.rl-star { display: inline-block; animation: rlStar 2.4s ease-in-out infinite; text-shadow: 0 0 14px #fff8; }
+@keyframes rlStar { 0%,100% { transform: rotate(-8deg) scale(1); } 50% { transform: rotate(8deg) scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .rl-star { animation: none; } }
+
+/* Crossroad: efekti */
+.cr-lane-safe { background: linear-gradient(180deg, #12261f, #0f1d1a); }
+.cr-lamp { position: absolute; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 999px; background: #ffe7a3; box-shadow: 0 0 10px 3px #ffb54788, 0 0 40px 10px #ffb5471f; opacity: .7; }
+.cr-sweep { position: absolute; inset: 0; z-index: 2; background: linear-gradient(180deg, transparent, #34d39966, transparent); animation: crSweep .55s ease-out forwards; pointer-events: none; }
+@keyframes crSweep { from { transform: translateY(-100%); opacity: 1; } to { transform: translateY(100%); opacity: 0; } }
+.cr-pop { animation: crPop .45s cubic-bezier(.2,1.6,.4,1); }
+@keyframes crPop { 0% { transform: scale(.7); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
+.cr-coin { position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px; animation: crCoin .7s cubic-bezier(.15,.7,.3,1) forwards; }
+@keyframes crCoin { 0% { transform: translate(0, 0) scale(.5); opacity: 1; } 100% { transform: translate(var(--cx), var(--cy)) scale(1); opacity: 0; } }
+.cr-float { transform: translateX(-50%); animation: crFloat .9s ease-out forwards; text-shadow: 0 0 12px #34d399aa, 0 2px 0 #000; }
+@keyframes crFloat { 0% { opacity: 0; transform: translate(-50%, 8px) scale(.6); } 20% { opacity: 1; transform: translate(-50%, 0) scale(1.15); } 100% { opacity: 0; transform: translate(-50%, -22px) scale(1); } }
+.cr-headlights { position: absolute; left: 40px; top: 50%; width: 70px; height: 34px; margin-top: -17px; pointer-events: none; background: radial-gradient(60% 50% at 0% 50%, #fff7c288, transparent 70%); }
+.cr-cash { animation: crCash 1.2s ease-in-out infinite; }
+@keyframes crCash { 0%,100% { box-shadow: 0 0 0 0 #34d39900; } 50% { box-shadow: 0 0 26px 2px #34d39966; } }
+@media (prefers-reduced-motion: reduce) { .cr-sweep, .cr-coin, .cr-float, .cr-cash, .cr-pop { animation: none; } .cr-coin, .cr-sweep { display: none; } }

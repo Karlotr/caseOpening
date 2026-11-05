@@ -203,6 +203,9 @@ function TesterPanel() {
 
 /* ---------------- PREGLED ---------------- */
 
+const RTP_TARGET = 96; // očekivani povrat igračima (4% house edge)
+const RTP_RANGE = 20; // koliko % odstupanja = puna traka
+
 function StatsTab({ tick }: { tick: number }) {
   const [s, setS] = useState<Stats | null>(null);
   useEffect(() => {
@@ -210,7 +213,6 @@ function StatsTab({ tick }: { tick: number }) {
   }, [tick]);
   if (!s) return <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="card h-28 animate-pulse" />)}</div>;
   const house = Number(s.wagered_24h) - Number(s.payout_24h);
-  const maxW = Math.max(1, ...s.by_game.map((g) => Number(g.wager)));
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
@@ -221,25 +223,61 @@ function StatsTab({ tick }: { tick: number }) {
       </div>
       <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="card p-4">
-          <h2 className="mb-3 font-display text-lg font-bold">Igre u zadnja 24 h</h2>
-          {s.by_game.length === 0 && <p className="text-sm text-muted">Još nema igara danas.</p>}
-          <div className="space-y-2.5">
-            {s.by_game.map((g) => {
-              const rtp = Number(g.wager) > 0 ? (Number(g.payout) / Number(g.wager)) * 100 : null;
-              return (
-                <div key={g.game} className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-2 text-sm sm:grid-cols-[6.5rem_minmax(0,1fr)_auto] sm:gap-3">
-                  <span className="truncate font-semibold capitalize">{g.game}</span>
-                  <div>
-                    <div className="h-2 overflow-hidden rounded-full bg-white/[.06]">
-                      <div className="h-full rounded-full bg-[linear-gradient(90deg,#ff2b4e,#ffb547)]" style={{ width: `${(Number(g.wager) / maxW) * 100}%` }} />
-                    </div>
-                    <div className="mt-1 text-xs text-muted tabular-nums">{g.rounds} rundi · uloženo {coins(g.wager)} · isplaćeno {coins(g.payout)}</div>
-                  </div>
-                  <span className={`w-14 text-right font-display font-bold tabular-nums sm:w-16 ${rtp === null ? "text-muted" : rtp > 100 ? "text-red-300" : "text-emerald-300"}`} title="Povrat igračima">{rtp === null ? "—" : `${rtp.toFixed(1)}%`}</span>
-                </div>
-              );
-            })}
+          <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display text-lg font-bold">Igre u zadnja 24 h</h2>
+            <span className="text-xs text-muted">sredina = očekivani povrat {RTP_TARGET}% · lijevo kuća zarađuje više · desno igrači dobivaju više</span>
           </div>
+          {s.by_game.length === 0 && <p className="text-sm text-muted">Još nema igara danas.</p>}
+          {s.by_game.length > 0 && (
+            <div className="mb-2 grid grid-cols-[5.5rem_minmax(0,1fr)_6.5rem] gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted sm:grid-cols-[7rem_minmax(0,1fr)_7.5rem]">
+              <span />
+              <span className="flex justify-between"><span className="text-emerald-300">◀ kuća u plusu</span><span className="text-red-300">igrači u plusu ▶</span></span>
+              <span className="text-right">kuća</span>
+            </div>
+          )}
+          <div className="space-y-2">
+            {[...s.by_game]
+              .sort((x, y) => Number(y.wager) - Number(x.wager))
+              .map((g) => {
+                const w = Number(g.wager);
+                const pay = Number(g.payout);
+                const rtp = w > 0 ? (pay / w) * 100 : null;
+                const dev = rtp === null ? 0 : rtp - RTP_TARGET; // + = igrači iznad očekivanog
+                const half = Math.min(50, (Math.abs(dev) / RTP_RANGE) * 50); // % širine od sredine
+                const house = w - pay;
+                const bad = dev > 0;
+                return (
+                  <div key={g.game} className="grid grid-cols-[5.5rem_minmax(0,1fr)_6.5rem] items-center gap-2 text-sm sm:grid-cols-[7rem_minmax(0,1fr)_7.5rem]">
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold capitalize">{g.game}</span>
+                      <span className="block text-[11px] text-muted tabular-nums">{g.rounds} rundi</span>
+                    </span>
+                    <div title={`uloženo ${coins(w)} · isplaćeno ${coins(pay)}`}>
+                      <div className="relative h-5 overflow-hidden rounded-md bg-white/[.04]">
+                        {/* ±10% vodilice */}
+                        <span className="absolute inset-y-0 left-1/4 w-px bg-white/[.06]" />
+                        <span className="absolute inset-y-0 left-3/4 w-px bg-white/[.06]" />
+                        {rtp !== null && (
+                          <span
+                            className={`absolute inset-y-0.5 rounded ${bad ? "bg-[linear-gradient(90deg,#f8717188,#ef4444)]" : "bg-[linear-gradient(270deg,#34d39988,#10b981)]"}`}
+                            style={bad ? { left: "50%", width: `${half}%` } : { right: "50%", width: `${half}%` }}
+                          />
+                        )}
+                        <span className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-white/70" />
+                        <span className={`absolute inset-y-0 grid place-items-center px-1.5 text-[11px] font-bold tabular-nums ${bad ? "left-1/2" : "right-1/2"}`}>
+                          {rtp === null ? "—" : `${rtp.toFixed(1)}%`}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`text-right font-display font-bold tabular-nums ${house >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                      {house >= 0 ? "+" : ""}
+                      {coins(house)}
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
+          {s.by_game.length > 0 && <p className="mt-3 text-[11px] text-muted">Pune trake = odstupanje od {RTP_RANGE}% ili više. Kod malo rundi odstupanja su normalna (sreća); trajno crvena igra je loše podešena.</p>}
         </div>
         <div className="space-y-4">
           <RainTrigger />

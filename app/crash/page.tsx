@@ -28,6 +28,8 @@ type State = {
   history: number[];
 };
 
+const DISPLAY_LAG = 0.35; // s — prikaz kasni za serverom da ne "pretekne" crash
+const CATCH_UP_MS = 160; // dovršetak krivulje do crash točke
 const W = 800;
 const H = 380;
 const PAD = { l: 52, r: 28, t: 28, b: 34 };
@@ -48,6 +50,8 @@ export default function CrashPage() {
   const [queued, setQueued] = useState(false); // ulog za sljedeću rundu
   const [boom, setBoom] = useState(0);
   const lastPhase = useRef<{ id: number; phase: Phase } | null>(null);
+  // kad stigne vijest o crashu: gdje je prikaz tada bio (za glatki dovršetak krivulje)
+  const [crashSeen, setCrashSeen] = useState<{ id: number; at: number; from: number } | null>(null);
   const stRef = useRef<State | null>(null);
 
   const load = useCallback(async () => {
@@ -57,7 +61,15 @@ export default function CrashPage() {
     s.bets = s.bets.map((b) => ({ ...b, amount: Number(b.amount), payout: Number(b.payout), cashout: b.cashout == null ? null : Number(b.cashout) }));
     s.history = s.history.map(Number);
     s.crash_point = s.crash_point == null ? null : Number(s.crash_point);
-    setSkew(new Date(s.now).getTime() - Date.now());
+    const sk = new Date(s.now).getTime() - Date.now();
+    const prev = stRef.current;
+    if (s.phase === "crashed" && s.crash_point && (!prev || prev.id !== s.id || prev.phase !== "crashed")) {
+      // gdje je prikaz bio kad je stigla vijest o crashu (prikaz kasni DISPLAY_LAG za serverom)
+      const shownT = (Date.now() + sk - new Date(s.starts_at).getTime()) / 1000 - DISPLAY_LAG;
+      const tc = Math.log(s.crash_point) / (Number(s.k) || 0.32);
+      setCrashSeen(prev && prev.id === s.id ? { id: s.id, at: Date.now(), from: Math.max(0, Math.min(shownT, tc)) } : null);
+    }
+    setSkew(sk);
     setSt(s);
     stRef.current = s;
   }, []);
@@ -70,7 +82,7 @@ export default function CrashPage() {
       await load();
       if (!alive) return;
       const ph = stRef.current?.phase;
-      t = setTimeout(loop, ph === "flying" ? 350 : 900);
+      t = setTimeout(loop, ph === "flying" ? 220 : 900);
     };
     loop();
     return () => {
@@ -172,11 +184,16 @@ export default function CrashPage() {
   const k = Number(st.k) || 0.32;
   const serverNow = clock + skew;
   const startMs = new Date(st.starts_at).getTime();
-  const crashed = st.phase === "crashed";
-  const tRaw = (serverNow - startMs) / 1000;
-  const tCrash = crashed && st.crash_point ? Math.log(st.crash_point) / k : null;
-  const flying = !crashed && tRaw >= 0;
-  const t = Math.max(0, tCrash ?? tRaw);
+  // Prikaz namjerno kasni DISPLAY_LAG iza servera: vijest o crashu stigne prije nego što prikaz prođe crash točku,
+  // pa se nikad ne vidi npr. 1,15× kad je crash bio na 1,00×. Kad crash stigne, krivulja se glatko dovrši do točke.
+  const serverCrashed = st.phase === "crashed";
+  const tRaw = (serverNow - startMs) / 1000 - DISPLAY_LAG;
+  const tCrash = serverCrashed && st.crash_point ? Math.log(st.crash_point) / k : null;
+  const seen = serverCrashed && crashSeen?.id === st.id ? crashSeen : null;
+  const catchUp = seen ? Math.min(1, (clock - seen.at) / CATCH_UP_MS) : 1;
+  const crashed = serverCrashed && catchUp >= 1;
+  const flying = !crashed && (serverCrashed || tRaw >= 0);
+  const t = serverCrashed && tCrash != null ? (seen ? seen.from + (tCrash - seen.from) * (1 - (1 - catchUp) ** 2) : tCrash) : Math.max(0, tRaw);
   const mult = crashed ? st.crash_point ?? 1 : flying ? Math.exp(k * t) : 1;
   const betLeft = Math.max(0, startMs - serverNow);
   const betSec = Number(st.bet_sec) || 8;
