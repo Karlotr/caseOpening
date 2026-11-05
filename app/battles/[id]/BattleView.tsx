@@ -9,7 +9,7 @@ import { TEAM_COLORS, jackpotWeight, loadBattle, modeDesc, modeLabel, type Battl
 import type { CaseWithItems, Item } from "@/lib/types";
 import { coins } from "@/lib/format";
 import { useRpc } from "@/lib/useGame";
-import { rarityRank, sfx } from "@/lib/sound";
+import { sfx } from "@/lib/sound";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { CaseArt } from "@/components/CaseCard";
@@ -18,6 +18,7 @@ import { Reel } from "@/components/Reel";
 import { NameReel, type Entry } from "@/components/NameReel";
 import { CountUp } from "@/components/CountUp";
 import { useChat } from "@/components/Chat";
+import { goldThreshold } from "@/lib/gold";
 import { StakePicker } from "@/components/StakePicker";
 import { Price } from "@/components/Price";
 
@@ -197,7 +198,8 @@ export function BattleView() {
     setRevealed((r) => {
       const next = r + 1;
       // u brzom modu kratka pauza, osim ako je u rundi pao zlatni (rijetki) auto
-      const gold = drops.some((d) => d.round === next && rarityRank(items.get(d.item_id)?.rarity ?? "common") >= 4);
+      const gm = goldThreshold(cases.get(battle?.case_ids[next - 1] ?? -1));
+      const gold = drops.some((d) => d.round === next && (items.get(d.item_id)?.value ?? 0) >= gm);
       const pause = (battle?.fast && !gold ? FAST_PAUSE : ROUND_PAUSE) / speedRef.current;
       later(() => {
         if (next < rounds) spinRound(next);
@@ -212,7 +214,7 @@ export function BattleView() {
       return next;
     });
      
-  }, [rounds, spinRound, battle, drops, items]);
+  }, [rounds, spinRound, battle, drops, items, cases]);
 
   // traka kutija na vrhu prati trenutnu rundu
   useEffect(() => {
@@ -565,7 +567,7 @@ export function BattleView() {
                             </div>
                           ) : phase === "rounds" && strips[seat] ? (
                             <div className="relative">
-                              <Reel vertical items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} winnerIndex={WIN} spinKey={spinKey} duration={(battle.fast ? FAST_SPIN : 3600) / speed} sound={seat === 0} goldSound onDone={onReelDone} />
+                              <Reel vertical items={strips[seat]} pool={cases.get(battle.case_ids[Math.min(revealed, rounds - 1)])?.items} goldMin={goldThreshold(cases.get(battle.case_ids[Math.min(revealed, rounds - 1)]))} winnerIndex={WIN} spinKey={spinKey} duration={(battle.fast ? FAST_SPIN : 3600) / speed} sound={seat === 0} goldSound onDone={onReelDone} />
                             </div>
                           ) : phase === "rounds" ? (
                             <div className="h-[260px] rounded-2xl border border-line md:h-[336px] bg-[linear-gradient(180deg,#0c0c1c,#07070f)]" />

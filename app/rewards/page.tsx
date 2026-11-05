@@ -14,6 +14,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { CaseArt } from "@/components/CaseCard";
 import { ClaimedStamp } from "@/components/ClaimedStamp";
 import { Reel } from "@/components/Reel";
+import { goldThreshold } from "@/lib/gold";
 import { ItemCard } from "@/components/ItemCard";
 import { useCelebrate } from "@/components/WinOverlay";
 import { useChat } from "@/components/Chat";
@@ -128,7 +129,7 @@ function Rewards() {
               );
             })}
           </div>
-          {strip.length > 0 && <Reel items={strip} winnerIndex={WIN} spinKey={spinKey} duration={4500} onDone={() => { setSpinning(false); refresh(); if (dailyWon) celebrate({ title: "Dnevni drop!", subtitle: `Streak ${nextStreak} ${nextStreak === 1 ? "dan" : "dana"}`, items: [dailyWon], amount: dailyWon.value }); }} />}
+          {strip.length > 0 && <Reel items={strip} pool={currentDaily?.items} goldMin={goldThreshold(currentDaily)} winnerIndex={WIN} spinKey={spinKey} duration={4500} onDone={() => { setSpinning(false); refresh(); if (dailyWon) celebrate({ title: "Dnevni drop!", subtitle: `Streak ${nextStreak} ${nextStreak === 1 ? "dan" : "dana"}`, items: [dailyWon], amount: dailyWon.value }); }} />}
           {dailyWon && !spinning && (
             <div className="pop flex items-center gap-3">
               <div className="w-40"><ItemCard item={dailyWon} size="sm" /></div>

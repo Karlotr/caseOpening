@@ -6,7 +6,7 @@ import { RARITY, coins } from "@/lib/format";
 import { rarityRank, sfx } from "@/lib/sound";
 import { CarImage } from "./CarImage";
 
-const GOLD_RANK = 4; // legendarni i mitski auti se u traci skrivaju iza zlatnog dijamanta
+const GOLD_RANK = 4; // zamjensko pravilo (bez goldMin): legendarni i mitski su "zlatni"
 
 // Zlatni dijamant (tajna) — kao "gold" u CS kutijama: puls sjaja, odsjaj i iskrice.
 // Optimizirano: animira se samo transform/opacity (bez blur/filter animacija), a dok se traka vrti sve stoji.
@@ -45,6 +45,7 @@ export function Reel({
   goldSound,
   size = "md",
   pool,
+  goldMin,
   onDone,
 }: {
   items: Item[];
@@ -56,6 +57,7 @@ export function Reel({
   goldSound?: boolean; // zvukovi zlatne vrtnje i kad je `sound` isključen (battle: sve trake)
   size?: "md" | "lg";
   pool?: Item[]; // svi auti iz kutije (za drugu, "zlatnu" vrtnju)
+  goldMin?: number; // dinamični prag zlatnog dropa za ovu kutiju (lib/gold.ts)
   onDone?: () => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -69,6 +71,11 @@ export function Reel({
   const lg = size === "lg" && !vertical;
   const tile = vertical ? 112 : lg ? 188 : 156;
   const H = lg ? 214 : 172;
+  const isGold = (it: Item) => (goldMin !== undefined ? it.value >= goldMin : rarityRank(it.rarity) >= GOLD_RANK);
+  const goldRef = useRef(isGold);
+  useLayoutEffect(() => {
+    goldRef.current = isGold;
+  });
   const doneRef = useRef(onDone);
   const itemsRef = useRef(items);
   const poolRef = useRef(pool);
@@ -149,10 +156,14 @@ export function Reel({
     const base = itemsRef.current;
     const winner = base[winnerIndex];
     const src = poolRef.current ?? base;
-    let rare = src.filter((i) => rarityRank(i.rarity) >= GOLD_RANK);
-    // za napetost u drugoj traci: ako je malo legendarnih, dodaj i epske
-    if (rare.length > 0 && rare.length < 4) rare = src.filter((i) => rarityRank(i.rarity) >= GOLD_RANK - 1);
-    const golden = !!winner && rarityRank(winner.rarity) >= GOLD_RANK && rare.length > 0;
+    const gold = goldRef.current;
+    let rare = src.filter(gold);
+    // za napetost u drugoj traci: ako je malo zlatnih, dodaj i one malo ispod praga
+    if (rare.length > 0 && rare.length < 4) {
+      const minGold = Math.min(...rare.map((i) => i.value));
+      rare = src.filter((i) => i.value >= minGold * 0.35);
+    }
+    const golden = !!winner && gold(winner) && rare.length > 0;
 
     setStrip(base);
     setStage("spin");
@@ -202,7 +213,7 @@ export function Reel({
         {strip.map((it, i) => {
           const c = RARITY[it.rarity].color;
           const isWin = (landed || stage === "gold") && i === winnerIndex;
-          const hidden = showGoldHidden && rarityRank(it.rarity) >= GOLD_RANK;
+          const hidden = showGoldHidden && isGold(it);
           return (
             <div
               key={i}

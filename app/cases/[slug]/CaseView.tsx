@@ -8,7 +8,7 @@ import { getCases, randomFromCase } from "@/lib/data";
 import type { CaseWithItems, Item } from "@/lib/types";
 import { RARITY, coins } from "@/lib/format";
 import { useRpc } from "@/lib/useGame";
-import { rarityRank, sfx } from "@/lib/sound";
+import { sfx } from "@/lib/sound";
 import { useAuth } from "@/components/AuthProvider";
 import { fmtLeft, useNow } from "@/lib/useNow";
 import { levelWait, useLevelClaims } from "@/lib/useLevelClaims";
@@ -17,7 +17,8 @@ import { CaseArt } from "@/components/CaseCard";
 import { ItemCard } from "@/components/ItemCard";
 import { Reel } from "@/components/Reel";
 import { RevealStage } from "@/components/RevealStage";
-import { tierFor, useCelebrate } from "@/components/WinOverlay";
+import { useCelebrate } from "@/components/WinOverlay";
+import { goldThreshold, goldTier } from "@/lib/gold";
 
 const WIN = 50;
 type OpenResult = { items: Item[]; instant_drop: number | null };
@@ -123,17 +124,17 @@ export function CaseView() {
     holdWallet(null);
     const total = won.reduce((s, w) => s + w.value, 0);
     const ratio = lastCost ? total / lastCost : 1;
-    const bestRank = Math.max(...won.map((w) => rarityRank(w.rarity)));
-    // overlay preko cijelog ekrana samo za zlatne (legendarne / mitske) aute
-    if (bestRank >= 4) {
+    // overlay preko cijelog ekrana samo za ZLATNI drop: auto koji je jako velik u odnosu na ovu kutiju (lib/gold.ts)
+    const goldMin = c ? goldThreshold(c) : Infinity;
+    if (best && c && best.value >= goldMin) {
       setTimeout(
         () =>
           celebrate({
-            title: ratio >= 5 ? "Ogroman drop!" : "Legendarno!",
+            title: best.value / (c.price || 1) >= 20 ? "Ogroman drop!" : "Zlatni drop!",
             subtitle: lastCost ? `${ratio.toFixed(2)}× uloga` : c?.name,
             items: won,
             amount: total,
-            tier: tierFor(won, ratio),
+            tier: goldTier(best.value, c),
           }),
         250 + won.length * 320
       );
@@ -205,7 +206,7 @@ export function CaseView() {
         <div className="card min-w-0 space-y-4 p-4">
           <div ref={reelBox} className="relative scroll-mt-20 space-y-2 overflow-hidden rounded-lg">
             {strips.map((s, i) => (
-              <Reel key={i} size={strips.length === 1 ? "lg" : "md"} pool={c.items} items={s} winnerIndex={WIN} spinKey={spinKey} duration={fast ? 1800 : 5600} sound={i === 0} onDone={reelDone} />
+              <Reel key={i} size={strips.length === 1 ? "lg" : "md"} pool={c.items} goldMin={goldThreshold(c)} items={s} winnerIndex={WIN} spinKey={spinKey} duration={fast ? 1800 : 5600} sound={i === 0} onDone={reelDone} />
             ))}
             {/* garažna vrata */}
             <div
