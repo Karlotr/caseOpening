@@ -86,6 +86,7 @@ export function Reel({
   const [ease, setEase] = useState(SPIN_EASE);
   const [stage, setStage] = useState<Stage>("idle");
   const [strip, setStrip] = useState<Item[]>(items);
+  const [round2, setRound2] = useState(false); // druga ("zlatna") vrtnja — tamo su svi auti otkriveni
   const lg = size === "lg" && !vertical;
   const sm = size === "sm" && !vertical;
   const tile = vertical ? 112 : lg ? 188 : sm ? 116 : 156;
@@ -204,6 +205,7 @@ export function Reel({
     const golden = !!winner && gold(winner) && rare.length > 0;
 
     setStrip(base);
+    setRound2(false);
     setStage("spin");
     run(duration, () => {
       if (!golden) return finish();
@@ -216,6 +218,7 @@ export function Reel({
           const s2 = Array.from({ length: Math.max(winnerIndex + 8, 30) }, () => rare[Math.floor(Math.random() * rare.length)]);
           s2[winnerIndex] = winner;
           setStrip(s2);
+          setRound2(true);
           setStage("spin2");
           run(Math.max(2200, duration * 0.6), finish, true);
         }, 1300)
@@ -251,7 +254,8 @@ export function Reel({
         {strip.map((it, i) => {
           const c = RARITY[it.rarity].color;
           const isWin = (landed || stage === "gold") && i === winnerIndex;
-          const hidden = showGoldHidden && isGold(it);
+          // zlatni auti koji NISU osvojeni ostaju skriveni (dijamant) i nakon zaustavljanja
+          const hidden = isGold(it) && (showGoldHidden || (!round2 && i !== winnerIndex));
           return (
             <div
               key={i}

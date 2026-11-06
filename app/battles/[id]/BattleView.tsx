@@ -556,6 +556,7 @@ export function BattleView() {
                 Kreiraj isti · <Price amount={recreatePrice} gems={battle.currency === "gems"} />
               </button>
             )}
+            <Link href="/battles/create" className="btn-ghost">Kreiraj novi</Link>
             <button className="btn-ghost" onClick={() => { setReplay(true); startPlayback(0); }}>Pogledaj ponovno</button>
             {user && <button className="btn-ghost" onClick={() => shareBattle(battle.id)}>Podijeli u chat</button>}
           </div>
@@ -588,7 +589,7 @@ export function BattleView() {
                 {twoSides && ti > 0 && <div className="hidden w-10 shrink-0 place-items-center font-display text-2xl font-black text-muted md:grid">VS</div>}
                 <div className={`flex min-w-0 flex-1 flex-col gap-2 rounded-xl p-1 transition md:p-1.5 ${won ? "bg-accent/10 ring-2 ring-accent" : done ? "opacity-60" : ""}`}>
                   {battle.team_size > 1 && (
-                    <div className="flex items-center justify-between px-1 font-display text-lg font-bold">
+                    <div className="flex items-center justify-between gap-2 whitespace-nowrap px-1 font-display text-base font-bold tabular-nums md:text-lg">
                       <span style={{ color: tc }}>Tim {ti + 1}</span>
                       <span className="flex items-center gap-2">
                         {isJackpot && grand > 0 && <span className="text-sm text-emerald-300">{chanceOf(ti).toFixed(1)}%</span>}
@@ -612,14 +613,14 @@ export function BattleView() {
                                 <span className="truncate text-sm font-semibold md:text-base">{p?.name ?? "Slobodno mjesto"}{isMe && <span className="text-accent2"> (ti)</span>}</span>
                                 {p && p.stake < 1 && <span className="shrink-0 rounded bg-amber-400/20 px-1 text-xs font-bold text-amber-300" title="Posudio dio ulaza — dobiva toliki dio nagrade">{Math.round(p.stake * 100)}%</span>}
                               </div>
-                              <div className="flex items-center gap-2 font-display text-lg font-bold leading-none text-accent">
+                              <div className="flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap font-display text-base font-bold leading-tight text-accent tabular-nums md:gap-2 md:text-lg">
                                 <CountUp value={totals.get(seat) ?? 0} />
                                 {isJackpot && battle.team_size === 1 && grand > 0 && (
-                                  <span className="text-sm text-emerald-300">{chanceOf(ti).toFixed(1)}%</span>
+                                  <span className="shrink-0 text-xs text-emerald-300 md:text-sm">{chanceOf(ti).toFixed(1)}%</span>
                                 )}
                               </div>
                               {done && p && (
-                                <div className={`mt-1 text-xs font-semibold tabular-nums ${won ? "text-emerald-300" : "text-muted"}`} title="Dio nagrade iz ovog battlea">
+                                <div className={`mt-0.5 truncate whitespace-nowrap text-xs font-semibold tabular-nums ${won ? "text-emerald-300" : "text-muted"}`} title="Dio nagrade iz ovog battlea">
                                   {won ? <>+{coins(shareOf(p))}</> : coins(0)}
                                 </div>
                               )}
@@ -646,7 +647,7 @@ export function BattleView() {
                           ) : phase === "rounds" ? (
                             <div className="h-[150px] rounded-2xl border border-line bg-[linear-gradient(180deg,#0c0c1c,#07070f)] md:h-[172px]" />
                           ) : null}
-                          {stacked ? <DropStrip drops={mine} items={items} /> : <DropList drops={mine} items={items} />}
+                          {!stacked && <DropList drops={mine} items={items} />}
                         </div>
                       );
                     })}
@@ -658,6 +659,25 @@ export function BattleView() {
         </div>
       </div>
 
+
+      {/* osvojeni auti na dnu (kad je više igrača): stupac za svakog igrača, redom po mjestima */}
+      {stacked && drops.some((d) => d.round <= revealed && d.round !== shownInReel) && (
+        <div className="space-y-2">
+          <h2 className="font-display text-lg font-bold md:text-xl">Osvojeno</h2>
+          <div className="grid gap-1 md:gap-2" style={{ gridTemplateColumns: `repeat(${battle.seats}, minmax(0, 1fr))` }}>
+            {teams.flat().map((seat) => {
+              const p = players.find((x) => x.seat === seat);
+              const tc = TEAM_COLORS[(teamMode ? Math.floor(seat / battle.team_size) : seat) % TEAM_COLORS.length];
+              return (
+                <div key={seat} className="min-w-0 space-y-1">
+                  <div className="truncate border-b-2 px-0.5 pb-0.5 text-[11px] font-bold md:text-sm" style={{ color: tc, borderColor: tc }}>{p?.name ?? `Igrač ${seat + 1}`}</div>
+                  <DropColumn drops={mineOf(seat)} items={items} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -668,19 +688,19 @@ const subscribeWide = (cb: () => void) => {
   return () => m.removeEventListener("change", cb);
 };
 
-// kompaktna vodoravna traka osvojenih auta (kad je igrača više, da ne razvlači raspored)
-function DropStrip({ drops, items }: { drops: BattleDrop[]; items: Map<number, Item> }) {
-  if (!drops.length) return null;
+// stupac osvojenih auta jednog igrača (dno stranice) — male kartice jedna ispod druge
+function DropColumn({ drops, items }: { drops: BattleDrop[]; items: Map<number, Item> }) {
   return (
-    <div className="nice-scroll flex gap-1 overflow-x-auto pb-1">
+    <div className="space-y-1">
       {drops.map((d) => {
         const it = items.get(d.item_id);
         if (!it) return null;
         const c = RARITY[it.rarity].color;
         return (
-          <div key={d.round} className="drop-in relative flex w-[60px] shrink-0 flex-col items-center rounded-md border border-line bg-panel/70 px-1 pb-1 pt-1 md:w-[72px]" title={`${it.brand} ${it.model}`} style={{ boxShadow: `inset 0 -2px 0 ${c}` }}>
-            <CarImage item={it} thumb className="h-7 w-full md:h-8" />
-            <span className="mt-0.5 w-full truncate text-center font-display text-[10px] font-bold tabular-nums leading-none text-accent">{coins(it.value)}</span>
+          <div key={d.round} className="drop-in flex flex-col items-center rounded-md border border-line bg-panel/70 px-0.5 pb-1 pt-1 md:px-1.5" title={`${it.brand} ${it.model}`} style={{ boxShadow: `inset 0 -2px 0 ${c}` }}>
+            <CarImage item={it} thumb className="h-7 w-full md:h-10" />
+            <span className="hidden w-full truncate text-center text-[11px] text-muted md:block">{it.brand} {it.model}</span>
+            <span className="mt-0.5 w-full truncate text-center font-display text-[10px] font-bold tabular-nums leading-none text-accent md:text-xs">{coins(it.value)}</span>
           </div>
         );
       })}
